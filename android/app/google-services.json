@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "920769404414",
+    "firebase_url": "https://ecoreward-bin-default-rtdb.firebaseio.com",
+    "project_id": "ecoreward-bin",
+    "storage_bucket": "ecoreward-bin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:920769404414:android:df782e82f51eb9e81534af",
+        "android_client_info": {
+          "package_name": "com.example.ecoreward_bin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4xgnXwlOaLqUHs0IYT_1v7UDeVyf4Oyw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
