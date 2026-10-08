@@ -45,19 +45,32 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     final newUsername = _userCtrl.text.trim();
-    widget.user.username = newUsername;
-    await FirebaseService.updateUser(widget.user);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('username', newUsername);
-    widget.onUpdated();
-    if (mounted) {
-      setState(() { _editing = false; _saving = false; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Profile updated!'),
-        backgroundColor: kGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+    try {
+      await FirebaseService.updateUsername(widget.user.uid, newUsername);
+      widget.user.username = newUsername; // only after the write succeeded
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', newUsername);
+      widget.onUpdated();
+      if (mounted) {
+        setState(() => _editing = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Profile updated!'),
+          backgroundColor: kGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Could not update your profile. Check your connection and try again.'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 

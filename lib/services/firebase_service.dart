@@ -94,8 +94,11 @@ class FirebaseService {
     return doc.exists ? UserModel.fromDoc(doc) : null;
   }
 
-  static Future<void> updateUser(UserModel user) async {
-    await _db.collection('users').doc(user.uid).update(user.toMap());
+  /// Changes ONLY the display name. Never write the whole user document back from a
+  /// client-side snapshot: that overwrites points/streak/badges earned since it was loaded
+  /// and re-sends `role` (audit H-01).
+  static Future<void> updateUsername(String uid, String username) async {
+    await _db.collection('users').doc(uid).update({'username': username});
   }
 
   // ── Waste Logs ──────────────────────────────────────────────────────────────
