@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../core/tap.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/firebase_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/models.dart';
 import '../../widgets/eco_animations.dart';
+import '../../widgets/ui.dart';
+import '../../core/theme.dart' show wasteIcon;
 
-const _kGreen = Color(0xFF2ECC71);
-const _kDarkGreen = Color(0xFF1A8A4A);
+/// Scanner accents sit on the camera image, so they use the bright brand mint in both themes.
+const _kScanAccent = AppPalette.mint;
 
 /// Shared points mapping — single source of truth in this file.
 const _kPointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
@@ -41,7 +42,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
     super.initState();
     _scanLineCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: AppMotion.ambient,
     )..repeat(reverse: true);
     _scanLineAnim = _scanLineCtrl;
     // FIX 7: Detect camera permission denial on start
@@ -145,38 +146,39 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
     setState(() => _processing = false);
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.error_rounded, color: Colors.red, size: 36),
-          ),
-          const SizedBox(height: 14),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17), textAlign: TextAlign.center),
-          const SizedBox(height: 6),
-          Text(message, style: const TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center),
-        ]),
-        actions: [
-          SizedBox(width: double.infinity,
-            child: ElevatedButton(
+      builder: (ctx) {
+        final c = ctx.colors;
+        return AlertDialog(
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(color: c.dangerContainer, shape: BoxShape.circle),
+              child: Icon(Icons.error_rounded, color: c.danger, size: 36),
+            ),
+            const SizedBox(height: AppSpace.md - 2),
+            Text(title, style: ctx.text.titleLarge, textAlign: TextAlign.center),
+            const SizedBox(height: AppSpace.xs - 2),
+            Text(message, style: ctx.text.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
+          ]),
+          actions: [
+            AppButton(
+              label: 'Try Again',
+              kind: AppButtonKind.danger,
+              height: 48,
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(ctx);
                 await _controller.start();
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
-              child: const Text('Try Again', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = context.text;
     // FIX 7: Permission denied UI
     if (_permissionDenied) {
       return Scaffold(
@@ -189,35 +191,33 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(AppSpace.xxl),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(
                 width: 80, height: 80,
                 decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), shape: BoxShape.circle),
-                child: const Icon(Icons.lock_rounded, color: Colors.white54, size: 40),
+                child: const Icon(Icons.lock_rounded, color: Colors.white70, size: 40),
               ),
-              const SizedBox(height: 20),
-              const Text('Camera Permission Required',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              const SizedBox(height: AppSpace.lg),
+              Text('Camera Permission Required',
+                  style: t.titleLarge!.copyWith(color: Colors.white),
                   textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              const Text('Please allow camera access to scan QR codes',
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
+              const SizedBox(height: AppSpace.xs),
+              Text('Please allow camera access to scan QR codes',
+                  style: t.bodyMedium!.copyWith(color: Colors.white70),
                   textAlign: TextAlign.center),
-              const SizedBox(height: 28),
-              ElevatedButton.icon(
+              const SizedBox(height: AppSpace.xl + 4),
+              FilledButton.icon(
                 onPressed: () async {
                   setState(() => _permissionDenied = false);
                   await _controller.start();
                 },
                 icon: const Icon(Icons.camera_alt_rounded),
                 label: const Text('Retry Camera Access'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kScanAccent,
+                  foregroundColor: AppPalette.forestDeep,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.md - 2),
                 ),
               ),
             ]),
@@ -247,36 +247,35 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpace.md),
               child: Row(
                 children: [
-                  Tap(label: 'Back', tooltip: true, 
+                  Tap(label: 'Back', tooltip: true,
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: AppRadius.all(AppRadius.md)),
                       child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('Scan QR Code', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                  const Spacer(),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(child: Text('Scan QR Code', style: t.titleLarge!.copyWith(color: Colors.white))),
                   // FIX 4: Torch toggle with visual on/off state
-                  Tap(label: _torchOn ? 'Turn flashlight off' : 'Turn flashlight on', tooltip: true, selected: _torchOn, 
+                  Tap(label: _torchOn ? 'Turn flashlight off' : 'Turn flashlight on', tooltip: true, selected: _torchOn,
                     onTap: () {
                       _controller.toggleTorch();
                       setState(() => _torchOn = !_torchOn);
                     },
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(10),
+                      duration: AppMotion.of(context, AppMotion.medium),
+                      width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: _torchOn ? Colors.amber : Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
+                        color: _torchOn ? AppPalette.coin[1] : Colors.black54,
+                        borderRadius: AppRadius.all(AppRadius.md),
                       ),
                       child: Icon(
                         _torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                        color: Colors.white,
+                        color: _torchOn ? Colors.black : Colors.white,
                         size: 20,
                       ),
                     ),
@@ -288,16 +287,16 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              margin: const EdgeInsets.fromLTRB(24, 0, 24, 60),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(20)),
+              margin: const EdgeInsets.fromLTRB(AppSpace.xl, 0, AppSpace.xl, AppSpace.xxl * 2),
+              padding: const EdgeInsets.all(AppSpace.lg),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: AppRadius.all(AppRadius.xl)),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.recycling_rounded, color: _kGreen, size: 28),
-                const SizedBox(height: 8),
-                const Text('Point camera at the ECOReward Bin QR code',
-                    style: TextStyle(color: Colors.white, fontSize: 13), textAlign: TextAlign.center),
+                const Icon(Icons.recycling_rounded, color: _kScanAccent, size: 28),
+                const SizedBox(height: AppSpace.xs),
+                Text('Point camera at the ECOReward Bin QR code',
+                    style: t.bodyMedium!.copyWith(color: Colors.white), textAlign: TextAlign.center),
                 if (_processing) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpace.sm - 2),
                   const EcoLoader(size: 56, semanticLabel: 'Processing QR code'),
                 ],
               ]),
@@ -335,143 +334,113 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeIn);
+    _animCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _animCtrl.forward();
   }
 
   @override
   void dispose() { _animCtrl.dispose(); super.dispose(); }
 
-  Color get _wasteColor {
-    switch (widget.wasteType) {
-      case 'Biodegradable': return const Color(0xFF8BC34A);
-      case 'Recyclable': return const Color(0xFF29B6F6);
-      default: return const Color(0xFFEF5350);
-    }
-  }
-
-  IconData get _wasteIcon {
-    switch (widget.wasteType) {
-      case 'Biodegradable': return Icons.compost_rounded;
-      case 'Recyclable': return Icons.recycling_rounded;
-      default: return Icons.delete_outline_rounded;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
+    final fill = c.wasteFill(widget.wasteType);
     return Scaffold(
-      backgroundColor: const Color(0xFFF0FFF4),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.lg),
           child: FadeTransition(
             opacity: _fadeAnim,
             child: Column(
               children: [
                 // Brand success animation (plays once)
                 const EcoSuccess(size: 140),
-                const SizedBox(height: 8),
-                const Text('Waste Verified!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
-                const SizedBox(height: 4),
-                Text('Thank you for recycling responsibly 🌿', style: TextStyle(color: Colors.green.shade700, fontSize: 13)),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpace.xs),
+                Text('Waste Verified!', style: t.headlineMedium!.copyWith(color: c.primary)),
+                const SizedBox(height: AppSpace.xxs),
+                Text('Thank you for recycling responsibly 🌿', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+                const SizedBox(height: AppSpace.xl),
 
                 // ── New badges notification ──
                 if (widget.newBadges.isNotEmpty) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFF8E1), Color(0xFFFFF3CD)],
-                        begin: Alignment.topLeft, end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
+                    padding: const EdgeInsets.all(AppSpace.md),
+                    decoration: cardDecoration(context, color: c.isDark ? c.surface : const Color(0xFFFFF8E1),
+                        borderColor: c.gold.withValues(alpha: 0.5)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(children: [
-                          Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
-                          SizedBox(width: 8),
-                          Text('Badge Unlocked!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF7B5800))),
+                        Row(children: [
+                          Icon(Icons.emoji_events_rounded, color: c.gold, size: 20),
+                          const SizedBox(width: AppSpace.xs),
+                          Text('Badge Unlocked!', style: t.titleSmall!.copyWith(color: c.gold, fontWeight: FontWeight.w700)),
                         ]),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AppSpace.sm - 2),
                         ...widget.newBadges.map((id) {
                           final info = FirebaseService.getBadgeInfo(id);
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.only(bottom: AppSpace.xs - 2),
                             child: Row(children: [
                               Text(info['icon'] as String, style: const TextStyle(fontSize: 22)),
-                              const SizedBox(width: 10),
-                              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(info['label'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF5D4037))),
-                                Text(info['desc'] as String, style: const TextStyle(color: Colors.brown, fontSize: 11)),
-                              ]),
+                              const SizedBox(width: AppSpace.sm - 2),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(info['label'] as String, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                                Text(info['desc'] as String, style: t.bodySmall),
+                              ])),
                             ]),
                           );
                         }),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpace.md),
                 ],
 
-                // Points card
+                // Points card (white text on a deep waste-type fill: at least 5.6:1)
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(AppSpace.lg),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [_wasteColor.withValues(alpha: 0.9), _wasteColor],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [BoxShadow(color: _wasteColor.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 6))],
+                    color: fill,
+                    borderRadius: AppRadius.all(AppRadius.xl + 4),
+                    boxShadow: AppShadows.of(context,
+                        [BoxShadow(color: fill.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))]),
                   ),
                   child: Row(children: [
                     Container(
                       width: 56, height: 56,
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(16)),
-                      child: Icon(_wasteIcon, color: Colors.white, size: 28),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: AppRadius.all(AppRadius.lg)),
+                      child: Icon(wasteIcon(widget.wasteType), color: Colors.white, size: 28),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppSpace.md),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('Category: ${widget.wasteType}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                          style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500)),
                       const SizedBox(height: 2),
                       Text('+${widget.points} Points Earned',
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                          style: t.titleLarge!.copyWith(color: Colors.white, fontSize: 20)),
                       if (widget.multiplier > 1.0)
                         Text('Includes ${widget.multiplier == 2.0 ? '2' : '1.5'}× streak bonus 🔥',
-                            style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                            style: t.labelSmall!.copyWith(color: Colors.white.withValues(alpha: 0.9))),
                     ])),
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(AppSpace.sm - 2),
                       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                      child: const Icon(Icons.stars_rounded, color: Colors.amber, size: 24),
+                      child: Icon(Icons.stars_rounded, color: AppPalette.coin[1], size: 24),
                     ),
                   ]),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpace.lg),
 
                 // Done button
-                SizedBox(
-                  width: double.infinity, height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kDarkGreen,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Awesome! Back to Home',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
+                AppButton(
+                  label: 'Awesome! Back to Home',
+                  height: 56,
+                  onPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpace.lg),
               ],
             ),
           ),
@@ -501,7 +470,7 @@ class _ScanOverlayPainter extends CustomPainter {
       ),
       paint,
     );
-    final cp = Paint()..color = _kGreen..strokeWidth = 3.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+    final cp = Paint()..color = _kScanAccent..strokeWidth = 3.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
     const c = 28.0;
     canvas.drawLine(Offset(left, top + c), Offset(left, top), cp);
     canvas.drawLine(Offset(left, top), Offset(left + c, top), cp);
@@ -515,7 +484,7 @@ class _ScanOverlayPainter extends CustomPainter {
     // Animated scan line moves from top to bottom of scan zone
     final lineY = top + scanSize * scanProgress;
     final linePaint = Paint()
-      ..shader = LinearGradient(colors: [Colors.transparent, _kGreen.withValues(alpha: 0.8), Colors.transparent])
+      ..shader = LinearGradient(colors: [Colors.transparent, _kScanAccent.withValues(alpha: 0.8), Colors.transparent])
           .createShader(Rect.fromLTWH(left, lineY, scanSize, 2));
     canvas.drawLine(Offset(left, lineY), Offset(left + scanSize, lineY), linePaint..strokeWidth = 2);
   }
