@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'tokens.dart';
 import 'admin_theme.dart';
+import '../widgets/ui/motion.dart';
 
 /// Material themes built from the design tokens. The customer app follows the system
 /// light/dark setting; admin screens wrap themselves in [adminTheme].
@@ -88,9 +89,15 @@ class AppTheme {
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl))),
       ),
+      pageTransitionsTheme: _transitions,
       tabBarTheme: TabBarThemeData(labelStyle: text.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
     );
   }
+
+  static const _transitions = PageTransitionsTheme(builders: {
+    TargetPlatform.android: AppPageTransitionsBuilder(),
+    TargetPlatform.iOS: AppPageTransitionsBuilder(),
+  });
 
   static OutlineInputBorder _input(Color color, [double width = 1]) => OutlineInputBorder(
         borderRadius: AppRadius.all(AppRadius.md + 2),
@@ -136,6 +143,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.all(AppRadius.md)),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: AdminColors.accent),
+      pageTransitionsTheme: _transitions,
     );
   }
 }

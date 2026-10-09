@@ -102,7 +102,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   message: 'Check the connection, then try again. If it keeps failing, sign out and back in.',
                   onRetry: _loadData,
                 )
-              : screens[_selectedIndex],
+              : FadeThroughSwitcher(child: KeyedSubtree(key: ValueKey(_selectedIndex), child: screens[_selectedIndex])),
       bottomNavigationBar: _AdminFloatingNav(
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),

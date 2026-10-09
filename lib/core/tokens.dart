@@ -54,7 +54,8 @@ class AppMotion {
   static const medium = Duration(milliseconds: 250);   // most transitions
   static const slow = Duration(milliseconds: 400);     // entrances, page-level changes
 
-  static const countUp = Duration(milliseconds: 900);  // numbers counting up
+  static const countUp = Duration(milliseconds: 400);  // numbers counting up / bars filling
+  static const celebration = Duration(milliseconds: 1600); // confetti; the only motion allowed over 400 ms
   static const stagger = Duration(milliseconds: 50);   // delay between list items
   static const ambient = Duration(milliseconds: 1500); // looping hints (scan line, pulse)
 
@@ -64,6 +65,12 @@ class AppMotion {
 
   /// True when the user turned on "Remove animations" (Android) / "Reduce motion" (iOS).
   static bool reduced(BuildContext context) => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+  static final Set<String> _played = {};
+
+  /// True the first time [key] is asked for in this app session, so entrance
+  /// animations play on first load only, not every time a tab is revisited.
+  static bool firstTime(String key) => _played.add(key);
 
   /// [d], or zero when the user asked for reduced motion.
   static Duration of(BuildContext context, Duration d) => reduced(context) ? Duration.zero : d;
