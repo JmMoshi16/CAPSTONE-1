@@ -13,6 +13,7 @@ class BadgesScreen extends StatefulWidget {
 }
 
 class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderStateMixin {
+  final _entrance = EntranceGate('badges');
   late AnimationController _headerCtrl;
   late Animation<double> _headerFade;
   late Animation<Offset> _headerSlide;
@@ -118,7 +119,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                     child: ShineSweep(
                       delay: Duration(milliseconds: 600 + 450 * i),
                       every: const Duration(seconds: 6),
-                      child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i),
+                      child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i, animate: _entrance.play),
                     ),
                   ),
                   childCount: earnedDefs.length,
@@ -146,7 +147,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                   (_, i) => Tap(
                     label: '${lockedDefs[i]['label']}, locked, how to unlock',
                     onTap: () => showBadgeSheet(context, def: lockedDefs[i], user: widget.user),
-                    child: _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length,
+                    child: _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length, animate: _entrance.play,
                         progress: _progress(lockedDefs[i])),
                   ),
                   childCount: lockedDefs.length,
@@ -188,7 +189,9 @@ class _AnimatedBadgeCard extends StatefulWidget {
   final double? progress;
   final bool earned;
   final int index;
-  const _AnimatedBadgeCard({required this.def, required this.earned, required this.index, this.progress});
+  final bool animate;
+  const _AnimatedBadgeCard({required this.def, required this.earned, required this.index, required this.animate,
+      this.progress});
   @override
   State<_AnimatedBadgeCard> createState() => _AnimatedBadgeCardState();
 }
@@ -204,6 +207,10 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
     _ctrl  = AnimationController(vsync: this, duration: AppMotion.slow);
     _scale = Tween<double>(begin: 0.85, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.spring));
     _fade  = CurvedAnimation(parent: _ctrl, curve: AppMotion.standard);
+    if (!widget.animate) {
+      _ctrl.value = 1;
+      return;
+    }
     final delay = AppMotion.stagger * widget.index;
     Future.delayed(AppMotion.fast + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _ctrl.forward(); });
   }

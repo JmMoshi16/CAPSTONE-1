@@ -24,6 +24,7 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
+  final _entrance = EntranceGate('admin-users');
   String _search = '';
   String _sortBy = 'points'; // 'points' | 'disposals' | 'name'
 
@@ -283,6 +284,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       (_, i) {
                         // Top 3 get rank medals
                         final rank = _sortBy == 'points' || _sortBy == 'disposals' ? i : -1;
+                        if (!_entrance.play) return _userCard(filtered[i], rank);
                         return TweenAnimationBuilder<double>(
                           key: ValueKey('$_search|$_sortBy|${filtered[i].uid}'),
                           tween: Tween(begin: 0, end: 1),

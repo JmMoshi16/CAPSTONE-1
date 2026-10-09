@@ -15,6 +15,7 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProviderStateMixin {
+  final _entrance = EntranceGate('leaderboard');
   List<UserModel> _users = [];
   bool _loading = true;
   bool _error = false;
@@ -191,7 +192,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                       final user = _users[i + listOffset];
                       final isMe = user.uid == widget.currentUid;
                       final delay = AppMotion.stagger * i;
-                      return _AnimatedLeaderRow(rank: rank, user: user, isMe: isMe,
+                      return _AnimatedLeaderRow(rank: rank, user: user, isMe: isMe, animate: _entrance.play,
                           delay: delay > AppMotion.slow ? AppMotion.slow : delay);
                     },
                     childCount: (_users.length - listOffset).clamp(0, _users.length),
@@ -330,7 +331,9 @@ class _AnimatedLeaderRow extends StatefulWidget {
   final Duration delay;
   final UserModel user;
   final bool isMe;
-  const _AnimatedLeaderRow({required this.rank, required this.user, required this.isMe, required this.delay});
+  final bool animate;
+  const _AnimatedLeaderRow({required this.rank, required this.user, required this.isMe, required this.delay,
+      required this.animate});
   @override
   State<_AnimatedLeaderRow> createState() => _AnimatedLeaderRowState();
 }
@@ -347,6 +350,10 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
     _fade  = CurvedAnimation(parent: _c, curve: AppMotion.standard);
     _slide = Tween<Offset>(begin: const Offset(0.08, 0), end: Offset.zero)
         .animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
+    if (!widget.animate) {
+      _c.value = 1;
+      return;
+    }
     Future.delayed(widget.delay, () { if (mounted) _c.forward(); });
   }
 
