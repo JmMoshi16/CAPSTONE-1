@@ -75,6 +75,8 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 20, right: 20, top: 20),
           child: Form(
             key: formKey,
+            // Inline validation: each field shows its message as soon as it has been touched.
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

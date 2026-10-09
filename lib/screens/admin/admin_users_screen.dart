@@ -1,4 +1,6 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
 import '../../widgets/ui.dart';
@@ -110,6 +112,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   _wasteBar('Residual', res, userLogs.length, AdminColors.res),
                 ]),
               ),
+
+              // Last 7 days for this customer
+              const SizedBox(height: AppSpace.lg),
+              _UserWeekChart(logs: userLogs),
 
               // Recent logs
               if (userLogs.isNotEmpty) ...[
@@ -276,7 +282,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       (_, i) {
                         // Top 3 get rank medals
                         final rank = _sortBy == 'points' || _sortBy == 'disposals' ? i : -1;
-                        return _userCard(filtered[i], rank);
+                        return TweenAnimationBuilder<double>(
+                          key: ValueKey('$_search|$_sortBy|${filtered[i].uid}'),
+                          tween: Tween(begin: 0, end: 1),
+                          duration: AppMotion.of(context, AppMotion.medium + AppMotion.stagger * (i.clamp(0, 6))),
+                          curve: AppMotion.standard,
+                          builder: (_, v, child) => Opacity(
+                            opacity: v,
+                            child: Transform.translate(offset: Offset(0, (1 - v) * 12), child: child),
+                          ),
+                          child: _userCard(filtered[i], rank),
+                        );
                       },
                       childCount: filtered.length,
                     ),
@@ -409,6 +425,84 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         child: Text(label, style: TextStyle(color: selected ? kGreen : AdminColors.textTertiary,
             fontSize: 11, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
       ),
+    );
+  }
+}
+
+/// One customer's disposals per day over the last 7 days (bars grow in).
+class _UserWeekChart extends StatefulWidget {
+  const _UserWeekChart({required this.logs});
+  final List<WasteLog> logs;
+  @override
+  State<_UserWeekChart> createState() => _UserWeekChartState();
+}
+
+class _UserWeekChartState extends State<_UserWeekChart> {
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() => _shown = true); });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final days = List.generate(7, (i) => DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - i)));
+    final counts = [
+      for (final d in days)
+        widget.logs.where((l) => l.timestamp.year == d.year && l.timestamp.month == d.month && l.timestamp.day == d.day).length,
+    ];
+    final maxY = (counts.fold(0, (a, b) => a > b ? a : b) + 1).toDouble();
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: kBorder)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Last 7 days · ${counts.fold(0, (a, b) => a + b)} disposals',
+            style: const TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
+        const SizedBox(height: AppSpace.sm),
+        Semantics(
+          label: 'Disposals per day: ${List.generate(7, (i) => '${DateFormat('EEEE').format(days[i])} ${counts[i]}').join(', ')}',
+          excludeSemantics: true,
+          child: SizedBox(
+            height: 110,
+            child: BarChart(
+              duration: AppMotion.of(context, const Duration(milliseconds: 600)),
+              curve: AppMotion.emphasized,
+              BarChartData(
+                maxY: maxY,
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                barTouchData: BarTouchData(enabled: false),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 20,
+                    getTitlesWidget: (v, _) => Text(DateFormat('E').format(days[v.toInt()]).substring(0, 2),
+                        style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+                  )),
+                ),
+                barGroups: [
+                  for (var i = 0; i < 7; i++)
+                    BarChartGroupData(x: i, barRods: [
+                      BarChartRodData(
+                        toY: _shown ? counts[i].toDouble() : 0,
+                        width: 14,
+                        color: kGreen,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        backDrawRodData: BackgroundBarChartRodData(show: true, toY: maxY, color: Colors.white.withValues(alpha: 0.05)),
+                      ),
+                    ]),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
