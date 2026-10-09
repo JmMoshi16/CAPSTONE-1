@@ -189,7 +189,14 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      // Free the form's text controllers once the sheet has finished animating away.
+      Future.delayed(const Duration(milliseconds: 600), () {
+        for (final ctrl in [titleCtrl, descCtrl, pointsCtrl, stockCtrl]) {
+          ctrl.dispose();
+        }
+      });
+    });
   }
 
   /// Staff confirm with the code in front of them before a reward is handed over.
