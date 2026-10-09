@@ -7,7 +7,10 @@ class _HeroHeaderCard extends StatelessWidget {
   final int points;                     // spendable balance, counted up when it changes
   final bool countFromZero;
   final VoidCallback onBell, onProfile, onRankInfo, onLeaderboard;
+  /// The page's scroll position: the header content drifts slower than the page (parallax).
+  final ScrollController? scroll;
   const _HeroHeaderCard({
+    this.scroll,
     required this.onRankInfo, required this.onLeaderboard,
     required this.user, required this.myRank, required this.pendingRedemptions,
     required this.lifetimePoints, required this.points, required this.countFromZero, required this.streak,
@@ -28,10 +31,27 @@ class _HeroHeaderCard extends StatelessWidget {
     final lv = getLevel(lifetimePoints);
     final rk = getRank(lifetimePoints);
     final multiplier = streakMultiplier(streak);
+    final reduced = AppMotion.reduced(context);
+    // Parallax: decorations move at half the scroll speed, content at 30 % and fades.
+    Widget drift(double factor, Widget child, {bool fade = false}) => scroll == null || reduced
+        ? child
+        : AnimatedBuilder(
+            animation: scroll!,
+            child: child,
+            builder: (_, kid) {
+              final off = scroll!.hasClients ? scroll!.offset.clamp(0.0, 400.0) : 0.0;
+              final moved = Transform.translate(offset: Offset(0, off * factor), child: kid);
+              if (!fade) return moved;
+              final o = (1 - off / 320).clamp(0.0, 1.0);
+              return o > 0.99 ? moved : Opacity(opacity: o, child: moved);
+            },
+          );
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: heroDecoration(context,
           radius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxxl))),
       child: Stack(children: [
+        Positioned.fill(child: drift(0.5, Stack(children: [
         Positioned(top: -40, right: -40,
           child: Container(width: 160, height: 160,
             decoration: BoxDecoration(shape: BoxShape.circle,
@@ -41,7 +61,8 @@ class _HeroHeaderCard extends StatelessWidget {
             decoration: BoxDecoration(shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.04)))),
 
-        SafeArea(bottom: false, child: Padding(
+        ]))),
+        drift(0.3, fade: true, SafeArea(bottom: false, child: Padding(
           padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xxl),
           child: Column(children: [
 
@@ -152,7 +173,7 @@ class _HeroHeaderCard extends StatelessWidget {
               if (myRank > 0) _pill(context, '🏆 #$myRank', onLeaderboard, 'Leaderboard position $myRank, open leaderboard'),
             ]),
           ]),
-        )),
+        ))),
       ]),
     );
   }
@@ -173,31 +194,115 @@ class _HeroHeaderCard extends StatelessWidget {
 
 
 
-// ── Progress Bar Row (labeled) ────────────────────────────────────────────────
-
-class _ProgressBarRow extends StatelessWidget {
-  final String leftLabel, rightLabel;
+// ── Rank / level ring card ────────────────────────────────────────────────────
+class _RingCard extends StatelessWidget {
   final double progress;
   final Color color;
+  final Widget center;
+  final String title, subtitle;
   final bool fromZero;
-  const _ProgressBarRow({
-    required this.leftLabel, required this.rightLabel,
-    required this.progress, required this.color, this.fromZero = true,
+  final VoidCallback onTap;
+  const _RingCard({
+    required this.progress, required this.color, required this.center,
+    required this.title, required this.subtitle, required this.fromZero, required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(child: Text(leftLabel,
-            style: context.text.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700))),
-        Text(rightLabel, style: context.text.labelSmall!.copyWith(color: c.textTertiary)),
-      ]),
-      const SizedBox(height: AppSpace.xs - 2),
-      AnimatedBar(progress: progress, color: color, fromZero: fromZero),
-    ]);
+    final t = context.text;
+    return Tap(
+      label: '$title, ${(progress * 100).round()} percent, $subtitle. Explain ranks and levels',
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpace.sm),
+        decoration: cardDecoration(context, radius: AppRadius.lg + 2),
+        child: Row(children: [
+          RepaintBoundary(
+            child: AnimatedProgressRing(
+              progress: progress,
+              size: 52,
+              stroke: 6,
+              color: color,
+              fromZero: fromZero,
+              child: center,
+            ),
+          ),
+          const SizedBox(width: AppSpace.sm - 2),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: t.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700, fontSize: 13)),
+              const SizedBox(height: 2),
+              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.labelSmall),
+            ]),
+          ),
+        ]),
+      ),
+    );
   }
+}
+
+// ── Animated streak flame ─────────────────────────────────────────────────────
+/// The streak flame flickers gently while a streak is alive; still otherwise and with
+/// reduced motion.
+class _Flame extends StatefulWidget {
+  const _Flame({required this.active});
+  final bool active;
+  @override
+  State<_Flame> createState() => _FlameState();
+}
+
+class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_Flame old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.active && !AppMotion.reduced(context)) {
+      if (!_c.isAnimating) _c.repeat(reverse: true);
+    } else {
+      _c.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (_, __) {
+            final v = Curves.easeInOut.transform(_c.value);
+            return Transform.rotate(
+              angle: (v - 0.5) * 0.14,
+              alignment: Alignment.bottomCenter,
+              child: Transform.scale(
+                scale: 1 + 0.12 * v,
+                alignment: Alignment.bottomCenter,
+                child: Opacity(
+                  opacity: widget.active ? 1 : 0.45,
+                  child: const Text('🔥', style: TextStyle(fontSize: 20)),
+                ),
+              ),
+            );
+          },
+        ),
+      );
 }
 
 // ── Weekly Goal Bar ───────────────────────────────────────────────────────────

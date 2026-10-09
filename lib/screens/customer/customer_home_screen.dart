@@ -224,6 +224,7 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
   late AnimationController _staggerCtrl;
   late AnimationController _pulseCtrl;
+  final _scroll = ScrollController();   // drives the header parallax
   /// Entrance animations and count-ups play on the first visit of the session only.
   late final bool _firstLoad = AppMotion.firstTime('home');
   late Animation<double> _pulseAnim;
@@ -284,6 +285,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
   void dispose() {
     _staggerCtrl.dispose();
     _pulseCtrl.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -466,16 +468,22 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     final level = getLevel(lifetime);
     final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, now);
     final scansThisWeek = scansInLastDays(widget.logs.map((l) => l.timestamp), now);
+    // Display only: what the scan history already shows, summed over the last 7 days.
+    final weekPoints = widget.logs
+        .where((l) => now.difference(l.timestamp).inDays < 7)
+        .fold(0, (s, l) => s + l.pointsAwarded);
 
     return RefreshIndicator(
       color: c.primary,
       onRefresh: widget.onRefresh,
       child: CustomScrollView(
+        controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           // ── Hero Header (with points embedded) ───────────────────────────
           SliverToBoxAdapter(
             child: _fadeSlide(0, _HeroHeaderCard(
+              scroll: _scroll,
               user: widget.user,
               myRank: widget.myRank,
               lifetimePoints: lifetime,
@@ -509,35 +517,35 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
             child: _fadeSlide(1, Padding(
               padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Rank bar
-                _ProgressBarRow(
-                  leftLabel: '${rank.icon}  ${rank.label}',
-                  rightLabel: rank.next != null
-                      ? '${rank.nextPts - lifetime} pts to ${rank.next}'
-                      : 'Max Rank',
-                  progress: rankProgress(lifetime),
-                  color: rank.color,
-                  fromZero: _firstLoad,
-                ),
-                const SizedBox(height: AppSpace.sm),
-                // Level bar
-                _ProgressBarRow(
-                  leftLabel: '${level.emoji}  ${level.title}  Lv ${level.level}',
-                  rightLabel: ptsToNextLevel(lifetime) == 0
-                      ? '🎉 Max Level'
-                      : '${ptsToNextLevel(lifetime)} pts to next',
-                  progress: levelProgress(lifetime),
-                  color: level.color,
-                  fromZero: _firstLoad,
-                ),
+                // Rank and level rings: fill on first load, then old -> new after a scan.
+                Row(children: [
+                  Expanded(child: _RingCard(
+                    progress: rankProgress(lifetime),
+                    color: rank.color,
+                    center: Text(rank.icon, style: const TextStyle(fontSize: 22)),
+                    title: '${rank.label} rank',
+                    subtitle: rank.next != null ? '${rank.nextPts - lifetime} pts to ${rank.next}' : 'Top rank reached',
+                    fromZero: _firstLoad,
+                    onTap: () => showRankLevelSheet(context, lifetimePoints: lifetime),
+                  )),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(child: _RingCard(
+                    progress: levelProgress(lifetime),
+                    color: level.color,
+                    center: Text('${level.level}', style: AppType.numeral.copyWith(fontSize: 22, color: c.ink(level.color))),
+                    title: 'Lv ${level.level} ${level.title}',
+                    subtitle: ptsToNextLevel(lifetime) == 0 ? 'Max level' : '${ptsToNextLevel(lifetime)} pts to next',
+                    fromZero: _firstLoad,
+                    onTap: () => showRankLevelSheet(context, lifetimePoints: lifetime),
+                  )),
+                ]),
                 const SizedBox(height: AppSpace.lg),
                 // Scan button
                 RepaintBoundary(child: ScaleTransition(
                   scale: _pulseAnim,
-                  child: AppButton(
+                  child: GlowButton(
                     label: 'Scan QR Code',
                     icon: Icons.qr_code_scanner_rounded,
-                    height: 56,
                     onPressed: widget.onScan,
                   ),
                 )),
@@ -562,7 +570,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 SectionHeader(
                   title: 'Your Progress',
-                  subtitle: 'Tap a card for details',
+                  subtitle: 'Tap a card for details · swipe for more',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm - 2, vertical: AppSpace.xxs),
                     decoration: BoxDecoration(
@@ -580,23 +588,36 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: AppSpace.sm),
-                // Stat cards
-                Row(children: [
-                  Expanded(child: StatCard(emoji: '🔥', value: '${streak}d', count: streak, suffix: 'd', label: 'streak',
-                      accent: c.warning, valueColor: streak > 0 ? null : c.textTertiary,
-                      onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan))),
-                  const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: StatCard(emoji: '🏆', value: widget.myRank > 0 ? '#${widget.myRank}' : '--',
-                      label: 'rank', accent: c.gold, valueColor: widget.myRank > 0 ? null : c.textTertiary,
-                      onTap: widget.onLeaderboard)),
-                  const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: StatCard(emoji: '🏅', value: '${widget.user.badges.length}', count: widget.user.badges.length, label: 'badges',
-                      accent: c.gold, valueColor: widget.user.badges.isNotEmpty ? null : c.textTertiary,
-                      onTap: widget.onBadges)),
-                  const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: StatCard(emoji: '♻️', value: '${widget.user.scanCount}', count: widget.user.scanCount, label: 'scans',
-                      accent: c.success, onTap: widget.onImpact)),
-                ]),
+                // Stat cards: a swipeable row (the fifth card peeks in to invite the swipe).
+                SizedBox(
+                  height: 116 * AppLayout.textScale(context).clamp(1.0, 1.6),
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      for (final card in [
+                        StatCard(leading: _Flame(active: streak > 0), value: '${streak}d', count: streak, suffix: 'd',
+                            label: streak >= 3 ? 'streak · ${streakMultiplier(streak) == 2 ? '2' : '1.5'}× bonus' : 'day streak',
+                            accent: c.warning, valueColor: streak > 0 ? null : c.textTertiary,
+                            onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan)),
+                        StatCard(emoji: '⭐', value: '$weekPoints', count: weekPoints, label: 'pts this week',
+                            accent: c.primary, onTap: widget.onHistory),
+                        StatCard(emoji: '🏆', value: widget.myRank > 0 ? '#${widget.myRank}' : '--',
+                            label: 'leaderboard', accent: c.gold, valueColor: widget.myRank > 0 ? null : c.textTertiary,
+                            onTap: widget.onLeaderboard),
+                        StatCard(emoji: '🏅', value: '${widget.user.badges.length}', count: widget.user.badges.length, label: 'badges',
+                            accent: c.gold, valueColor: widget.user.badges.isNotEmpty ? null : c.textTertiary,
+                            onTap: widget.onBadges),
+                        StatCard(emoji: '♻️', value: '${widget.user.scanCount}', count: widget.user.scanCount, label: 'total scans',
+                            accent: c.success, onTap: widget.onImpact),
+                      ]) ...[
+                        SizedBox(width: 124 * AppLayout.textScale(context).clamp(1.0, 1.4), child: card),
+                        const SizedBox(width: AppSpace.sm - 2),
+                      ],
+                    ],
+                  ),
+                ),
                 const SizedBox(height: AppSpace.sm),
                 // Weekly scan goal bar
                 _WeeklyGoalBar(scanCount: scansThisWeek, weeklyGoal: 10, fromZero: _firstLoad),

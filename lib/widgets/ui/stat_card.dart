@@ -17,7 +17,11 @@ class StatCard extends StatelessWidget {
     this.onTap,
     this.count,
     this.suffix = '',
+    this.leading,
   });
+
+  /// Replaces [emoji]/[icon], e.g. an animated flame.
+  final Widget? leading;
 
   /// When set, the value counts up to [count] (and from the old value when it changes).
   final int? count;
@@ -46,7 +50,9 @@ class StatCard extends StatelessWidget {
           decoration: BoxDecoration(color: a.withValues(alpha: 0.7), borderRadius: AppRadius.all(2)),
         ),
         const SizedBox(height: AppSpace.xs),
-        if (emoji != null)
+        if (leading != null)
+          ExcludeSemantics(child: leading!)
+        else if (emoji != null)
           ExcludeSemantics(child: Text(emoji!, style: const TextStyle(fontSize: 20)))
         else if (icon != null)
           Icon(icon, color: a, size: 20),
