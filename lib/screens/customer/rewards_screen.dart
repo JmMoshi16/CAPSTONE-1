@@ -277,7 +277,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
-            expandedHeight: AppLayout.headerHeight(context, 170),
+            expandedHeight: AppLayout.headerHeight(context, 184, perScale: 130),
             pinned: true,
             backgroundColor: c.hero[1],
             automaticallyImplyLeading: false,
@@ -286,7 +286,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                 decoration: heroDecoration(context),
                 child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+                    // Bottom padding = the tab bar, which sits on top of this background.
+                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, kTextTabBarHeight),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -777,8 +778,11 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
                     const Spacer(),
                     if (!canAfford && !isSoldOut) ...[
                       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Text('${widget.user.points}/${widget.reward.pointsCost}', style: t.labelSmall),
-                        Text('${((1 - progress) * widget.reward.pointsCost).round()} more', style: t.labelSmall),
+                        Flexible(child: Text('${widget.user.points}/${widget.reward.pointsCost}', style: t.labelSmall,
+                            maxLines: 1, overflow: TextOverflow.fade, softWrap: false)),
+                        const SizedBox(width: AppSpace.xxs),
+                        Flexible(child: Text('${((1 - progress) * widget.reward.pointsCost).round()} more', style: t.labelSmall,
+                            maxLines: 1, overflow: TextOverflow.fade, softWrap: false)),
                       ]),
                       const SizedBox(height: 3),
                       ClipRRect(
@@ -802,12 +806,14 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
                           size: 14,
                         ),
                         const SizedBox(width: AppSpace.xxs),
-                        Text(
+                        Flexible(child: Text(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           isSoldOut ? 'Sold Out' : '${widget.reward.pointsCost} pts',
                           style: t.labelMedium!.copyWith(
                             color: canAfford ? c.onPrimary : c.textSecondary,
                             fontWeight: FontWeight.w700,
-                          ),
+                          )),
                         ),
                       ]),
                     ),

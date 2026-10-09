@@ -35,6 +35,25 @@ class AppSpace {
   static const double touch = 48;
 }
 
+// ── Gradients ────────────────────────────────────────────────────────────────
+// Decorative. Text sits only on [forest] (white text >= 4.8:1 on every stop); the mint and
+// cream ends are too light for white text, so they are used for rings, glows and fills.
+class AppGradients {
+  static const forest = LinearGradient(
+    colors: [AppPalette.forestDeep, AppPalette.forest, Color(0xFF33643F)],
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
+  );
+  static const forestMint = LinearGradient(
+    colors: [AppPalette.forest, Color(0xFF4E9A6B), AppPalette.mint],
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
+  );
+  static const coffeeCream = LinearGradient(
+    colors: [AppPalette.coffee, Color(0xFFA57E5F), AppPalette.cream],
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
+  );
+  static const SweepGradient ring = SweepGradient(colors: [AppPalette.mint, AppPalette.forest, AppPalette.mint]);
+}
+
 // ── Responsive helpers ───────────────────────────────────────────────────────
 class AppLayout {
   /// Current text scale (1.0 = default; users can raise it in system settings).
@@ -42,8 +61,11 @@ class AppLayout {
 
   /// A header height that grows with the text inside it, so large text never runs
   /// under the tabs or off the header ([perScale] extra px per +1.0 of text scale).
-  static double headerHeight(BuildContext context, double base, {double perScale = 100}) =>
-      base + perScale * (textScale(context).clamp(1.0, 2.0) - 1);
+  /// On narrow phones (< 380 dp) enlarged text also wraps onto extra lines, so it grows faster.
+  static double headerHeight(BuildContext context, double base, {double perScale = 100}) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
+    return base + perScale * (textScale(context).clamp(1.0, 2.0) - 1) * (narrow ? 2.3 : 1);
+  }
 
   /// Grid columns for card grids: 2 on phones, more on tablets ([minTile] = narrowest card).
   static int columns(BuildContext context, {double minTile = 180, int max = 5}) =>
@@ -94,9 +116,25 @@ class AppMotion {
 // ── Elevation ────────────────────────────────────────────────────────────────
 class AppShadows {
   static const List<BoxShadow> none = [];
-  static const List<BoxShadow> e1 = [BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2))];
-  static const List<BoxShadow> e2 = [BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4))];
-  static const List<BoxShadow> e3 = [BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8))];
+  // Two layers each: a tight contact shadow plus a soft ambient one (reads as depth, not smudge).
+  static const List<BoxShadow> e1 = [
+    BoxShadow(color: Color(0x0A1F3F27), blurRadius: 2, offset: Offset(0, 1)),
+    BoxShadow(color: Color(0x0F1F3F27), blurRadius: 12, offset: Offset(0, 4)),
+  ];
+  static const List<BoxShadow> e2 = [
+    BoxShadow(color: Color(0x0D1F3F27), blurRadius: 4, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x141F3F27), blurRadius: 20, offset: Offset(0, 8)),
+  ];
+  static const List<BoxShadow> e3 = [
+    BoxShadow(color: Color(0x101F3F27), blurRadius: 6, offset: Offset(0, 3)),
+    BoxShadow(color: Color(0x1F1F3F27), blurRadius: 32, offset: Offset(0, 12)),
+  ];
+
+  /// Coloured halo for primary buttons and "can afford" cards.
+  static List<BoxShadow> glow(Color c, {double strength = 1}) => [
+        BoxShadow(color: c.withValues(alpha: 0.28 * strength), blurRadius: 18, offset: const Offset(0, 6)),
+        BoxShadow(color: c.withValues(alpha: 0.12 * strength), blurRadius: 40, spreadRadius: 2),
+      ];
 
   /// Shadows read as dirt on dark surfaces; there a border does the separating instead.
   static List<BoxShadow> of(BuildContext context, List<BoxShadow> light) =>
@@ -106,13 +144,20 @@ class AppShadows {
 // ── Typography ───────────────────────────────────────────────────────────────
 // Material 3 names; nothing smaller than 11 sp. Colours come from the theme.
 class AppType {
-  static const display = TextStyle(fontSize: 44, fontWeight: FontWeight.w900, letterSpacing: -1.5, height: 1.05);
-  static const numeral = TextStyle(fontSize: 44, fontWeight: FontWeight.w900, letterSpacing: -1.5, height: 1.0);
+  /// Headlines and big numbers: Fraunces, a soft café serif. Everything else: DM Sans.
+  /// Both are bundled in assets/fonts (SIL OFL), never downloaded at runtime.
+  static const displayFamily = 'Fraunces';
+  static const bodyFamily = 'DMSans';
+
+  static const display = TextStyle(fontFamily: displayFamily, fontSize: 44, fontWeight: FontWeight.w800,
+      letterSpacing: -1.0, height: 1.05);
+  static const numeral = TextStyle(fontFamily: displayFamily, fontSize: 44, fontWeight: FontWeight.w800,
+      letterSpacing: -1.0, height: 1.0, fontFeatures: [FontFeature.liningFigures()]);
 
   static TextTheme textTheme(Color primary, Color secondary) => TextTheme(
         displayLarge: display.copyWith(color: primary),
-        headlineMedium: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, height: 1.15, color: primary),
-        headlineSmall: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.2, color: primary),
+        headlineMedium: TextStyle(fontFamily: displayFamily, fontSize: 26, fontWeight: FontWeight.w700, height: 1.15, color: primary),
+        headlineSmall: TextStyle(fontFamily: displayFamily, fontSize: 22, fontWeight: FontWeight.w700, height: 1.2, color: primary),
         titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: primary),
         titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: primary),
         titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: primary),

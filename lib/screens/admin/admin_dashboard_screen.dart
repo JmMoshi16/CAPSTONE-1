@@ -487,7 +487,8 @@ class _DashboardTab extends StatelessWidget {
           Row(children: [
             Icon(icon, color: color, size: 16),
             const SizedBox(width: 6),
-            Text(title, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+            Flexible(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: AdminColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 22)),

@@ -28,6 +28,17 @@ import 'package:ecoreward_bin/screens/customer/scan_history_screen.dart';
 import 'package:ecoreward_bin/screens/login_screen.dart';
 import 'package:ecoreward_bin/screens/register_screen.dart';
 
+/// The app's own bundled fonts (DM Sans body, Fraunces headings): measure with what ships.
+Future<void> _loadAppFonts() async {
+  Future<ByteData> read(String f) async => ByteData.view(File('assets/fonts/$f').readAsBytesSync().buffer);
+  final body = FontLoader('DMSans');
+  for (final w in [400, 500, 600, 700]) { body.addFont(read('DMSans-$w.ttf')); }
+  await body.load();
+  final display = FontLoader('Fraunces');
+  for (final w in [600, 700, 800]) { display.addFont(read('Fraunces-$w.ttf')); }
+  await display.load();
+}
+
 Future<void> _loadRealFonts() async {
   // flutter_tester lives in <flutter>/bin/cache/artifacts/engine/<platform>/.
   final artifacts = File(Platform.resolvedExecutable).parent.parent.parent;
@@ -137,7 +148,8 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({'notifications_prompted': true});
-    await _loadRealFonts();
+    await _loadRealFonts();   // Roboto: fallback glyphs and MaterialIcons
+    await _loadAppFonts();
   });
 
   for (final s in _customerScreens.entries) {

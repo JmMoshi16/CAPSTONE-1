@@ -33,7 +33,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: c.brightness,
-      fontFamily: 'Roboto',
+      fontFamily: AppType.bodyFamily,
       colorScheme: scheme,
       scaffoldBackgroundColor: c.background,
       textTheme: text,
@@ -110,7 +110,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: 'Roboto',
+      fontFamily: AppType.bodyFamily,
       colorScheme: const ColorScheme.dark(
         primary: AdminColors.accent,
         onPrimary: AdminColors.onAccent,
