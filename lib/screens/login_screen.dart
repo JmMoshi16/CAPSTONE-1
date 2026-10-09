@@ -1,8 +1,9 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
 import '../services/firebase_service.dart';
+import '../widgets/ui.dart';
 import 'customer/customer_home_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'register_screen.dart';
@@ -31,37 +32,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   late Animation<double> _btnScale;
   late Animation<double> _field1Fade, _field2Fade, _btnFade;
 
-  static const _darkGreen   = Color(0xFF0A2E0C);
-  static const _midGreen    = Color(0xFF2E7D32);
-  static const _lightGreen  = Color(0xFF4CAF50);
-  static const _accentGreen = Color(0xFF66BB6A);
-
   @override
   void initState() {
     super.initState();
-    _heroCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _heroFade = CurvedAnimation(parent: _heroCtrl, curve: Curves.easeOut);
+    _heroCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _heroFade = CurvedAnimation(parent: _heroCtrl, curve: AppMotion.standard);
 
-    _formCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _formFade  = CurvedAnimation(parent: _formCtrl, curve: Curves.easeOut);
+    _formCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _formFade  = CurvedAnimation(parent: _formCtrl, curve: AppMotion.standard);
     _formSlide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _formCtrl, curve: Curves.easeOutCubic));
+        .animate(CurvedAnimation(parent: _formCtrl, curve: AppMotion.standard));
 
     _field1Fade = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: _formCtrl, curve: const Interval(0.3, 0.8, curve: Curves.easeOut)));
+        CurvedAnimation(parent: _formCtrl, curve: const Interval(0.3, 0.8, curve: AppMotion.standard)));
     _field2Fade = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: _formCtrl, curve: const Interval(0.5, 1.0, curve: Curves.easeOut)));
+        CurvedAnimation(parent: _formCtrl, curve: const Interval(0.5, 1.0, curve: AppMotion.standard)));
     _btnFade = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: _formCtrl, curve: const Interval(0.65, 1.0, curve: Curves.easeOut)));
+        CurvedAnimation(parent: _formCtrl, curve: const Interval(0.65, 1.0, curve: AppMotion.standard)));
 
-    _particleCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+    _particleCtrl = AnimationController(vsync: this, duration: AppMotion.ambient * 4)..repeat();
 
-    _btnCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat(reverse: true);
+    _btnCtrl = AnimationController(vsync: this, duration: AppMotion.ambient)..repeat(reverse: true);
     _btnScale = Tween<double>(begin: 1.0, end: 1.02)
         .animate(CurvedAnimation(parent: _btnCtrl, curve: Curves.easeInOut));
 
     _heroCtrl.forward().then((_) {
-      Future.delayed(const Duration(milliseconds: 200), () {
+      Future.delayed(AppMotion.medium, () {
         if (mounted) _formCtrl.forward();
       });
     });
@@ -90,12 +86,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           pageBuilder: (_, a, __) =>
               user.role == 'admin' ? const AdminDashboardScreen() : const CustomerHomeScreen(),
           transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 400),
+          transitionDuration: AppMotion.slow,
         ));
       }
     } catch (e) {
       if (mounted) {
-        _snack(loginErrorMessage(e is FirebaseAuthException ? e.code : e.toString()), Colors.red.shade700);
+        _snack(loginErrorMessage(e is FirebaseAuthException ? e.code : e.toString()), context.colors.danger);
         setState(() => _loading = false);
       }
     }
@@ -105,70 +101,59 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
         const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-        const SizedBox(width: 8),
-        Expanded(child: Text(msg, style: const TextStyle(fontWeight: FontWeight.w500))),
+        const SizedBox(width: AppSpace.xs),
+        Expanded(child: Text(msg)),
       ]),
       backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: const EdgeInsets.all(AppSpace.md),
     ));
   }
 
   // Audit M-17: there was no way to recover a forgotten password.
   Future<void> _forgotPassword() async {
+    final c = context.colors;
     final email = _emailCtrl.text.trim();
     if (!email.contains('@')) {
-      _snack('Enter your email above first, then tap "Forgot password?"', Colors.orange.shade800);
+      _snack('Enter your email above first, then tap "Forgot password?"', c.warning);
       return;
     }
     try {
       await FirebaseService.sendPasswordReset(email);
-      if (mounted) _snack(passwordResetSentMessage, const Color(0xFF2E7D32));
+      if (mounted) _snack(passwordResetSentMessage, c.success);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       // Same message for unknown addresses: do not reveal which e-mails have accounts.
       if (isNetworkError(e.code) || e.code == 'too-many-requests') {
-        _snack(loginErrorMessage(e.code), Colors.red.shade700);
+        _snack(loginErrorMessage(e.code), c.danger);
       } else {
-        _snack(passwordResetSentMessage, const Color(0xFF2E7D32));
+        _snack(passwordResetSentMessage, c.success);
       }
     } catch (_) {
-      if (mounted) _snack('No internet connection. Please try again.', Colors.red.shade700);
+      if (mounted) _snack('No internet connection. Please try again.', c.danger);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final c = context.colors;
+    final t = context.text;
     return Scaffold(
-      backgroundColor: _darkGreen,
+      backgroundColor: c.hero.first,
       body: Stack(children: [
         // Background gradient
         Container(
           width: double.infinity, height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0A2E0C), Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF1A3A1C)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-              stops: [0.0, 0.35, 0.65, 1.0],
-            ),
-          ),
+          decoration: heroDecoration(context),
         ),
 
         // Decorative circles
         Positioned(top: -60, right: -60,
-          child: Container(width: 220, height: 220,
-            decoration: BoxDecoration(shape: BoxShape.circle,
-                color: _lightGreen.withValues(alpha: 0.12)))),
+          child: _circle(220, c.accent.withValues(alpha: 0.12))),
         Positioned(top: 80, right: 40,
-          child: Container(width: 80, height: 80,
-            decoration: BoxDecoration(shape: BoxShape.circle,
-                color: _accentGreen.withValues(alpha: 0.10)))),
+          child: _circle(80, c.accent.withValues(alpha: 0.10))),
         Positioned(bottom: size.height * 0.35, left: -40,
-          child: Container(width: 160, height: 160,
-            decoration: BoxDecoration(shape: BoxShape.circle,
-                color: _lightGreen.withValues(alpha: 0.08)))),
+          child: _circle(160, c.accent.withValues(alpha: 0.08))),
 
         // Floating particles
         AnimatedBuilder(
@@ -184,43 +169,40 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           opacity: _heroFade,
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpace.xxl, AppSpace.xl, AppSpace.xxl, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Logo pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: AppRadius.all(AppRadius.pill),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Container(
                       width: 28, height: 28,
                       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                      child: const Icon(Icons.recycling_rounded, color: Colors.white, size: 16),
+                      child: Icon(Icons.recycling_rounded, color: c.onHero, size: 16),
                     ),
-                    const SizedBox(width: 8),
-                    const Text('ECOReward',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(width: AppSpace.xs),
+                    Text('ECOReward', style: t.titleSmall!.copyWith(color: c.onHero, fontWeight: FontWeight.w700)),
                   ]),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpace.xxl),
 
-                const Text('Welcome\nback! 👋',
-                    style: TextStyle(color: Colors.white, fontSize: 46,
-                        fontWeight: FontWeight.w900, height: 1.05, letterSpacing: -1.5)),
-                const SizedBox(height: 12),
+                Text('Welcome\nback! 👋', style: t.displayLarge!.copyWith(color: c.onHero)),
+                const SizedBox(height: AppSpace.sm),
                 Text('Sign in and keep making\na difference for our planet 🌍',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 15, height: 1.55)),
-                const SizedBox(height: 28),
+                    style: t.bodyLarge!.copyWith(color: c.onHeroMuted)),
+                const SizedBox(height: AppSpace.xl),
 
                 // Stat badges
                 Row(children: [
                   _statBadge('♻️', 'Recycle'),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpace.xs),
                   _statBadge('⭐', 'Earn'),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpace.xs),
                   _statBadge('🎁', 'Redeem'),
                 ]),
               ]),
@@ -237,152 +219,123 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             child: SlideTransition(
               position: _formSlide,
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+                decoration: BoxDecoration(
+                  color: c.background,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 8)),
                 ),
                 child: SingleChildScrollView(
                   physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(28, 30, 28, 32),
+                  padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xxl, AppSpace.xl + 4, AppSpace.xxl),
                   child: Form(
                     key: _formKey,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       // Handle
                       Center(child: Container(width: 40, height: 4,
-                          decoration: BoxDecoration(color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(2)))),
-                      const SizedBox(height: 22),
+                          decoration: BoxDecoration(color: c.border, borderRadius: AppRadius.all(2)))),
+                      const SizedBox(height: AppSpace.xl),
 
                       // Title
                       Row(children: [
                         Container(width: 4, height: 22,
-                            decoration: BoxDecoration(color: _lightGreen,
-                                borderRadius: BorderRadius.circular(2))),
-                        const SizedBox(width: 10),
-                        const Text('Sign In',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
-                        const SizedBox(width: 8),
+                            decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(2))),
+                        const SizedBox(width: AppSpace.sm),
+                        Text('Sign In', style: t.headlineSmall),
+                        const SizedBox(width: AppSpace.xs),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: AppSpace.xxs),
                           decoration: BoxDecoration(
-                              color: _lightGreen.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10)),
-                          child: const Text('🌱 Eco Mode',
-                              style: TextStyle(fontSize: 10, color: _midGreen, fontWeight: FontWeight.bold)),
+                              color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.md)),
+                          child: Text('🌱 Eco Mode',
+                              style: t.labelSmall!.copyWith(color: c.onPrimaryContainer, fontWeight: FontWeight.w700)),
                         ),
                       ]),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpace.xl),
 
                       // Email
                       FadeTransition(opacity: _field1Fade,
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           _label('Email address'),
-                          const SizedBox(height: 8),
-                          _buildField(controller: _emailCtrl, hint: 'you@example.com',
-                            icon: Icons.alternate_email_rounded,
+                          const SizedBox(height: AppSpace.xs),
+                          TextFormField(
+                            controller: _emailCtrl,
                             keyboardType: TextInputType.emailAddress,
-                            validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null),
+                            style: t.bodyLarge,
+                            decoration: const InputDecoration(
+                              hintText: 'you@example.com',
+                              prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
+                            ),
+                            validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
+                          ),
                         ])),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: AppSpace.md),
 
                       // Password
                       FadeTransition(opacity: _field2Fade,
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           _label('Password'),
-                          const SizedBox(height: 8),
-                          _buildField(controller: _passCtrl, hint: '••••••••',
-                            icon: Icons.lock_outline_rounded, obscure: _obscure,
-                            suffixIcon: IconButton(
-                              tooltip: _obscure ? 'Show password' : 'Hide password',
-                              onPressed: () => setState(() => _obscure = !_obscure),
-                              icon: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
-                                child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                    key: ValueKey(_obscure), color: Colors.grey.shade400, size: 20)),
+                          const SizedBox(height: AppSpace.xs),
+                          TextFormField(
+                            controller: _passCtrl,
+                            obscureText: _obscure,
+                            style: t.bodyLarge,
+                            decoration: InputDecoration(
+                              hintText: '••••••••',
+                              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                              suffixIcon: IconButton(
+                                tooltip: _obscure ? 'Show password' : 'Hide password',
+                                onPressed: () => setState(() => _obscure = !_obscure),
+                                icon: AnimatedSwitcher(duration: AppMotion.medium,
+                                  child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                      key: ValueKey(_obscure), size: 20)),
+                              ),
                             ),
-                            validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null),
+                            validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null,
+                          ),
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: _loading ? null : _forgotPassword,
-                              child: const Text('Forgot password?',
-                                  style: TextStyle(color: _midGreen, fontWeight: FontWeight.w600, fontSize: 13)),
+                              child: const Text('Forgot password?'),
                             ),
                           ),
                         ])),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpace.sm),
 
                       // Sign in button
                       FadeTransition(opacity: _btnFade,
                         child: ScaleTransition(
                           scale: _loading ? const AlwaysStoppedAnimation(1.0) : _btnScale,
-                          child: SizedBox(width: double.infinity, height: 58,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)],
-                                  begin: Alignment.centerLeft, end: Alignment.centerRight,
-                                ),
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: [BoxShadow(
-                                  color: _lightGreen.withValues(alpha: 0.40),
-                                  blurRadius: 20, offset: const Offset(0, 8),
-                                )],
-                              ),
-                              child: ElevatedButton(
-                                onPressed: _loading ? null : _login,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                ),
-                                child: _loading
-                                    ? const SizedBox(width: 24, height: 24,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                                    : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                        Icon(Icons.eco_rounded, size: 20),
-                                        SizedBox(width: 10),
-                                        Text('Sign In',
-                                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                                        SizedBox(width: 10),
-                                        Icon(Icons.arrow_forward_rounded, size: 18),
-                                      ]),
-                              ),
-                            ),
+                          child: AppButton(
+                            label: 'Sign In',
+                            icon: Icons.eco_rounded,
+                            trailingIcon: Icons.arrow_forward_rounded,
+                            height: 56,
+                            loading: _loading,
+                            onPressed: _login,
                           ),
                         )),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: AppSpace.lg),
 
                       // Divider
                       Row(children: [
-                        Expanded(child: Divider(color: Colors.grey.shade200, thickness: 1.2)),
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: Text('or', style: TextStyle(color: Colors.grey.shade400, fontSize: 13))),
-                        Expanded(child: Divider(color: Colors.grey.shade200, thickness: 1.2)),
+                        const Expanded(child: Divider()),
+                        Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2),
+                          child: Text('or', style: t.bodyMedium!.copyWith(color: c.textTertiary))),
+                        const Expanded(child: Divider()),
                       ]),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: AppSpace.lg),
 
                       // Register
-                      SizedBox(width: double.infinity, height: 56,
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _midGreen,
-                            side: BorderSide(color: _lightGreen.withValues(alpha: 0.45), width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            backgroundColor: _lightGreen.withValues(alpha: 0.04),
-                          ),
-                          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Icon(Icons.person_add_alt_1_rounded, size: 18),
-                            SizedBox(width: 8),
-                            Text('Create new account',
-                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                          ]),
-                        )),
-                      const SizedBox(height: 24),
+                      AppButton.secondary(
+                        label: 'Create new account',
+                        icon: Icons.person_add_alt_1_rounded,
+                        height: 56,
+                        onPressed: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                      ),
+                      const SizedBox(height: AppSpace.xl),
 
-                      Center(child: Text('ECOReward Bin  ·  Smart Waste Recycling',
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 11, letterSpacing: 0.3))),
+                      Center(child: Text('ECOReward Bin  ·  Smart Waste Recycling', style: t.labelSmall)),
                     ]),
                   ),
                 ),
@@ -394,57 +347,25 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+  Widget _circle(double d, Color color) =>
+      Container(width: d, height: d, decoration: BoxDecoration(shape: BoxShape.circle, color: color));
+
   Widget _statBadge(String emoji, String label) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
     decoration: BoxDecoration(
       color: Colors.white.withValues(alpha: 0.10),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: AppRadius.all(AppRadius.pill),
       border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Text(emoji, style: const TextStyle(fontSize: 14)),
-      const SizedBox(width: 6),
-      Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+      const SizedBox(width: AppSpace.xs - 2),
+      Text(label, style: context.text.labelMedium!.copyWith(color: context.colors.onHero)),
     ]),
   );
 
-  Widget _label(String text) => Text(text,
-      style: const TextStyle(color: Color(0xFF424242), fontSize: 13, fontWeight: FontWeight.w600));
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool obscure = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) => TextFormField(
-    controller: controller,
-    keyboardType: keyboardType,
-    obscureText: obscure,
-    style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
-    decoration: InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-      prefixIcon: Icon(icon, color: _lightGreen, size: 20),
-      suffixIcon: suffixIcon != null
-          ? Padding(padding: const EdgeInsets.only(right: 12), child: suffixIcon) : null,
-      filled: true, fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade200)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade200)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _lightGreen, width: 2)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.red)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.red, width: 1.5)),
-    ),
-    validator: validator,
-  );
+  Widget _label(String text) => Text(text, style: context.text.labelMedium!.copyWith(
+      color: context.colors.textSecondary, fontSize: 13));
 }
 
 // Floating leaf particle painter

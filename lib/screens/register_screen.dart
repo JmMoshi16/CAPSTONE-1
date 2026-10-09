@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
 import '../services/firebase_service.dart';
+import '../widgets/ui.dart';
 import 'customer/customer_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -23,18 +24,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
-  static const _bg = Color(0xFFF8F9FA);
-  static const _green = Color(0xFF2E7D32);
-  static const _greenLight = Color(0xFF4CAF50);
-  static const _greenSurface = Color(0xFFE8F5E9);
-
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _animCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+        .animate(CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard));
     _animCtrl.forward();
   }
 
@@ -63,13 +59,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Row(children: [
             const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()),
-                style: const TextStyle(fontWeight: FontWeight.w500))),
+            const SizedBox(width: AppSpace.xs),
+            Expanded(child: Text(registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()))),
           ]),
-          backgroundColor: Colors.red.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: context.colors.danger,
         ));
         setState(() => _loading = false);
       }
@@ -79,8 +72,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final c = context.colors;
+    final t = context.text;
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: c.background,
       body: Stack(
         children: [
           // Top green header
@@ -88,52 +83,42 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             top: 0, left: 0, right: 0,
             child: Container(
               height: size.height * 0.32,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(40),
-                  bottomRight: Radius.circular(40),
-                ),
-              ),
+              decoration: heroDecoration(context,
+                  radius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxxl))),
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+                  padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.md, AppSpace.xl, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Back + logo row
                       Row(children: [
-                        GestureDetector(
+                        Tap(
+                          label: 'Back',
+                          tooltip: true,
                           onTap: () => Navigator.pop(context),
                           child: Container(
                             width: 40, height: 40,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: AppRadius.all(AppRadius.md),
                               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                             ),
-                            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                            child: Icon(Icons.arrow_back_ios_new_rounded, color: c.onHero, size: 16),
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        const Icon(Icons.recycling_rounded, color: Colors.white70, size: 20),
-                        const SizedBox(width: 6),
-                        const Text('ECOReward', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: AppSpace.xs),
+                        Icon(Icons.recycling_rounded, color: c.onHeroMuted, size: 20),
+                        const SizedBox(width: AppSpace.xs - 2),
+                        Text('ECOReward', style: t.titleSmall!.copyWith(color: c.onHeroMuted)),
                       ]),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpace.md),
 
-                      const Text('Join ECOReward ♻️', style: TextStyle(
-                        color: Colors.white, fontSize: 32,
-                        fontWeight: FontWeight.bold, height: 1.1, letterSpacing: -0.5,
-                      )),
-                      const SizedBox(height: 8),
-                      const Text('Start earning rewards for recycling today',
-                          style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      Text('Join ECOReward ♻️', style: t.headlineMedium!.copyWith(color: c.onHero, fontSize: 30)),
+                      const SizedBox(height: AppSpace.xs),
+                      Text('Start earning rewards for recycling today',
+                          style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
                     ],
                   ),
                 ),
@@ -150,15 +135,12 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               child: SlideTransition(
                 position: _slideAnim,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: _bg,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
+                  decoration: BoxDecoration(
+                    color: c.background,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 4)),
                   ),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                    padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xl + 4, AppSpace.xl + 4, AppSpace.xl),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -169,18 +151,18 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             scrollDirection: Axis.horizontal,
                             child: Row(children: [
                               _chip(Icons.stars_rounded, 'Earn Points'),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppSpace.xs),
                               _chip(Icons.card_giftcard_rounded, 'Claim Rewards'),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppSpace.xs),
                               _chip(Icons.eco_rounded, 'Track Impact'),
                             ]),
                           ),
 
-                          const SizedBox(height: 24),
+                          const SizedBox(height: AppSpace.xl),
 
                           // Username
                           _fieldLabel('Username'),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpace.xs),
                           _buildField(
                             controller: _userCtrl,
                             hint: 'Choose a username',
@@ -188,11 +170,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             validator: (v) => v!.trim().length < 3 ? 'Min 3 characters' : null,
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpace.md),
 
                           // Email
                           _fieldLabel('Email address'),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpace.xs),
                           _buildField(
                             controller: _emailCtrl,
                             hint: 'Enter your email',
@@ -201,82 +183,68 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpace.md),
 
                           // Password
                           _fieldLabel('Password'),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpace.xs),
                           _buildField(
                             controller: _passCtrl,
                             hint: 'Min 6 characters',
                             icon: Icons.lock_outline_rounded,
                             obscure: _obscure,
-                            suffixIcon: GestureDetector(
-                              onTap: () => setState(() => _obscure = !_obscure),
-                              child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                  color: Colors.grey, size: 20),
+                            suffixIcon: IconButton(
+                              tooltip: _obscure ? 'Show password' : 'Hide password',
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                              icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
                             ),
                             validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpace.md),
 
                           // Confirm password
                           _fieldLabel('Confirm Password'),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpace.xs),
                           _buildField(
                             controller: _confirmCtrl,
                             hint: 'Re-enter your password',
                             icon: Icons.lock_outline_rounded,
                             obscure: _obscureConfirm,
-                            suffixIcon: GestureDetector(
-                              onTap: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                              child: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                  color: Colors.grey, size: 20),
+                            suffixIcon: IconButton(
+                              tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
+                              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                              icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  size: 20),
                             ),
                             validator: (v) => v != _passCtrl.text ? 'Passwords do not match' : null,
                           ),
 
-                          const SizedBox(height: 28),
+                          const SizedBox(height: AppSpace.xl + 4),
 
                           // Create button
-                          SizedBox(
-                            width: double.infinity, height: 56,
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : _register,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _green,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              child: _loading
-                                  ? const SizedBox(width: 22, height: 22,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                                  : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                      Text('Create Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                      SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward_rounded, size: 18),
-                                    ]),
-                            ),
+                          AppButton(
+                            label: 'Create Account',
+                            trailingIcon: Icons.arrow_forward_rounded,
+                            height: 56,
+                            loading: _loading,
+                            onPressed: _register,
                           ),
 
-                          const SizedBox(height: 20),
+                          const SizedBox(height: AppSpace.md),
 
                           Center(
-                            child: GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: RichText(
-                                text: const TextSpan(
-                                  text: 'Already have an account?  ',
-                                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                                  children: [TextSpan(text: 'Sign In',
-                                      style: TextStyle(color: _green, fontWeight: FontWeight.bold))],
-                                ),
-                              ),
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text.rich(TextSpan(
+                                text: 'Already have an account?  ',
+                                style: t.bodyMedium!.copyWith(color: c.textSecondary),
+                                children: [TextSpan(text: 'Sign In',
+                                    style: TextStyle(color: c.primary, fontWeight: FontWeight.bold))],
+                              )),
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: AppSpace.xl),
                         ],
                       ),
                     ),
@@ -290,22 +258,25 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-  Widget _chip(IconData icon, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: _greenSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _greenLight.withValues(alpha: 0.3)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: _green, size: 14),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: _green, fontWeight: FontWeight.w600, fontSize: 12)),
-        ]),
-      );
+  Widget _chip(IconData icon, String label) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
+      decoration: BoxDecoration(
+        color: c.primaryContainer,
+        borderRadius: AppRadius.all(AppRadius.pill),
+        border: Border.all(color: c.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: c.onPrimaryContainer, size: 14),
+        const SizedBox(width: AppSpace.xs - 2),
+        Text(label, style: context.text.labelMedium!.copyWith(color: c.onPrimaryContainer)),
+      ]),
+    );
+  }
 
-  Widget _fieldLabel(String text) => Text(text,
-      style: const TextStyle(color: Color(0xFF424242), fontSize: 13, fontWeight: FontWeight.w600));
+  Widget _fieldLabel(String text) => Text(text, style: context.text.labelMedium!.copyWith(
+      color: context.colors.textSecondary, fontSize: 13));
 
   Widget _buildField({
     required TextEditingController controller,
@@ -320,26 +291,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscure,
-        style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
+        style: context.text.bodyLarge,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          prefixIcon: Icon(icon, color: _greenLight, size: 20),
-          suffixIcon: suffixIcon != null
-              ? Padding(padding: const EdgeInsets.only(right: 12), child: suffixIcon) : null,
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade200)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade200)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: _greenLight, width: 1.5)),
-          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Colors.red)),
-          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Colors.red, width: 1.5)),
+          prefixIcon: Icon(icon, size: 20),
+          suffixIcon: suffixIcon,
         ),
         validator: validator,
       );

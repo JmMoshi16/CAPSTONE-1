@@ -1,4 +1,5 @@
 // Reusable UI components built on lib/core/tokens.dart.
+export '../core/tap.dart';
 export '../core/tokens.dart';
 export 'ui/app_button.dart';
 export 'ui/app_sheet.dart';
