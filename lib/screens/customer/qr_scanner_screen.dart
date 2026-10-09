@@ -151,8 +151,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
       await NotificationService.showPointsCredited(
           wasteType: wasteType, points: points, basePoints: basePoints, multiplier: credit.multiplier);
       for (final id in newBadges) {
-        // FIX 6: Haptic for each badge unlocked
-        HapticFeedback.lightImpact();
+        // A light tap for each badge unlocked (the success pulse follows)
+        AppHaptics.primary();
         final info = FirebaseService.getBadgeInfo(id);
         await NotificationService.showBadgeUnlocked(
           info['icon'] as String, info['label'] as String);
@@ -516,7 +516,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
     _animCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _animCtrl.forward();
-    if (_rankedUp) HapticFeedback.heavyImpact();
+    if (_rankedUp) AppHaptics.success(); // heavy is kept for errors
     AppSounds.play(AppSound.success);
     if (_rankedUp || widget.newBadges.isNotEmpty) {
       Future.delayed(const Duration(milliseconds: 700), () => AppSounds.play(AppSound.badge));

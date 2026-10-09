@@ -422,6 +422,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                   );
                   if (confirm != true || !mounted) return;
                   // Hide it at once and offer Undo; the delete runs only when the snackbar closes.
+                  AppHaptics.primary();
                   setState(() => _hidden.add(r.id!));
                   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
                   final reason = await messenger.showSnackBar(SnackBar(
