@@ -8,6 +8,7 @@ import 'services/notification_service.dart';
 import 'models/models.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
+import 'widgets/eco_animations.dart';
 import 'screens/customer/customer_home_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 
@@ -65,8 +66,9 @@ class _AuthGate extends StatelessWidget {
         builder: (_, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Scaffold(
-              backgroundColor: AppPalette.forestDeep,
-              body: Center(child: CircularProgressIndicator(color: AppPalette.mint)),
+              // Same cream as the splash, so restoring the session looks like part of it.
+              backgroundColor: AppPalette.cream,
+              body: Center(child: EcoLoader(size: 72, semanticLabel: 'Signing you in')),
             );
           }
           final user = snap.data;

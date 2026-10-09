@@ -192,9 +192,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   const SizedBox(height: AppSpace.md - 2),
                   Text(widget.user.username, style: t.headlineSmall, textAlign: TextAlign.center),
                   const SizedBox(height: AppSpace.xxs),
-                  // FIX 3: spaces become underscores
+                  // There are no @handles in the app, so show something real instead.
                   Text(
-                    '@${widget.user.username.toLowerCase().replaceAll(' ', '_')}',
+                    'Member since ${_monthYear(widget.user.createdAt)}',
                     style: t.bodyMedium!.copyWith(color: c.textSecondary),
                   ),
                   if (_myRank > 0)
@@ -313,7 +313,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               ),
             ),
 
-            // ── "Complete new tasks" badges banner ────────────────────────────
+            // ── Badges banner ────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, 0),
@@ -350,7 +350,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       ),
                       const SizedBox(width: AppSpace.sm),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Complete new tasks', style: t.titleSmall!.copyWith(
+                        Text('Your badges', style: t.titleSmall!.copyWith(
                             color: c.onPrimaryContainer, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(
@@ -512,6 +512,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         )),
       ),
     );
+  }
+
+  String _monthYear(DateTime d) {
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${m[d.month - 1]} ${d.year}';
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────

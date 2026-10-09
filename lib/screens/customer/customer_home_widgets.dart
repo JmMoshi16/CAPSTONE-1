@@ -119,7 +119,7 @@ class _HeroHeaderCard extends StatelessWidget {
                     ),
                   ),
                   Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: AppSpace.xs, children: [
-                    Text('eco credits', style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
+                    Text('points', style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
                     if (multiplier > 1.0)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
@@ -313,7 +313,7 @@ class _FloatingNavBar extends StatelessWidget {
                   child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 26),
                 ),
               ),
-              _navItem(context, Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Insight', 2),
+              _navItem(context, Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Impact', 2),
               _navItem(context, Icons.person_rounded, Icons.person_outlined, 'Profile', 3),
             ],
           ),

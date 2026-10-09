@@ -281,7 +281,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.recycling_rounded, iconColor: c.success,
         title: 'Points Credited',
         subtitle: '${widget.user.scanCount} scan${widget.user.scanCount > 1 ? "s" : ""} recorded. Keep recycling!',
-        time: 'Today', isUnread: false, onTap: null,
+        time: _lastScanLabel(widget.user.lastScanDate), isUnread: false, onTap: null,
       ));
     }
     if (widget.user.badges.isNotEmpty) {
@@ -289,7 +289,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.military_tech_rounded, iconColor: c.gold,
         title: 'Badge Unlocked',
         subtitle: 'You earned ${widget.user.badges.length} badge${widget.user.badges.length > 1 ? "s" : ""}. Check your collection!',
-        time: 'Recently', isUnread: false, onTap: null,
+        time: '', isUnread: false, onTap: null,
       ));
     }
     if (widget.myRank > 0 && widget.myRank <= 10) {
@@ -297,7 +297,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.leaderboard_rounded, iconColor: c.gold,
         title: 'Top 10 Leaderboard',
         subtitle: "You're ranked #${widget.myRank} on the leaderboard!",
-        time: 'Today', isUnread: false, onTap: null,
+        time: 'Now', isUnread: false, onTap: null,
       ));
     }
     final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, DateTime.now());
@@ -306,7 +306,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.local_fire_department_rounded, iconColor: c.warning,
         title: '$streak-Day Streak',
         subtitle: 'Amazing! Keep recycling every day.',
-        time: 'Today', isUnread: false, onTap: null,
+        time: 'Now', isUnread: false, onTap: null,
       ));
     }
     if (items.isEmpty) {
@@ -378,6 +378,17 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         },
       ),
     );
+  }
+
+  /// When the last scan happened ("Today", "Yesterday", "Oct 9"); the old label always said "Today".
+  String _lastScanLabel(String? yyyyMmDd) {
+    final d = yyyyMmDd == null ? null : DateTime.tryParse(yyyyMmDd);
+    if (d == null) return '';
+    final now = DateTime.now();
+    final days = DateTime(now.year, now.month, now.day).difference(DateTime(d.year, d.month, d.day)).inDays;
+    if (days <= 0) return 'Today';
+    if (days == 1) return 'Yesterday';
+    return _fmtDate(d);
   }
 
   String _fmtDate(DateTime dt) {
@@ -568,7 +579,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 const SectionHeader(title: 'Quick Access'),
                 const SizedBox(height: AppSpace.sm),
                 Row(children: [
-                  Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.coffee_rounded, color: c.coffee, label: 'Free Coffee', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available')),
+                  Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.coffee_rounded, color: c.coffee, label: 'Coffee rewards', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available')),
                   const SizedBox(width: AppSpace.sm),
                   Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.local_offer_rounded, color: const Color(0xFF7C4DFF), label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available')),
                 ]),
@@ -576,7 +587,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 Row(children: [
                   Expanded(child: _gridTile(onTap: widget.onHistory, icon: Icons.history_rounded, color: c.info, label: 'Scan History', subtitle: '${widget.logs.length} total scans')),
                   const SizedBox(width: AppSpace.sm),
-                  Expanded(child: _gridTile(onTap: widget.onImpact, icon: Icons.eco_rounded, color: c.success, label: 'Eco Impact', subtitle: '${co2}kg CO₂ reduced')),
+                  Expanded(child: _gridTile(onTap: widget.onImpact, icon: Icons.eco_rounded, color: c.success, label: 'Your impact', subtitle: '${co2}kg CO₂ reduced')),
                 ]),
               ]),
             )),

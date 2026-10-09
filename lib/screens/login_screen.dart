@@ -240,14 +240,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(2))),
                         const SizedBox(width: AppSpace.sm),
                         Text('Sign In', style: t.headlineSmall),
-                        const SizedBox(width: AppSpace.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: AppSpace.xxs),
-                          decoration: BoxDecoration(
-                              color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.md)),
-                          child: Text('🌱 Eco Mode',
-                              style: t.labelSmall!.copyWith(color: c.onPrimaryContainer, fontWeight: FontWeight.w700)),
-                        ),
                       ]),
                       const SizedBox(height: AppSpace.xl),
 
