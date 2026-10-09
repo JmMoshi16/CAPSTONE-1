@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
-import '../../core/theme.dart';
+import '../../widgets/ui.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   final String currentUid;
@@ -22,11 +22,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   @override
   void initState() {
     super.initState();
-    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _listCtrl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
+    _headerCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
+    _listCtrl   = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut));
+        .animate(CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard));
     _headerCtrl.forward();
     _load();
   }
@@ -53,13 +53,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final showPodium = _users.length >= 3;
     final listOffset = showPodium ? 3 : 0;
 
     return Scaffold(
-      backgroundColor: kBg,
       body: RefreshIndicator(
-        color: kGreenLight,
+        color: c.primary,
         onRefresh: _load,
         child: CustomScrollView(
           slivers: [
@@ -69,41 +70,32 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                 child: SlideTransition(
                   position: _headerSlide,
                   child: Container(
-                    decoration: gradientHeader,
+                    decoration: heroDecoration(context,
+                        radius: const BorderRadius.vertical(bottom: Radius.circular(AppSpace.xxl))),
                     child: SafeArea(
                       bottom: false,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                        padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.lg, AppSpace.xl + 4),
                         child: Column(children: [
                           Row(children: [
-                            GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text('Leaderboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                            HeroBackButton(onTap: () => Navigator.pop(context)),
+                            const SizedBox(width: AppSpace.xs),
+                            Text('Leaderboard', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 20)),
                           ]),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: AppSpace.lg),
                           if (_myRank > 0)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm - 2),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: AppRadius.all(AppRadius.pill),
                                 border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                               ),
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
-                                const SizedBox(width: 8),
+                                Icon(Icons.emoji_events_rounded, color: AppPalette.coin[1], size: 20),
+                                const SizedBox(width: AppSpace.xs),
                                 Text('Your Rank: #$_myRank',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                    style: t.titleSmall!.copyWith(color: c.onHero, fontWeight: FontWeight.w700, fontSize: 15)),
                               ]),
                             ),
                         ]),
@@ -115,36 +107,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
             ),
             if (_loading)
               const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: kGreenLight)),
+                child: Center(child: CircularProgressIndicator()),
               )
             else if (_users.isEmpty)
               const SliverFillRemaining(
-                child: Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text('🏆', style: TextStyle(fontSize: 48)),
-                    SizedBox(height: 12),
-                    Text('No users yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                  ]),
-                ),
+                child: EmptyState(emoji: '🏆', title: 'No users yet', dense: true),
               )
             else ...[
               if (showPodium)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                    padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.xl, AppSpace.xl, AppSpace.xs),
                     child: _Podium(users: _users.take(3).toList(), currentUid: widget.currentUid, ctrl: _listCtrl),
                   ),
                 ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, AppSpace.navClearance),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (_, i) {
                       final rank = i + listOffset + 1;
                       final user = _users[i + listOffset];
                       final isMe = user.uid == widget.currentUid;
-                      final delay = (i * 60).clamp(0, 500);
-                      return _AnimatedLeaderRow(rank: rank, user: user, isMe: isMe, ctrl: _listCtrl, delayMs: delay);
+                      final delay = AppMotion.stagger * i;
+                      return _AnimatedLeaderRow(rank: rank, user: user, isMe: isMe, ctrl: _listCtrl,
+                          delay: delay > AppMotion.slow ? AppMotion.slow : delay);
                     },
                     childCount: (_users.length - listOffset).clamp(0, _users.length),
                   ),
@@ -176,10 +163,10 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     for (int i = 0; i < 3; i++) {
-      final c = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+      final c = AnimationController(vsync: this, duration: AppMotion.slow);
       _ctrls.add(c);
-      _scales.add(CurvedAnimation(parent: c, curve: Curves.elasticOut));
-      Future.delayed(Duration(milliseconds: 200 + i * 120), () { if (mounted) c.forward(); });
+      _scales.add(Tween<double>(begin: 0.6, end: 1).animate(CurvedAnimation(parent: c, curve: AppMotion.spring)));
+      Future.delayed(AppMotion.medium + AppMotion.stagger * (i * 2), () { if (mounted) c.forward(); });
     }
   }
 
@@ -203,7 +190,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
           final isMe = user.uid == widget.currentUid;
           return _AnimatedLeaderRow(
             rank: i + 1, user: user, isMe: isMe,
-            ctrl: widget.ctrl, delayMs: i * 80,
+            ctrl: widget.ctrl, delay: AppMotion.stagger * i,
           );
         }),
       );
@@ -211,7 +198,9 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
     const order   = [1, 0, 2];
     const heights = [80.0, 110.0, 60.0];
     const medals  = ['🥈', '🥇', '🥉'];
-    final colors  = [Colors.grey.shade400, Colors.amber, const Color(0xFFCD7F32)];
+    final c = context.colors;
+    final t = context.text;
+    final colors  = [const Color(0xFF9E9E9E), const Color(0xFFFFC107), const Color(0xFFCD7F32)];
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -225,13 +214,13 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
             child: Column(children: [
               if (isMe)
                 Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: kGreen, borderRadius: BorderRadius.circular(8)),
-                  child: const Text('You', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  margin: const EdgeInsets.only(bottom: AppSpace.xxs),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
+                  decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.sm)),
+                  child: Text('You', style: t.labelSmall!.copyWith(color: c.onPrimary, fontWeight: FontWeight.w700)),
                 ),
               Text(medals[i], style: const TextStyle(fontSize: 28)),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpace.xxs),
               Container(
                 width: 52, height: 52,
                 decoration: BoxDecoration(
@@ -241,23 +230,23 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
                 ),
                 child: Center(child: Text(
                   user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-                  style: TextStyle(color: colors[i], fontWeight: FontWeight.bold, fontSize: 20),
+                  style: t.titleLarge!.copyWith(color: c.ink(colors[i]), fontSize: 20),
                 )),
               ),
-              const SizedBox(height: 6),
-              Text(user.username, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              const SizedBox(height: AppSpace.xs - 2),
+              Text(user.username, style: t.labelMedium!.copyWith(fontWeight: FontWeight.w700),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text('${user.lifetimePoints} pts', style: TextStyle(color: colors[i], fontWeight: FontWeight.bold, fontSize: 11)),
-              const SizedBox(height: 6),
+              Text('${user.lifetimePoints} pts', style: t.labelSmall!.copyWith(color: c.ink(colors[i]), fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpace.xs - 2),
               Container(
                 height: heights[i],
                 decoration: BoxDecoration(
                   color: colors[i].withValues(alpha: 0.15),
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sm + 2)),
                   border: Border.all(color: colors[i].withValues(alpha: 0.4)),
                 ),
                 child: Center(child: Text('#${idx + 1}',
-                    style: TextStyle(color: colors[i], fontWeight: FontWeight.bold, fontSize: 16))),
+                    style: t.titleMedium!.copyWith(color: c.ink(colors[i])))),
               ),
             ]),
           ),
@@ -269,11 +258,12 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
 
 // ── Animated Leader Row ───────────────────────────────────────────────────────
 class _AnimatedLeaderRow extends StatefulWidget {
-  final int rank, delayMs;
+  final int rank;
+  final Duration delay;
   final UserModel user;
   final bool isMe;
   final AnimationController ctrl;
-  const _AnimatedLeaderRow({required this.rank, required this.user, required this.isMe, required this.ctrl, required this.delayMs});
+  const _AnimatedLeaderRow({required this.rank, required this.user, required this.isMe, required this.ctrl, required this.delay});
   @override
   State<_AnimatedLeaderRow> createState() => _AnimatedLeaderRowState();
 }
@@ -286,62 +276,64 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
-    _fade  = CurvedAnimation(parent: _c, curve: Curves.easeOut);
+    _c = AnimationController(vsync: this, duration: AppMotion.slow);
+    _fade  = CurvedAnimation(parent: _c, curve: AppMotion.standard);
     _slide = Tween<Offset>(begin: const Offset(0.08, 0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
-    Future.delayed(Duration(milliseconds: widget.delayMs), () { if (mounted) _c.forward(); });
+        .animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
+    Future.delayed(widget.delay, () { if (mounted) _c.forward(); });
   }
 
   @override
   void dispose() { _c.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: _fade,
-    child: SlideTransition(
-      position: _slide,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: widget.isMe ? kGreen.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: widget.isMe ? Border.all(color: kGreen.withValues(alpha: 0.4)) : null,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
-        child: Row(children: [
-          SizedBox(width: 32,
-            child: Text('#${widget.rank}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
-                color: widget.isMe ? kGreen : Colors.grey))),
-          Container(width: 38, height: 38,
-            decoration: BoxDecoration(color: kGreenLight.withValues(alpha: 0.12), shape: BoxShape.circle),
-            child: Center(child: Text(
-              widget.user.username.isNotEmpty ? widget.user.username[0].toUpperCase() : '?',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: kGreen, fontSize: 16),
-            ))),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Text(widget.user.username, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              if (widget.isMe) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: kGreen, borderRadius: BorderRadius.circular(6)),
-                  child: const Text('You', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                ),
-              ],
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppSpace.xs),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.sm),
+          decoration: cardDecoration(context, radius: AppRadius.lg,
+              color: widget.isMe ? c.primaryContainer : null,
+              borderColor: widget.isMe ? c.primary.withValues(alpha: 0.4) : null),
+          child: Row(children: [
+            SizedBox(width: 36,
+              child: Text('#${widget.rank}', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700,
+                  color: widget.isMe ? c.primary : c.textSecondary))),
+            Container(width: 38, height: 38,
+              decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
+              child: Center(child: Text(
+                widget.user.username.isNotEmpty ? widget.user.username[0].toUpperCase() : '?',
+                style: t.titleMedium!.copyWith(color: c.onPrimaryContainer),
+              ))),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Flexible(child: Text(widget.user.username, overflow: TextOverflow.ellipsis,
+                    style: t.titleSmall!.copyWith(fontSize: 13))),
+                if (widget.isMe) ...[
+                  const SizedBox(width: AppSpace.xs - 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs - 2, vertical: 1),
+                    decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.sm - 2)),
+                    child: Text('You', style: t.labelSmall!.copyWith(color: c.onPrimary, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ]),
+              Text('${widget.user.badges.length} badge${widget.user.badges.length == 1 ? '' : 's'}',
+                  style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
+            ])),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text('${widget.user.lifetimePoints}', style: t.titleMedium!.copyWith(color: c.gold, fontSize: 15)),
+              Text('lifetime pts', style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
             ]),
-            Text('${widget.user.badges.length} badge${widget.user.badges.length == 1 ? '' : 's'}',
-                style: const TextStyle(color: Colors.grey, fontSize: 11)),
-          ])),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('${widget.user.lifetimePoints}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFB8860B))),
-            const Text('lifetime pts', style: TextStyle(color: Colors.grey, fontSize: 10)),
           ]),
-        ]),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

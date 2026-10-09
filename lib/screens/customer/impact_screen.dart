@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
-import '../../core/theme.dart';
+import '../../core/theme.dart' show wasteIcon;
+import '../../widgets/ui.dart';
 
 class ImpactScreen extends StatefulWidget {
   final List<WasteLog> logs;
@@ -18,11 +19,11 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _bodyCtrl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _headerFade = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
+    _headerCtrl = AnimationController(vsync: this, duration: AppMotion.countUp);
+    _bodyCtrl   = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _headerFade = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 300), () { if (mounted) _bodyCtrl.forward(); });
+    Future.delayed(AppMotion.medium, () { if (mounted) _bodyCtrl.forward(); });
   }
 
   @override
@@ -30,40 +31,34 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final bio      = widget.logs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec      = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final res      = widget.logs.where((l) => l.wasteType == 'Residual').length;
     final totalPts = widget.logs.fold(0, (s, l) => s + l.pointsAwarded);
 
     return Scaffold(
-      backgroundColor: kBg,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 160,
             pinned: true,
-            backgroundColor: kGreen,
+            backgroundColor: c.hero[1],
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: FadeTransition(
                 opacity: _headerFade,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [kGreenLight, kGreen],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                  ),
+                  decoration: heroDecoration(context),
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Personal Impact',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
-                        const SizedBox(height: 6),
-                        const Text('Your recycling contribution',
-                            style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        const SizedBox(height: 16),
+                        Text('Personal Impact', style: t.headlineSmall!.copyWith(color: c.onHero)),
+                        const SizedBox(height: AppSpace.xs - 2),
+                        Text('Your recycling contribution', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
+                        const SizedBox(height: AppSpace.md),
                         Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
                           _CountUpStat(end: widget.logs.length, label: 'Total Logs', ctrl: _headerCtrl),
                           _CountUpStat(end: totalPts, label: 'Points Earned', ctrl: _headerCtrl),
@@ -79,104 +74,78 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpace.md),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Expanded(child: _PopInCard(index: 0, ctrl: _bodyCtrl,
-                      child: _typeCard('Biodegradable', bio, Icons.compost_rounded, kBioColor))),
-                  const SizedBox(width: 10),
-                  Expanded(child: _PopInCard(index: 1, ctrl: _bodyCtrl,
-                      child: _typeCard('Recyclable', rec, Icons.recycling_rounded, kRecColor))),
-                  const SizedBox(width: 10),
-                  Expanded(child: _PopInCard(index: 2, ctrl: _bodyCtrl,
-                      child: _typeCard('Residual', res, Icons.delete_outline_rounded, kResColor))),
+                  Expanded(child: _PopInCard(index: 0,
+                      child: _typeCard('Biodegradable', bio, wasteIcon('Biodegradable'), c.bio))),
+                  const SizedBox(width: AppSpace.sm - 2),
+                  Expanded(child: _PopInCard(index: 1,
+                      child: _typeCard('Recyclable', rec, wasteIcon('Recyclable'), c.rec))),
+                  const SizedBox(width: AppSpace.sm - 2),
+                  Expanded(child: _PopInCard(index: 2,
+                      child: _typeCard('Residual', res, wasteIcon('Residual'), c.res))),
                 ]),
-                const SizedBox(height: 20),
-                const Text('Disposal History',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kGreen)),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpace.lg),
+                Text('Disposal History', style: t.titleMedium!.copyWith(color: c.primary)),
+                const SizedBox(height: AppSpace.sm),
               ]),
             ),
           ),
 
           if (widget.logs.isEmpty)
             const SliverFillRemaining(
-              child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.recycling_rounded, size: 56, color: Colors.grey),
-                SizedBox(height: 12),
-                Text('No disposal history yet', style: TextStyle(color: Colors.grey, fontSize: 15)),
-                Text('Scan a bin QR code to start!', style: TextStyle(color: Colors.grey, fontSize: 13)),
-              ])),
+              child: EmptyState(
+                icon: Icons.recycling_rounded,
+                title: 'No disposal history yet',
+                message: 'Scan a bin QR code to start!',
+                dense: true,
+              ),
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _FadeSlideItem(index: i, ctrl: _bodyCtrl, child: _logTile(widget.logs[i])),
+                  (_, i) => _FadeSlideItem(index: i, child: _logTile(widget.logs[i])),
                   childCount: widget.logs.length,
                 ),
               ),
             ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
         ],
       ),
     );
   }
 
   Widget _typeCard(String label, int count, IconData icon, Color color) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
-    ),
+    padding: const EdgeInsets.symmetric(vertical: AppSpace.md - 2, horizontal: AppSpace.xs),
+    decoration: cardDecoration(context, radius: AppRadius.lg),
     child: Column(children: [
       Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+        padding: const EdgeInsets.all(AppSpace.sm - 2),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
         child: Icon(icon, color: color, size: 20),
       ),
-      const SizedBox(height: 6),
-      Text('$count', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      Text(label, style: const TextStyle(color: Colors.grey, fontSize: 9), textAlign: TextAlign.center),
+      const SizedBox(height: AppSpace.xs - 2),
+      Text('$count', style: context.text.titleLarge),
+      FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: context.text.labelSmall, textAlign: TextAlign.center)),
     ]),
   );
 
   Widget _logTile(WasteLog log) {
-    final color = wasteColor(log.wasteType);
-    final icon  = wasteIcon(log.wasteType);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Container(
-          width: 46, height: 46,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [color.withValues(alpha: 0.7), color]),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: Colors.white, size: 22),
-        ),
-        title: Text(log.wasteType, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(DateFormat('EEE, MMM d yyyy · h:mm a').format(log.timestamp),
-              style: const TextStyle(fontSize: 11)),
-          Text('Bin: ${log.binId}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ]),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: kGreenLight.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-          child: Text('+${log.pointsAwarded} pts',
-              style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
-        ),
-      ),
+    final c = context.colors;
+    return AppListTile(
+      margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
+      leading: IconBadge(icon: wasteIcon(log.wasteType), color: c.wasteFill(log.wasteType), size: 46, filled: true),
+      title: log.wasteType,
+      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(DateFormat('EEE, MMM d yyyy · h:mm a').format(log.timestamp),
+            style: context.text.bodySmall!.copyWith(color: c.textPrimary)),
+        Text('Bin: ${log.binId}', style: context.text.bodySmall),
+      ]),
+      trailing: PointsPill('+${log.pointsAwarded} pts'),
     );
   }
 }
@@ -190,15 +159,16 @@ class _CountUpStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final anim = Tween<double>(begin: 0, end: end.toDouble())
-        .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut));
+        .animate(CurvedAnimation(parent: ctrl, curve: AppMotion.standard));
     return Column(children: [
       AnimatedBuilder(
         animation: anim,
         builder: (_, __) => Text('${anim.value.toInt()}',
-            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            style: context.text.titleLarge!.copyWith(color: c.onHero, fontSize: 20)),
       ),
-      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+      Text(label, style: context.text.labelSmall!.copyWith(color: c.onHeroMuted)),
     ]);
   }
 }
@@ -206,9 +176,8 @@ class _CountUpStat extends StatelessWidget {
 // ── Pop-in card wrapper ───────────────────────────────────────────────────────
 class _PopInCard extends StatefulWidget {
   final int index;
-  final AnimationController ctrl;
   final Widget child;
-  const _PopInCard({required this.index, required this.ctrl, required this.child});
+  const _PopInCard({required this.index, required this.child});
   @override
   State<_PopInCard> createState() => _PopInCardState();
 }
@@ -220,24 +189,24 @@ class _PopInCardState extends State<_PopInCard> with SingleTickerProviderStateMi
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _scale = CurvedAnimation(parent: _c, curve: Curves.elasticOut);
-    Future.delayed(Duration(milliseconds: 100 + widget.index * 100), () { if (mounted) _c.forward(); });
+    _c = AnimationController(vsync: this, duration: AppMotion.slow);
+    _scale = Tween<double>(begin: 0.85, end: 1).animate(CurvedAnimation(parent: _c, curve: AppMotion.spring));
+    Future.delayed(AppMotion.fast + AppMotion.stagger * (widget.index * 2), () { if (mounted) _c.forward(); });
   }
 
   @override
   void dispose() { _c.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => ScaleTransition(scale: _scale, child: widget.child);
+  Widget build(BuildContext context) => FadeTransition(
+      opacity: _c, child: ScaleTransition(scale: _scale, child: widget.child));
 }
 
 // ── Fade+slide list item ──────────────────────────────────────────────────────
 class _FadeSlideItem extends StatefulWidget {
   final int index;
-  final AnimationController ctrl;
   final Widget child;
-  const _FadeSlideItem({required this.index, required this.ctrl, required this.child});
+  const _FadeSlideItem({required this.index, required this.child});
   @override
   State<_FadeSlideItem> createState() => _FadeSlideItemState();
 }
@@ -250,12 +219,12 @@ class _FadeSlideItemState extends State<_FadeSlideItem> with SingleTickerProvide
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
-    _fade  = CurvedAnimation(parent: _c, curve: Curves.easeOut);
+    _c = AnimationController(vsync: this, duration: AppMotion.slow);
+    _fade  = CurvedAnimation(parent: _c, curve: AppMotion.standard);
     _slide = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
-    final delay = (widget.index * 50).clamp(0, 500);
-    Future.delayed(Duration(milliseconds: 200 + delay), () { if (mounted) _c.forward(); });
+        .animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
+    final delay = AppMotion.stagger * widget.index;
+    Future.delayed(AppMotion.medium + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _c.forward(); });
   }
 
   @override
