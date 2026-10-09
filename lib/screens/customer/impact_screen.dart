@@ -4,6 +4,7 @@ import '../../models/models.dart';
 import '../../core/theme.dart' show wasteIcon;
 import '../../widgets/ui.dart';
 import 'info_sheets.dart';
+import 'impact_charts.dart';
 
 class ImpactScreen extends StatefulWidget {
   final List<WasteLog> logs;
@@ -101,6 +102,10 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
                       child: _typeCard('Residual', res, wasteIcon('Residual'), c.res))),
                 ]),
                 const SizedBox(height: AppSpace.lg),
+                if (widget.logs.isNotEmpty) ...[
+                  ImpactCharts(logs: widget.logs, animate: _animate),
+                  const SizedBox(height: AppSpace.lg),
+                ],
                 Text('Disposal History', style: t.titleMedium!.copyWith(color: c.primary)),
                 const SizedBox(height: AppSpace.sm),
               ]),
