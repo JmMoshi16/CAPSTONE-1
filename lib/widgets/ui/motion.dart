@@ -1,24 +1,26 @@
-import 'package:animations/animations.dart' show SharedAxisPageTransitionsBuilder, SharedAxisTransitionType;
+import 'package:animations/animations.dart' show FadeThroughPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 
-/// Pushed screens: horizontal shared-axis (300 ms). With reduced motion: a plain fade.
+/// Pushed screens: fade-through (the old page fades out, the new one fades and scales in).
+/// Tabs use a shared axis instead (see [FadeIndexedStack]). Reduced motion: a plain fade.
 class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   const AppPageTransitionsBuilder();
 
-  static const _sharedAxis = SharedAxisPageTransitionsBuilder(transitionType: SharedAxisTransitionType.horizontal);
+  static const _fadeThrough = FadeThroughPageTransitionsBuilder();
 
   @override
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
     if (AppMotion.reduced(context)) return FadeTransition(opacity: animation, child: child);
-    return _sharedAxis.buildTransitions(route, context, animation, secondaryAnimation, child);
+    return _fadeThrough.buildTransitions(route, context, animation, secondaryAnimation, child);
   }
 }
 
 /// Tabs that keep their state: each tab is built the first time it is shown and then kept
-/// (offstage, with its animations paused) while another tab is visible. The incoming tab
-/// fades and grows in (fade-through style, 300 ms); with reduced motion it simply fades.
+/// (offstage, with its animations paused) while another tab is visible. Switching uses a
+/// horizontal shared axis: the new tab slides in from the side you are moving towards while
+/// fading in (300 ms); with reduced motion it simply fades.
 class FadeIndexedStack extends StatefulWidget {
   const FadeIndexedStack({super.key, required this.index, required this.children});
 
@@ -33,14 +35,15 @@ class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerPr
   late final AnimationController _c =
       AnimationController(vsync: this, duration: AppMotion.page, value: 1);
   late final Animation<double> _fade = CurvedAnimation(parent: _c, curve: const Interval(0.2, 1, curve: Curves.easeOut));
-  late final Animation<double> _scale =
-      Tween<double>(begin: 0.96, end: 1).animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
+  bool _forward = true;
+  late final Animation<double> _progress = CurvedAnimation(parent: _c, curve: AppMotion.emphasized);
   final Set<int> _built = {};
 
   @override
   void didUpdateWidget(FadeIndexedStack old) {
     super.didUpdateWidget(old);
     if (old.index != widget.index) {
+      _forward = widget.index > old.index;
       _c.duration = AppMotion.reduced(context) ? AppMotion.fast : AppMotion.page;
       _c.forward(from: 0);
     }
@@ -70,9 +73,13 @@ class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerPr
                     // The wrappers stay the same type for every tab, so a tab's state survives switching.
                     child: FadeTransition(
                       opacity: i == widget.index ? _fade : still,
-                      child: ScaleTransition(
-                        scale: i == widget.index && !reduced ? _scale : still,
+                      child: AnimatedBuilder(
+                        animation: i == widget.index && !reduced ? _progress : still,
                         child: widget.children[i],
+                        builder: (_, child) {
+                          final dx = i == widget.index && !reduced ? (1 - _progress.value) * (_forward ? 36 : -36) : 0.0;
+                          return dx == 0 ? child! : Transform.translate(offset: Offset(dx, 0), child: child);
+                        },
                       ),
                     ),
                   ),
