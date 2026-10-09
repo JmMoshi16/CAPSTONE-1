@@ -12,7 +12,7 @@ class SmartCafeSplash extends StatefulWidget {
   const SmartCafeSplash({
     super.key,
     required this.next,
-    this.appName = 'Smart Cafe Bin',
+    this.appName = 'ECOReward Bin',
     this.tagline = 'From coffee to a greener future',
   });
 

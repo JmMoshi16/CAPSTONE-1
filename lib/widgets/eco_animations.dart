@@ -1,4 +1,4 @@
-// Smart Cafe Bin brand animations (Lottie).
+// ECOReward Bin brand animations (Lottie).
 //
 // Requires:  lottie: ^3.1.2   (pubspec.yaml)
 // Assets:    assets/animations/{splash,loader,success,idle}.json
