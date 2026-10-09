@@ -14,6 +14,7 @@ class AppPalette {
   static const mint = Color(0xFF7CCFA5);
   static const coffee = Color(0xFF6B4A34);
   static const cream = Color(0xFFF5EDE0);
+  static const coin = [Color(0xFFFFE566), Color(0xFFFFD700), Color(0xFFB8860B)]; // decorative points coin
 }
 
 // ── Spacing: 4/8 grid ────────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color warningContainer, dangerContainer;
   final List<Color> hero;                // gradient behind white header text
   final Color onHero, onHeroMuted;       // text on [hero]
+  final Color heroAccent;                // highlight text on [hero] (streak bonus)
   final Color bio, rec, res;             // waste-type accents (icons, bars)
   final Color bioFill, recFill, resFill; // solid fills that carry white text
 
@@ -125,7 +127,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.accent, required this.coffee,
     required this.success, required this.warning, required this.danger, required this.info, required this.gold,
     required this.warningContainer, required this.dangerContainer,
-    required this.hero, required this.onHero, required this.onHeroMuted,
+    required this.hero, required this.onHero, required this.onHeroMuted, required this.heroAccent,
     required this.bio, required this.rec, required this.res,
     required this.bioFill, required this.recFill, required this.resFill,
   });
@@ -152,9 +154,10 @@ class AppColors extends ThemeExtension<AppColors> {
     gold: Color(0xFF8A6500),            // 5.3:1 on white
     warningContainer: Color(0xFFFFF3E0),
     dangerContainer: Color(0xFFFDECEC),
-    hero: [AppPalette.forestDeep, AppPalette.forest, AppPalette.forestLight],
+    hero: [AppPalette.forestDeep, AppPalette.forest, Color(0xFF33643F)],
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xE6FFFFFF),
+    heroAccent: Color(0xFFFFD08A),
     bio: Color(0xFF7CB342), rec: Color(0xFF0288D1), res: Color(0xFFE53935),
     bioFill: Color(0xFF33691E), recFill: Color(0xFF01579B), resFill: Color(0xFFC62828),
   );
@@ -184,6 +187,7 @@ class AppColors extends ThemeExtension<AppColors> {
     hero: [Color(0xFF15281C), Color(0xFF1E3A2A), Color(0xFF26493A)],
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xDDFFFFFF),
+    heroAccent: Color(0xFFFFD08A),
     bio: Color(0xFFA5D67A), rec: Color(0xFF6CC7F5), res: Color(0xFFFF8A80),
     bioFill: Color(0xFF33691E), recFill: Color(0xFF01579B), resFill: Color(0xFFC62828),
   );
@@ -232,6 +236,7 @@ class AppColors extends ThemeExtension<AppColors> {
       dangerContainer: l(dangerContainer, other.dangerContainer),
       hero: [for (var i = 0; i < hero.length; i++) l(hero[i], other.hero[i])],
       onHero: l(onHero, other.onHero), onHeroMuted: l(onHeroMuted, other.onHeroMuted),
+      heroAccent: l(heroAccent, other.heroAccent),
       bio: l(bio, other.bio), rec: l(rec, other.rec), res: l(res, other.res),
       bioFill: l(bioFill, other.bioFill), recFill: l(recFill, other.recFill), resFill: l(resFill, other.resFill),
     );

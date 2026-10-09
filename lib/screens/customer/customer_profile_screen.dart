@@ -242,7 +242,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 18),
-                decoration: cardDecoration(),
+                decoration: legacyCardDecoration(),
                 child: Row(children: [
                   Expanded(child: _statPill('$winRate%',  'Eco Rate', Icons.recycling_rounded,   kGreenLight)),
                   _divider(),
@@ -266,7 +266,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: cardDecoration(),
+                decoration: legacyCardDecoration(),
                 child: Row(children: [
                   SizedBox(
                     width: 56,
@@ -393,7 +393,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: cardDecoration(),
+                  decoration: legacyCardDecoration(),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
                       Icon(Icons.military_tech_rounded, color: rankColor, size: 20),
@@ -428,7 +428,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: cardDecoration(),
+                decoration: legacyCardDecoration(),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Row(children: [
                     Icon(Icons.pie_chart_rounded, color: kGreen, size: 18),
@@ -462,7 +462,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Container(
-                decoration: cardDecoration(),
+                decoration: legacyCardDecoration(),
                 child: Form(
                   key: _formKey,
                   child: Column(children: [

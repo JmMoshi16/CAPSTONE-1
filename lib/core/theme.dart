@@ -58,7 +58,7 @@ double rankProgress(int points) {
 }
 
 // ── Shared Decorations ────────────────────────────────────────────────────────
-BoxDecoration cardDecoration({Color? color, double radius = 20, bool border = false}) => BoxDecoration(
+BoxDecoration legacyCardDecoration({Color? color, double radius = 20, bool border = false}) => BoxDecoration(
   color: color ?? Colors.white,
   borderRadius: BorderRadius.circular(radius),
   border: border ? Border.all(color: const Color(0xFFE0E0E0)) : null,

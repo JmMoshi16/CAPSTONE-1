@@ -21,17 +21,14 @@ class _HeroHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final lv = getLevel(lifetimePoints);
     final rk = getRank(lifetimePoints);
     final multiplier = streakMultiplier(streak);
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
-      ),
+      decoration: heroDecoration(context,
+          radius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxxl))),
       child: Stack(children: [
         Positioned(top: -40, right: -40,
           child: Container(width: 160, height: 160,
@@ -43,12 +40,12 @@ class _HeroHeaderCard extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.04)))),
 
         SafeArea(bottom: false, child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 30),
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xxl),
           child: Column(children: [
 
             // ── Top row: avatar / name / bell ──────────────────────────────
             Row(children: [
-              Tap(label: 'Open profile', tooltip: true, 
+              Tap(label: 'Open profile', tooltip: true,
                 onTap: onProfile,
                 child: Container(
                   width: 44, height: 44,
@@ -59,98 +56,95 @@ class _HeroHeaderCard extends StatelessWidget {
                   ),
                   child: Center(child: Text(
                     user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                    style: t.titleLarge!.copyWith(color: c.onHero),
                   )),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpace.sm),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_greeting, style: TextStyle(color: Colors.white.withValues(alpha: 0.70), fontSize: 11)),
+                Text(_greeting, style: t.labelSmall!.copyWith(color: c.onHeroMuted)),
                 Text(user.username, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    style: t.titleMedium!.copyWith(color: c.onHero)),
               ])),
-              Tap(label: pendingRedemptions > 0 ? 'Notifications, $pendingRedemptions pending' : 'Notifications', tooltip: true, 
+              Tap(label: pendingRedemptions > 0 ? 'Notifications, $pendingRedemptions pending' : 'Notifications', tooltip: true,
                 onTap: onBell,
                 child: Stack(clipBehavior: Clip.none, children: [
                   Container(
-                    width: 40, height: 40,
+                    width: 44, height: 44,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
                     ),
-                    child: const Icon(Icons.notifications_rounded, color: Colors.white, size: 19),
+                    child: Icon(Icons.notifications_rounded, color: c.onHero, size: 20),
                   ),
                   if (pendingRedemptions > 0)
                     Positioned(top: -2, right: -2,
                       child: Container(
-                        width: 15, height: 15,
-                        decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                        child: Center(child: Text('$pendingRedemptions',
-                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(color: c.danger, shape: BoxShape.circle),
+                        alignment: Alignment.center,
+                        child: Text('$pendingRedemptions',
+                            style: t.labelSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
                       )),
                 ]),
               ),
             ]),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpace.xl),
 
             // ── Points display (centered, no box) ──────────────────────────
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               Container(
                 width: 52, height: 52,
                 decoration: BoxDecoration(
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFFFFE566), Color(0xFFFFD700), Color(0xFFB8860B)],
-                    stops: [0.0, 0.5, 1.0],
-                  ),
+                  gradient: const RadialGradient(colors: AppPalette.coin, stops: [0.0, 0.5, 1.0]),
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 4))],
+                  boxShadow: [BoxShadow(color: AppPalette.coin[1].withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 4))],
                 ),
                 child: const Icon(Icons.stars_rounded, color: Colors.white, size: 26),
               ),
-              const SizedBox(width: 14),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                AnimatedBuilder(
-                  animation: pointsAnim,
-                  builder: (_, __) => Text(
-                    NumberFormat('#,###').format(pointsAnim.value.toInt()),
-                    style: const TextStyle(fontSize: 46, fontWeight: FontWeight.w900,
-                        color: Colors.white, letterSpacing: -2, height: 1.0),
-                  ),
-                ),
-                Row(children: [
-                  Text('eco credits', style: TextStyle(color: Colors.white.withValues(alpha: 0.70), fontSize: 12)),
-                  if (multiplier > 1.0) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
-                      ),
+              const SizedBox(width: AppSpace.md - 2),
+              Flexible(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  AnimatedBuilder(
+                    animation: pointsAnim,
+                    builder: (_, __) => FittedBox(
+                      fit: BoxFit.scaleDown,
                       child: Text(
-                        streak >= 7 ? '🔥 2× Bonus' : '🔥 1.5× Bonus',
-                        style: const TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                        NumberFormat('#,###').format(pointsAnim.value.toInt()),
+                        style: AppType.numeral.copyWith(color: c.onHero),
                       ),
                     ),
-                  ],
+                  ),
+                  Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: AppSpace.xs, children: [
+                    Text('eco credits', style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
+                    if (multiplier > 1.0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          borderRadius: AppRadius.all(AppRadius.md),
+                          border: Border.all(color: c.heroAccent.withValues(alpha: 0.6)),
+                        ),
+                        child: Text(
+                          streak >= 7 ? '🔥 2× Bonus' : '🔥 1.5× Bonus',
+                          style: t.labelSmall!.copyWith(color: c.heroAccent, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                  ]),
                 ]),
-              ]),
+              ),
             ]),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpace.lg),
 
             // ── Rank + Level pills ─────────────────────────────────────────
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _pill('${lv.emoji} Lv ${lv.level} ${lv.title}'),
-              const SizedBox(width: 8),
-              _pill('${rk.icon} ${rk.label}'),
-              if (myRank > 0) ...[
-                const SizedBox(width: 8),
-                _pill('🏆 #$myRank'),
-              ],
+            Wrap(alignment: WrapAlignment.center, spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
+              _pill(context, '${lv.emoji} Lv ${lv.level} ${lv.title}'),
+              _pill(context, '${rk.icon} ${rk.label}'),
+              if (myRank > 0) _pill(context, '🏆 #$myRank'),
             ]),
           ]),
         )),
@@ -158,14 +152,14 @@ class _HeroHeaderCard extends StatelessWidget {
     );
   }
 
-  Widget _pill(String label) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+  Widget _pill(BuildContext context, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xxs + 1),
     decoration: BoxDecoration(
       color: Colors.white.withValues(alpha: 0.13),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: AppRadius.all(AppRadius.pill),
       border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
     ),
-    child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+    child: Text(label, style: context.text.labelSmall!.copyWith(color: context.colors.onHero)),
   );
 }
 
@@ -176,22 +170,22 @@ class _HeroHeaderCard extends StatelessWidget {
 class _ProgressBarRow extends StatelessWidget {
   final String leftLabel, rightLabel;
   final double progress;
-  final Color color, labelColor;
+  final Color color;
   const _ProgressBarRow({
     required this.leftLabel, required this.rightLabel,
-    required this.progress, required this.color, required this.labelColor,
+    required this.progress, required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(leftLabel,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: labelColor)),
-        Text(rightLabel,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+      Row(children: [
+        Expanded(child: Text(leftLabel,
+            style: context.text.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700))),
+        Text(rightLabel, style: context.text.labelSmall!.copyWith(color: c.textTertiary)),
       ]),
-      const SizedBox(height: 6),
+      const SizedBox(height: AppSpace.xs - 2),
       _AnimatedProgressBar(progress: progress, color: color),
     ]);
   }
@@ -213,10 +207,10 @@ class _AnimatedProgressBarState extends State<_AnimatedProgressBar> with SingleT
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _ctrl = AnimationController(vsync: this, duration: AppMotion.countUp);
     _anim = Tween<double>(begin: 0, end: widget.progress)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    Future.delayed(const Duration(milliseconds: 400), () { if (mounted) _ctrl.forward(); });
+        .animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.standard));
+    Future.delayed(AppMotion.slow, () { if (mounted) _ctrl.forward(); });
   }
 
   @override
@@ -226,88 +220,13 @@ class _AnimatedProgressBarState extends State<_AnimatedProgressBar> with SingleT
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _anim,
     builder: (_, __) => ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: AppRadius.all(6),
       child: LinearProgressIndicator(
         value: _anim.value,
-        backgroundColor: Colors.grey.shade100,
+        backgroundColor: context.colors.surfaceAlt,
         valueColor: AlwaysStoppedAnimation(widget.color),
         minHeight: 8,
       ),
-    ),
-  );
-}
-
-// ── Stat Card with staggered pop-in ──────────────────────────────────────────
-class _StatCard extends StatefulWidget {
-  final String emoji, value, label;
-  final Color valueColor;
-  final Color accentColor;
-  final int delay;
-  final AnimationController ctrl;
-  final VoidCallback onTap;
-  const _StatCard({required this.emoji, required this.value, required this.label,
-      required this.valueColor, required this.accentColor,
-      required this.delay, required this.ctrl, required this.onTap});
-  @override
-  State<_StatCard> createState() => _StatCardState();
-}
-
-class _StatCardState extends State<_StatCard> with SingleTickerProviderStateMixin {
-  late AnimationController _popCtrl;
-  late Animation<double> _pop;
-  bool _pressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _popCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _pop = CurvedAnimation(parent: _popCtrl, curve: Curves.elasticOut);
-    Future.delayed(Duration(milliseconds: 300 + widget.delay), () { if (mounted) _popCtrl.forward(); });
-  }
-
-  @override
-  void dispose() { _popCtrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: ScaleTransition(
-      scale: _pop,
-      child: Semantics(button: true, label: '${widget.value} ${widget.label}', excludeSemantics: true,
-        onTap: widget.onTap,
-        child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
-        child: AnimatedScale(
-          scale: _pressed ? 0.93 : 1.0,
-          duration: const Duration(milliseconds: 80),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4))],
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Colored accent line at top
-              Container(
-                height: 3,
-                width: 24,
-                decoration: BoxDecoration(
-                  color: widget.accentColor.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(widget.emoji, style: const TextStyle(fontSize: 20)),
-              const SizedBox(height: 4),
-              Text(widget.value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: widget.valueColor)),
-              Text(widget.label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
-            ]),
-          ),
-        ),
-      )),
     ),
   );
 }
@@ -320,77 +239,39 @@ class _WeeklyGoalBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final progress = (scanCount / weeklyGoal).clamp(0.0, 1.0);
     final done = scanCount >= weeklyGoal;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.sm),
+      decoration: cardDecoration(context, radius: AppRadius.lg - 2),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Row(children: [
-            Text('🎯', style: TextStyle(fontSize: 13)),
-            SizedBox(width: 6),
-            Text('Weekly Goal · last 7 days', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.black87)),
-          ]),
+        Row(children: [
+          const ExcludeSemantics(child: Text('🎯', style: TextStyle(fontSize: 13))),
+          const SizedBox(width: AppSpace.xs - 2),
+          Expanded(child: Text('Weekly Goal · last 7 days', style: t.labelMedium)),
           Text(
             done ? '✅ Goal reached!' : '$scanCount / $weeklyGoal scans',
-            style: TextStyle(
-              fontSize: 11,
-              color: done ? kGreen : Colors.grey,
-              fontWeight: done ? FontWeight.bold : FontWeight.normal,
+            style: t.labelSmall!.copyWith(
+              color: done ? c.success : c.textSecondary,
+              fontWeight: done ? FontWeight.w700 : FontWeight.w600,
             ),
           ),
         ]),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpace.xs - 2),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppRadius.all(4),
           child: LinearProgressIndicator(
             value: progress,
-            backgroundColor: Colors.grey.shade100,
-            valueColor: AlwaysStoppedAnimation(done ? kGreen : kGreenLight),
+            backgroundColor: c.surfaceAlt,
+            valueColor: AlwaysStoppedAnimation(done ? c.success : c.primary),
             minHeight: 6,
           ),
         ),
       ]),
     );
   }
-}
-
-// ── Scale-on-tap wrapper ──────────────────────────────────────────────────────
-class _ScaleTapButton extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-  const _ScaleTapButton({required this.child, required this.onTap});
-  @override
-  State<_ScaleTapButton> createState() => _ScaleTapButtonState();
-}
-
-class _ScaleTapButtonState extends State<_ScaleTapButton> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 100), lowerBound: 0.93, upperBound: 1.0, value: 1.0);
-    _scale = _ctrl;
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  // The action fires on onTapUp (for the press animation), so give screen readers an explicit tap.
-  Widget build(BuildContext context) => Semantics(button: true, onTap: widget.onTap, child: GestureDetector(
-    onTapDown: (_) => _ctrl.reverse(),
-    onTapUp: (_) { _ctrl.forward(); widget.onTap(); },
-    onTapCancel: () => _ctrl.forward(),
-    child: ScaleTransition(scale: _scale, child: widget.child),
-  ));
 }
 
 // ── Floating Nav Bar ──────────────────────────────────────────────────────────
@@ -402,35 +283,38 @@ class _FloatingNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
         child: Container(
-          height: 68,
+          constraints: const BoxConstraints(minHeight: 68),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(36),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 24, offset: const Offset(0, 8))],
+            color: c.surface,
+            borderRadius: AppRadius.all(AppRadius.pill),
+            border: c.isDark ? Border.all(color: c.border) : null,
+            boxShadow: AppShadows.of(context, AppShadows.e3),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _navItem(Icons.home_rounded, Icons.home_outlined, 'Home', 0),
-              _navItem(Icons.card_giftcard_rounded, Icons.card_giftcard_outlined, 'Rewards', 1),
-              Tap(label: 'Scan QR code', tooltip: true, 
+              _navItem(context, Icons.home_rounded, Icons.home_outlined, 'Home', 0),
+              _navItem(context, Icons.card_giftcard_rounded, Icons.card_giftcard_outlined, 'Rewards', 1),
+              Tap(label: 'Scan QR code', tooltip: true,
                 onTap: onScan,
                 child: Container(
                   width: 54, height: 54,
                   decoration: BoxDecoration(
-                    color: kGreen,
+                    color: c.primary,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                    boxShadow: AppShadows.of(context,
+                        [BoxShadow(color: c.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))]),
                   ),
-                  child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 26),
+                  child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 26),
                 ),
               ),
-              _navItem(Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Insight', 2),
-              _navItem(Icons.person_rounded, Icons.person_outlined, 'Profile', 3),
+              _navItem(context, Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Insight', 2),
+              _navItem(context, Icons.person_rounded, Icons.person_outlined, 'Profile', 3),
             ],
           ),
         ),
@@ -438,22 +322,25 @@ class _FloatingNavBar extends StatelessWidget {
     );
   }
 
-  Widget _navItem(IconData active, IconData inactive, String label, int index) {
+  Widget _navItem(BuildContext context, IconData active, IconData inactive, String label, int index) {
+    final c = context.colors;
     final selected = selectedIndex == index;
-    return Tap(label: label, selected: selected, 
+    final fg = selected ? c.primary : c.textTertiary;
+    return Tap(label: label, selected: selected,
       onTap: () => onTap(index),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        duration: AppMotion.of(context, AppMotion.medium),
+        curve: AppMotion.standard,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm - 2, vertical: AppSpace.xs),
         decoration: BoxDecoration(
-          color: selected ? kGreenLight.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          color: selected ? c.primaryContainer : Colors.transparent,
+          borderRadius: AppRadius.all(AppRadius.lg - 2),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(selected ? active : inactive, color: selected ? kGreen : Colors.grey, size: 22),
+          Icon(selected ? active : inactive, color: fg, size: 22),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 10, color: selected ? kGreen : Colors.grey,
-              fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+          Text(label, style: context.text.labelSmall!.copyWith(color: fg,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
         ]),
       ),
     );
@@ -480,4 +367,3 @@ class _NotifItem {
     required this.onTap,
   });
 }
-

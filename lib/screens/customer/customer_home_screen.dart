@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/tap.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../services/firebase_service.dart';
@@ -7,6 +6,7 @@ import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../core/gamification.dart';
 import '../../widgets/eco_animations.dart';
+import '../../widgets/ui.dart';
 import 'qr_scanner_screen.dart';
 import 'rewards_screen.dart';
 import 'impact_screen.dart';
@@ -72,26 +72,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget build(BuildContext context) {
     if (_loadError) {
       return Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.grey),
-          const SizedBox(height: 12),
-          const Text('Could not load data', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          const Text('Check your connection and try again', style: TextStyle(color: Colors.grey, fontSize: 13)),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
-            style: ElevatedButton.styleFrom(backgroundColor: kGreen, foregroundColor: Colors.white),
-          ),
-        ])),
+        body: ErrorState(
+          title: 'Could not load data',
+          message: 'Check your connection and try again',
+          onRetry: _loadData,
+        ),
       );
     }
     if (_user == null) {
-      return const Scaffold(backgroundColor: kBg,
-          body: Center(child: EcoLoader(size: 72)));
+      return const Scaffold(body: Center(child: EcoLoader(size: 72)));
     }
 
     final screens = [
@@ -122,7 +111,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: kBg,
       extendBody: true,
       body: screens[_selectedIndex],
       bottomNavigationBar: _FloatingNavBar(
@@ -184,8 +172,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
-    // Stagger controller — 900ms total
-    _staggerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _staggerCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
 
     // Build 6 staggered fade+slide animations with overlapping intervals
     final intervals = [
@@ -199,23 +186,23 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     for (final iv in intervals) {
       _fadeAnims.add(CurvedAnimation(parent: _staggerCtrl, curve: iv));
       _slideAnims.add(Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero)
-          .animate(CurvedAnimation(parent: _staggerCtrl, curve: Interval(iv.begin, iv.end, curve: Curves.easeOut))));
+          .animate(CurvedAnimation(parent: _staggerCtrl, curve: Interval(iv.begin, iv.end, curve: AppMotion.standard))));
     }
 
     // Points count-up
-    _pointsCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _pointsCtrl = AnimationController(vsync: this, duration: AppMotion.countUp);
     _pointsAnim = Tween<double>(begin: 0, end: widget.user.points.toDouble())
-        .animate(CurvedAnimation(parent: _pointsCtrl, curve: Curves.easeOut));
+        .animate(CurvedAnimation(parent: _pointsCtrl, curve: AppMotion.standard));
 
     // Pulse for scan button
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
+    _pulseCtrl = AnimationController(vsync: this, duration: AppMotion.ambient)
       ..repeat(reverse: true);
     _pulseAnim = Tween<double>(begin: 1.0, end: 1.06)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
     // Start animations
     _staggerCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(AppMotion.medium, () {
       if (mounted) _pointsCtrl.forward();
     });
   }
@@ -225,7 +212,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.user.points != widget.user.points) {
       _pointsAnim = Tween<double>(begin: oldWidget.user.points.toDouble(), end: widget.user.points.toDouble())
-          .animate(CurvedAnimation(parent: _pointsCtrl, curve: Curves.easeOut));
+          .animate(CurvedAnimation(parent: _pointsCtrl, curve: AppMotion.standard));
       _pointsCtrl
         ..reset()
         ..forward();
@@ -241,6 +228,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
   }
 
   void _showNotificationsSheet(BuildContext context) {
+    final c = context.colors;
     // Build flat notification list
     final items = <_NotifItem>[];
 
@@ -254,7 +242,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
             : isPending
                 ? Icons.confirmation_number_rounded
                 : Icons.check_circle_rounded,
-        iconColor: isExpired ? Colors.red : isPending ? Colors.orange : kGreen,
+        iconColor: isExpired ? c.danger : isPending ? c.warning : c.success,
         title: r.rewardTitle,
         subtitle: isPending && !isExpired
             ? 'Code: ${r.redemptionCode}  •  Tap to copy'
@@ -268,9 +256,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 Clipboard.setData(ClipboardData(text: r.redemptionCode));
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text('Code ${r.redemptionCode} copied!'),
-                  backgroundColor: kGreen,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: c.success,
                 ));
               }
             : null,
@@ -280,7 +266,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     // Activity notifications
     if (widget.user.scanCount > 0) {
       items.add(_NotifItem(
-        icon: Icons.recycling_rounded, iconColor: kGreen,
+        icon: Icons.recycling_rounded, iconColor: c.success,
         title: 'Points Credited',
         subtitle: '${widget.user.scanCount} scan${widget.user.scanCount > 1 ? "s" : ""} recorded. Keep recycling!',
         time: 'Today', isUnread: false, onTap: null,
@@ -288,7 +274,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     }
     if (widget.user.badges.isNotEmpty) {
       items.add(_NotifItem(
-        icon: Icons.military_tech_rounded, iconColor: Colors.amber,
+        icon: Icons.military_tech_rounded, iconColor: c.gold,
         title: 'Badge Unlocked',
         subtitle: 'You earned ${widget.user.badges.length} badge${widget.user.badges.length > 1 ? "s" : ""}. Check your collection!',
         time: 'Recently', isUnread: false, onTap: null,
@@ -296,7 +282,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     }
     if (widget.myRank > 0 && widget.myRank <= 10) {
       items.add(_NotifItem(
-        icon: Icons.leaderboard_rounded, iconColor: const Color(0xFFB8860B),
+        icon: Icons.leaderboard_rounded, iconColor: c.gold,
         title: 'Top 10 Leaderboard',
         subtitle: "You're ranked #${widget.myRank} on the leaderboard!",
         time: 'Today', isUnread: false, onTap: null,
@@ -305,118 +291,79 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, DateTime.now());
     if (streak > 2) {
       items.add(_NotifItem(
-        icon: Icons.local_fire_department_rounded, iconColor: Colors.deepOrange,
+        icon: Icons.local_fire_department_rounded, iconColor: c.warning,
         title: '$streak-Day Streak',
         subtitle: 'Amazing! Keep recycling every day.',
         time: 'Today', isUnread: false, onTap: null,
       ));
     }
     if (items.isEmpty) {
-      items.add(const _NotifItem(
-        icon: Icons.eco_rounded, iconColor: kGreen,
+      items.add(_NotifItem(
+        icon: Icons.eco_rounded, iconColor: c.success,
         title: 'Welcome to ECOReward!',
         subtitle: 'Start scanning waste QR codes to earn points and rewards.',
         time: 'Now', isUnread: false, onTap: null,
       ));
     }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.60,
-        minChildSize: 0.35,
-        maxChildSize: 0.85,
-        builder: (_, ctrl) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(children: [
-            // drag handle
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-            ),
-            // header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Row(children: [
-                const Expanded(
-                  child: Text('Notifications',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
-                ),
-                if (items.any((e) => e.isUnread))
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                    child: Text('${items.where((e) => e.isUnread).length} new',
-                        style: const TextStyle(color: kGreen, fontWeight: FontWeight.w600, fontSize: 12)),
+    final unread = items.where((e) => e.isUnread).length;
+    AppSheet.show(
+      context,
+      title: 'Notifications',
+      initialSize: 0.6,
+      maxSize: 0.85,
+      trailing: unread > 0
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm - 2, vertical: AppSpace.xxs),
+              decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.pill)),
+              child: Text('$unread new',
+                  style: context.text.labelMedium!.copyWith(color: c.onPrimaryContainer)),
+            )
+          : null,
+      builder: (ctx, scroll) => ListView.separated(
+        controller: scroll,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const Divider(height: 1, indent: 68, endIndent: AppSpace.md),
+        itemBuilder: (_, i) {
+          final n = items[i];
+          final t = ctx.text;
+          return InkWell(
+            onTap: n.onTap,
+            child: Container(
+              color: n.isUnread ? c.primaryContainer.withValues(alpha: 0.5) : Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    color: n.iconColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
+                  child: Icon(n.icon, color: n.iconColor, size: 20),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text(n.title, style: t.titleSmall!.copyWith(
+                        fontWeight: n.isUnread ? FontWeight.w700 : FontWeight.w600))),
+                    Text(n.time, style: t.labelSmall!.copyWith(
+                        color: n.isUnread ? c.primary : c.textTertiary)),
+                  ]),
+                  const SizedBox(height: 3),
+                  Text(n.subtitle, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ])),
+                if (n.isUnread) ...[
+                  const SizedBox(width: AppSpace.xs),
+                  Container(
+                    width: 8, height: 8,
+                    margin: const EdgeInsets.only(top: AppSpace.xxs),
+                    decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                  ),
+                ],
               ]),
             ),
-            const Divider(height: 1),
-            // notification list
-            Expanded(
-              child: ListView.separated(
-                controller: ctrl,
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, indent: 68, endIndent: 16),
-                itemBuilder: (_, i) {
-                  final n = items[i];
-                  return InkWell(
-                    onTap: n.onTap,
-                    child: Container(
-                      color: n.isUnread ? kGreen.withValues(alpha: 0.04) : Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        // icon circle
-                        Container(
-                          width: 42, height: 42,
-                          decoration: BoxDecoration(
-                            color: n.iconColor.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(n.icon, color: n.iconColor, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        // text
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Expanded(child: Text(n.title,
-                                style: TextStyle(
-                                  fontWeight: n.isUnread ? FontWeight.bold : FontWeight.w600,
-                                  fontSize: 14, color: Colors.black87,
-                                ))),
-                            Text(n.time,
-                                style: TextStyle(fontSize: 11,
-                                    color: n.isUnread ? kGreen : Colors.grey,
-                                    fontWeight: n.isUnread ? FontWeight.w600 : FontWeight.normal)),
-                          ]),
-                          const SizedBox(height: 3),
-                          Text(n.subtitle,
-                              style: const TextStyle(color: Colors.grey, fontSize: 12),
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
-                        ])),
-                        // unread dot
-                        if (n.isUnread) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 8, height: 8,
-                            margin: const EdgeInsets.only(top: 4),
-                            decoration: const BoxDecoration(color: kGreen, shape: BoxShape.circle),
-                          ),
-                        ],
-                      ]),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ]),
-        ),
+          );
+        },
       ),
     );
   }
@@ -433,6 +380,8 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final bio = widget.logs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final co2 = (rec * 0.5 + bio * 0.3).toStringAsFixed(1);
@@ -445,7 +394,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     final scansThisWeek = scansInLastDays(widget.logs.map((l) => l.timestamp), now);
 
     return RefreshIndicator(
-      color: kGreenLight,
+      color: c.primary,
       onRefresh: widget.onRefresh,
       child: CustomScrollView(
         slivers: [
@@ -467,7 +416,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
           // ── Progress bars + Buttons (no box, direct on bg) ───────────────
           SliverToBoxAdapter(
             child: _fadeSlide(1, Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Rank bar
                 _ProgressBarRow(
@@ -477,9 +426,8 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                       : 'Max Rank',
                   progress: rankProgress(lifetime),
                   color: rank.color,
-                  labelColor: rank.color,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpace.sm),
                 // Level bar
                 _ProgressBarRow(
                   leftLabel: '${level.emoji}  ${level.title}  Lv ${level.level}',
@@ -488,135 +436,98 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                       : '${ptsToNextLevel(lifetime)} pts to next',
                   progress: levelProgress(lifetime),
                   color: level.color,
-                  labelColor: level.color,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpace.lg),
                 // Scan button
                 ScaleTransition(
                   scale: _pulseAnim,
-                  child: Tap(label: 'Scan QR code', 
-                    onTap: widget.onScan,
-                    child: Container(
-                      width: double.infinity, height: 56,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)],
-                          begin: Alignment.centerLeft, end: Alignment.centerRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [BoxShadow(
-                          color: kGreen.withValues(alpha: 0.40),
-                          blurRadius: 16, offset: const Offset(0, 6),
-                        )],
-                      ),
-                      child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 22),
-                        SizedBox(width: 10),
-                        Text('Scan QR Code', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.3)),
-                      ]),
-                    ),
+                  child: AppButton(
+                    label: 'Scan QR Code',
+                    icon: Icons.qr_code_scanner_rounded,
+                    height: 56,
+                    onPressed: widget.onScan,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpace.sm),
                 // Rewards button
-                Tap(label: 'Claim rewards', 
-                  onTap: widget.onRewards,
-                  child: Container(
-                    width: double.infinity, height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: kGreen.withValues(alpha: 0.30), width: 1.5),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
-                    ),
-                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.card_giftcard_rounded, color: kGreen, size: 20),
-                      SizedBox(width: 8),
-                      Text('Claim Rewards', style: TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 15)),
-                    ]),
-                  ),
+                AppButton.secondary(
+                  label: 'Claim Rewards',
+                  icon: Icons.card_giftcard_rounded,
+                  onPressed: widget.onRewards,
                 ),
               ]),
             )),
           ),
 
 
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.lg)),
 
           // ── Progress Stats ──
           SliverToBoxAdapter(
             child: _fadeSlide(2, Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Section header
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Your Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
-                    Text('Tap a card for details', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                  ]),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                SectionHeader(
+                  title: 'Your Progress',
+                  subtitle: 'Tap a card for details',
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm - 2, vertical: AppSpace.xxs),
                     decoration: BoxDecoration(
-                      color: kGreen.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
+                      color: c.primaryContainer,
+                      borderRadius: AppRadius.all(AppRadius.pill),
                     ),
-                    child: Row(children: [
-                      const Icon(Icons.local_fire_department_rounded, color: kGreen, size: 13),
-                      const SizedBox(width: 4),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.local_fire_department_rounded, color: c.onPrimaryContainer, size: 14),
+                      const SizedBox(width: AppSpace.xxs),
                       Text(
                         streak > 0 ? '$streak-day streak!' : 'Start your streak',
-                        style: const TextStyle(fontSize: 11, color: kGreen, fontWeight: FontWeight.w600),
+                        style: t.labelSmall!.copyWith(color: c.onPrimaryContainer),
                       ),
                     ]),
                   ),
-                ]),
-                const SizedBox(height: 12),
+                ),
+                const SizedBox(height: AppSpace.sm),
                 // Stat cards
                 Row(children: [
-                  _StatCard(emoji: '🔥', value: '${streak}d',
-                      label: 'streak', valueColor: streak > 0 ? Colors.deepOrange : Colors.grey,
-                      accentColor: Colors.deepOrange,
-                      delay: 0, ctrl: _staggerCtrl, onTap: widget.onLeaderboard),
-                  const SizedBox(width: 10),
-                  _StatCard(emoji: '🏆', value: widget.myRank > 0 ? '#${widget.myRank}' : '--',
-                      label: 'rank', valueColor: widget.myRank > 0 ? const Color(0xFFB8860B) : Colors.grey,
-                      accentColor: const Color(0xFFB8860B),
-                      delay: 80, ctrl: _staggerCtrl, onTap: widget.onLeaderboard),
-                  const SizedBox(width: 10),
-                  _StatCard(emoji: '🏅', value: '${widget.user.badges.length}',
-                      label: 'badges', valueColor: widget.user.badges.isNotEmpty ? Colors.amber : Colors.grey,
-                      accentColor: Colors.amber,
-                      delay: 160, ctrl: _staggerCtrl, onTap: widget.onBadges),
-                  const SizedBox(width: 10),
-                  _StatCard(emoji: '♻️', value: '${widget.user.scanCount}',
-                      label: 'scans', valueColor: const Color(0xFF2E7D32),
-                      accentColor: const Color(0xFF2E7D32),
-                      delay: 240, ctrl: _staggerCtrl, onTap: widget.onImpact),
+                  Expanded(child: StatCard(emoji: '🔥', value: '${streak}d', label: 'streak',
+                      accent: c.warning, valueColor: streak > 0 ? null : c.textTertiary,
+                      onTap: widget.onLeaderboard)),
+                  const SizedBox(width: AppSpace.sm - 2),
+                  Expanded(child: StatCard(emoji: '🏆', value: widget.myRank > 0 ? '#${widget.myRank}' : '--',
+                      label: 'rank', accent: c.gold, valueColor: widget.myRank > 0 ? null : c.textTertiary,
+                      onTap: widget.onLeaderboard)),
+                  const SizedBox(width: AppSpace.sm - 2),
+                  Expanded(child: StatCard(emoji: '🏅', value: '${widget.user.badges.length}', label: 'badges',
+                      accent: c.gold, valueColor: widget.user.badges.isNotEmpty ? null : c.textTertiary,
+                      onTap: widget.onBadges)),
+                  const SizedBox(width: AppSpace.sm - 2),
+                  Expanded(child: StatCard(emoji: '♻️', value: '${widget.user.scanCount}', label: 'scans',
+                      accent: c.success, onTap: widget.onImpact)),
                 ]),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpace.sm),
                 // Weekly scan goal bar
                 _WeeklyGoalBar(scanCount: scansThisWeek, weeklyGoal: 10),
                 if (widget.user.scanCount == 0) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpace.sm - 2),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xxs, AppSpace.xxs, AppSpace.xxs),
                     decoration: BoxDecoration(
-                      color: kGreen.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: kGreen.withValues(alpha: 0.2)),
+                      color: c.primaryContainer,
+                      borderRadius: AppRadius.all(AppRadius.lg - 2),
+                      border: Border.all(color: c.primary.withValues(alpha: 0.2)),
                     ),
                     child: Row(children: [
-                      const Text('🌱', style: TextStyle(fontSize: 18)),
-                      const SizedBox(width: 10),
-                      const Expanded(child: Text('Scan your first QR to earn badges and start your streak!',
-                          style: TextStyle(color: kGreen, fontSize: 12, fontWeight: FontWeight.w500))),
-                      Tap(label: 'Scan your first QR code', 
+                      const ExcludeSemantics(child: Text('🌱', style: TextStyle(fontSize: 18))),
+                      const SizedBox(width: AppSpace.sm - 2),
+                      Expanded(child: Text('Scan your first QR to earn badges and start your streak!',
+                          style: t.labelMedium!.copyWith(color: c.onPrimaryContainer, fontWeight: FontWeight.w500))),
+                      Tap(label: 'Scan your first QR code',
                         onTap: widget.onScan,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: kGreen, borderRadius: BorderRadius.circular(10)),
-                          child: const Text('Scan', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
+                          decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.sm + 2)),
+                          child: Text('Scan', style: t.labelMedium!.copyWith(color: c.onPrimary, fontWeight: FontWeight.w700)),
                         ),
                       ),
                     ]),
@@ -626,49 +537,43 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
             )),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.lg)),
 
           // ── Quick Access Grid ──
           SliverToBoxAdapter(
             child: _fadeSlide(3, Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Quick Access', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
-                const SizedBox(height: 12),
+                const SectionHeader(title: 'Quick Access'),
+                const SizedBox(height: AppSpace.sm),
                 Row(children: [
-                  Expanded(child: _ScaleTapButton(onTap: widget.onRewards, child: _gridTileContent(icon: Icons.coffee_rounded, color: const Color(0xFF795548), label: 'Free Coffee', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available'))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _ScaleTapButton(onTap: widget.onRewards, child: _gridTileContent(icon: Icons.local_offer_rounded, color: const Color(0xFF7C4DFF), label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available'))),
+                  Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.coffee_rounded, color: c.coffee, label: 'Free Coffee', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available')),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.local_offer_rounded, color: const Color(0xFF7C4DFF), label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available')),
                 ]),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpace.sm),
                 Row(children: [
-                  Expanded(child: _ScaleTapButton(onTap: widget.onHistory, child: _gridTileContent(icon: Icons.history_rounded, color: const Color(0xFF0288D1), label: 'Scan History', subtitle: '${widget.logs.length} total scans'))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _ScaleTapButton(onTap: widget.onImpact, child: _gridTileContent(icon: Icons.eco_rounded, color: const Color(0xFF2E7D32), label: 'Eco Impact', subtitle: '${co2}kg CO₂ reduced'))),
+                  Expanded(child: _gridTile(onTap: widget.onHistory, icon: Icons.history_rounded, color: c.info, label: 'Scan History', subtitle: '${widget.logs.length} total scans')),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(child: _gridTile(onTap: widget.onImpact, icon: Icons.eco_rounded, color: c.success, label: 'Eco Impact', subtitle: '${co2}kg CO₂ reduced')),
                 ]),
               ]),
             )),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.sm)),
 
           // ── Recent Activity ──
           if (recent.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: _fadeSlide(4, Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  const Text('Recent Activity', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
-                  Tap(label: 'See all scan history', 
-                    onTap: widget.onHistory,
-                    child: const Text('See All', style: TextStyle(color: kGreenLight, fontWeight: FontWeight.w600, fontSize: 13)),
-                  ),
-                ]),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                child: SectionHeader(title: 'Recent Activity', actionLabel: 'See All', onAction: widget.onHistory),
               )),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpace.xs)),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => _fadeSlide(5, _activityTile(recent[i])),
@@ -678,91 +583,60 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
             ),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 110)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
         ],
       ),
     );
   }
 
-  Widget _gridTileContent({required IconData icon, required Color color, required String label, required String subtitle}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 6)),
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
+  Widget _gridTile({required VoidCallback onTap, required IconData icon, required Color color, required String label, required String subtitle}) {
+    final c = context.colors;
+    return PressScale(
+      onTap: onTap,
+      label: '$label, $subtitle',
+      scale: 0.95,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpace.md),
+        decoration: cardDecoration(context, radius: AppRadius.xl + 2),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          IconBadge(icon: icon, color: c.ink(color)),
+          const SizedBox(height: AppSpace.sm),
+          Text(label, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: context.text.bodySmall),
+        ]),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.08)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        const SizedBox(height: 12),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87)),
-        const SizedBox(height: 3),
-        Text(subtitle, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
-      ]),
     );
   }
 
   Widget _activityTile(WasteLog log) {
-    final colors = {'Biodegradable': const Color(0xFF7CB342), 'Recyclable': const Color(0xFF0288D1), 'Residual': const Color(0xFFE53935)};
-    final icons = {'Biodegradable': Icons.compost_rounded, 'Recyclable': Icons.recycling_rounded, 'Residual': Icons.delete_outline_rounded};
-    final color = colors[log.wasteType] ?? kGreenLight;
-    final icon = icons[log.wasteType] ?? Icons.recycling_rounded;
+    final c = context.colors;
+    final color = c.waste(log.wasteType);
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.10), blurRadius: 12, offset: const Offset(0, 4)),
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
-        ],
+      margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
+      clipBehavior: Clip.antiAlias,
+      decoration: cardDecoration(context, radius: AppRadius.lg + 2),
+      child: IntrinsicHeight(
+        child: Row(children: [
+          // Colored left accent bar
+          Container(width: 4, color: color),
+          const SizedBox(width: AppSpace.sm),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpace.sm - 1),
+            child: IconBadge(icon: wasteIcon(log.wasteType), color: color, size: 38),
+          ),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(log.wasteType, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+            Text(DateFormat('MMM d · h:mm a').format(log.timestamp), style: context.text.bodySmall),
+          ])),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpace.md - 2),
+            child: Center(child: PointsPill('+${log.pointsAwarded} pts')),
+          ),
+        ]),
       ),
-      child: Row(children: [
-        // Colored left accent bar
-        Container(
-          width: 4, height: 60,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18), bottomLeft: Radius.circular(18)),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Container(width: 38, height: 38,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color, size: 20)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(log.wasteType, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87)),
-          Text(DateFormat('MMM d · h:mm a').format(log.timestamp),
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
-        ])),
-        Padding(
-          padding: const EdgeInsets.only(right: 14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [kGreen.withValues(alpha: 0.15), kGreenLight.withValues(alpha: 0.08)]),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text('+${log.pointsAwarded} pts',
-                style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
-          ),
-        ),
-      ]),
     );
   }
 }
