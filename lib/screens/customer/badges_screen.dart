@@ -26,6 +26,12 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _headerCtrl.value = 1;
+  }
+
+  @override
   void dispose() { _headerCtrl.dispose(); super.dispose(); }
 
   @override
@@ -165,6 +171,12 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
     _fade  = CurvedAnimation(parent: _ctrl, curve: AppMotion.standard);
     final delay = AppMotion.stagger * widget.index;
     Future.delayed(AppMotion.fast + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _ctrl.forward(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _ctrl.value = 1;
   }
 
   @override

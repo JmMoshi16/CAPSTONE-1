@@ -35,6 +35,12 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _animCtrl.value = 1;
+  }
+
+  @override
   void dispose() {
     _animCtrl.dispose();
     _userCtrl.dispose(); _emailCtrl.dispose();

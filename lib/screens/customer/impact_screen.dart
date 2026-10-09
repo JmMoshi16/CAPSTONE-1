@@ -17,6 +17,8 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
   late AnimationController _headerCtrl;
   late AnimationController _bodyCtrl;
   late Animation<double> _headerFade;
+  /// Count-ups and entrances play on the first visit of the session only.
+  late final bool _animate = AppMotion.firstTime('impact');
 
   @override
   void initState() {
@@ -24,8 +26,19 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     _headerCtrl = AnimationController(vsync: this, duration: AppMotion.countUp);
     _bodyCtrl   = AnimationController(vsync: this, duration: AppMotion.slow * 2);
     _headerFade = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
+    if (!_animate) {
+      _headerCtrl.value = 1;
+      _bodyCtrl.value = 1;
+      return;
+    }
     _headerCtrl.forward();
     Future.delayed(AppMotion.medium, () { if (mounted) _bodyCtrl.forward(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _headerCtrl.value = 1; _bodyCtrl.value = 1;
   }
 
   @override
@@ -79,13 +92,13 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
               padding: const EdgeInsets.all(AppSpace.md),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Expanded(child: _PopInCard(index: 0,
+                  Expanded(child: _PopInCard(index: 0, animate: _animate,
                       child: _typeCard('Biodegradable', bio, wasteIcon('Biodegradable'), c.bio))),
                   const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: _PopInCard(index: 1,
+                  Expanded(child: _PopInCard(index: 1, animate: _animate,
                       child: _typeCard('Recyclable', rec, wasteIcon('Recyclable'), c.rec))),
                   const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: _PopInCard(index: 2,
+                  Expanded(child: _PopInCard(index: 2, animate: _animate,
                       child: _typeCard('Residual', res, wasteIcon('Residual'), c.res))),
                 ]),
                 const SizedBox(height: AppSpace.lg),
@@ -112,7 +125,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _FadeSlideItem(index: i, child: _logTile(widget.logs[i])),
+                  (_, i) => _FadeSlideItem(index: i, animate: _animate, child: _logTile(widget.logs[i])),
                   childCount: widget.logs.length,
                 ),
               ),
@@ -186,7 +199,8 @@ class _CountUpStat extends StatelessWidget {
 class _PopInCard extends StatefulWidget {
   final int index;
   final Widget child;
-  const _PopInCard({required this.index, required this.child});
+  final bool animate;
+  const _PopInCard({required this.index, required this.child, required this.animate});
   @override
   State<_PopInCard> createState() => _PopInCardState();
 }
@@ -200,7 +214,14 @@ class _PopInCardState extends State<_PopInCard> with SingleTickerProviderStateMi
     super.initState();
     _c = AnimationController(vsync: this, duration: AppMotion.slow);
     _scale = Tween<double>(begin: 0.85, end: 1).animate(CurvedAnimation(parent: _c, curve: AppMotion.spring));
+    if (!widget.animate) { _c.value = 1; return; }
     Future.delayed(AppMotion.fast + AppMotion.stagger * (widget.index * 2), () { if (mounted) _c.forward(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _c.value = 1;
   }
 
   @override
@@ -215,7 +236,8 @@ class _PopInCardState extends State<_PopInCard> with SingleTickerProviderStateMi
 class _FadeSlideItem extends StatefulWidget {
   final int index;
   final Widget child;
-  const _FadeSlideItem({required this.index, required this.child});
+  final bool animate;
+  const _FadeSlideItem({required this.index, required this.child, required this.animate});
   @override
   State<_FadeSlideItem> createState() => _FadeSlideItemState();
 }
@@ -233,7 +255,14 @@ class _FadeSlideItemState extends State<_FadeSlideItem> with SingleTickerProvide
     _slide = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
         .animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
     final delay = AppMotion.stagger * widget.index;
+    if (!widget.animate) { _c.value = 1; return; }
     Future.delayed(AppMotion.medium + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _c.forward(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _c.value = 1;
   }
 
   @override

@@ -29,6 +29,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   bool _rewardsError = false;
   bool _historyError = false;
   String _selectedCategory = 'All';
+  /// Card entrance plays on the first visit of the session only.
+  late final bool _animateCards = AppMotion.firstTime('rewards');
 
   @override
   void initState() {
@@ -91,17 +93,28 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
       return;
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
+    final confirm = await Navigator.push<bool>(context, PageRouteBuilder<bool>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      barrierLabel: 'Cancel',
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: AppMotion.medium,
+      transitionsBuilder: (_, a, __, child) =>
+          FadeTransition(opacity: CurvedAnimation(parent: a, curve: AppMotion.standard), child: child),
+      pageBuilder: (ctx, _, __) {
         final t = ctx.text;
         return AlertDialog(
           title: const Text('Confirm Redemption'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 68, height: 68,
-              decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
-              child: Icon(_catIcon(reward.category), color: c.onPrimaryContainer, size: 34),
+            Hero(
+              tag: _rewardHeroTag(reward),
+              flightShuttleBuilder: heroMaterialFlight,
+              child: Container(
+                width: 68, height: 68,
+                decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
+                child: Icon(_catIcon(reward.category), color: c.onPrimaryContainer, size: 34),
+              ),
             ),
             const SizedBox(height: AppSpace.md - 2),
             Text(reward.title, style: t.titleMedium, textAlign: TextAlign.center),
@@ -129,7 +142,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
           ],
         );
       },
-    );
+    ));
 
     if (confirm == true) {
       final success = await FirebaseService.redeemReward(widget.user, reward);
@@ -259,8 +272,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                         Text('Redeem your points for great rewards', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
                         const SizedBox(height: AppSpace.md - 2),
                         Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-                          _headerPill(Icons.stars_rounded, AppPalette.coin[1], '${widget.user.points} pts available', bold: true),
-                          _headerPill(Icons.receipt_long_rounded, c.onHeroMuted, '${_redemptions.length} redeemed'),
+                          _headerPill(Icons.stars_rounded, AppPalette.coin[1], widget.user.points, bold: true),
+                          _headerPill(Icons.receipt_long_rounded, c.onHeroMuted, _redemptions.length),
                         ]),
                       ],
                     ),
@@ -290,7 +303,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _headerPill(IconData icon, Color iconColor, String label, {bool bold = false}) {
+  /// [count] animates when it changes (e.g. after redeeming); bold = the points pill.
+  Widget _headerPill(IconData icon, Color iconColor, int count, {bool bold = false}) {
     final c = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
@@ -298,7 +312,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, color: iconColor, size: 16),
         const SizedBox(width: AppSpace.xs - 2),
-        Text(label, style: context.text.labelMedium!.copyWith(
+        AnimatedCount(count, suffix: bold ? ' pts available' : ' redeemed', style: context.text.labelMedium!.copyWith(
             color: bold ? c.onHero : c.onHeroMuted, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, fontSize: 13)),
       ]),
     );
@@ -380,6 +394,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                   onTap: () => _redeem(_filteredRewards[i]),
                   user: widget.user,
                   catIcon: _catIcon,
+                  animate: _animateCards,
+                  heroTag: _rewardHeroTag(_filteredRewards[i]),
                 ),
                 childCount: _filteredRewards.length,
               ),
@@ -539,6 +555,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
+  String _rewardHeroTag(Reward r) => 'reward-${r.id ?? r.title}';
+
   IconData _catIcon(String cat) {
     switch (cat) {
       case 'Coffee': return Icons.coffee_rounded;
@@ -556,7 +574,10 @@ class _AnimatedRewardCard extends StatefulWidget {
   final VoidCallback onTap;
   final UserModel user;
   final IconData Function(String) catIcon;
-  const _AnimatedRewardCard({required this.reward, required this.index, required this.onTap, required this.user, required this.catIcon});
+  final bool animate;
+  final String heroTag;
+  const _AnimatedRewardCard({required this.reward, required this.index, required this.onTap, required this.user,
+      required this.catIcon, required this.animate, required this.heroTag});
   @override
   State<_AnimatedRewardCard> createState() => _AnimatedRewardCardState();
 }
@@ -572,8 +593,18 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
     _ctrl  = AnimationController(vsync: this, duration: AppMotion.slow);
     _scale = Tween<double>(begin: 0.9, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.spring));
     _fade  = CurvedAnimation(parent: _ctrl, curve: AppMotion.standard);
+    if (!widget.animate) {
+      _ctrl.value = 1;
+      return;
+    }
     final delay = AppMotion.stagger * widget.index;
     Future.delayed(AppMotion.fast + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _ctrl.forward(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _ctrl.value = 1;
   }
 
   @override
@@ -616,8 +647,15 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
                     ),
                   ),
                   child: Stack(children: [
-                    Center(child: Icon(widget.catIcon(widget.reward.category),
-                        color: (canAfford || isLowStock) ? Colors.white : c.textTertiary, size: 40)),
+                    Center(child: HeroMode(
+                      enabled: !AppMotion.reduced(context),
+                      child: Hero(
+                        tag: widget.heroTag,
+                        flightShuttleBuilder: heroMaterialFlight,
+                        child: Icon(widget.catIcon(widget.reward.category),
+                            color: (canAfford || isLowStock) ? Colors.white : c.textTertiary, size: 40),
+                      ),
+                    )),
                     if (canAfford)
                       Positioned(top: AppSpace.xs, right: AppSpace.xs,
                         child: Container(

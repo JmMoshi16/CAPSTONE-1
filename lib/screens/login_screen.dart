@@ -64,6 +64,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: no drifting leaves, no pulsing button, the form is simply there.
+    if (AppMotion.reduced(context)) {
+      _particleCtrl.stop();
+      _btnCtrl
+        ..stop()
+        ..value = 0;
+      _heroCtrl.value = 1;
+      _formCtrl.value = 1;
+    }
+  }
+
+  @override
   void dispose() {
     _heroCtrl.dispose();
     _formCtrl.dispose();
@@ -155,12 +169,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         Positioned(bottom: size.height * 0.35, left: -40,
           child: _circle(160, c.accent.withValues(alpha: 0.08))),
 
-        // Floating particles
-        AnimatedBuilder(
-          animation: _particleCtrl,
-          builder: (_, __) => CustomPaint(
-            size: Size(size.width, size.height),
-            painter: _LeafParticlePainter(_particleCtrl.value),
+        // Floating particles (own layer so the form never repaints with them)
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _particleCtrl,
+            builder: (_, __) => CustomPaint(
+              size: Size(size.width, size.height),
+              painter: _LeafParticlePainter(_particleCtrl.value),
+            ),
           ),
         ),
 

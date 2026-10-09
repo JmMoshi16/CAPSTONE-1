@@ -52,6 +52,16 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _scanLineCtrl
+        ..stop()
+        ..value = 0.5;   // a still line across the middle of the frame
+    }
+  }
+
+  @override
   void dispose() {
     _scanLineCtrl.dispose();
     _controller.dispose();
@@ -265,11 +275,13 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
             },
           ),
           // FIX 5: Animated scan line via AnimatedBuilder
-          AnimatedBuilder(
-            animation: _scanLineAnim,
-            builder: (_, __) => CustomPaint(
-              painter: _ScanOverlayPainter(scanProgress: _scanLineAnim.value),
-              child: const SizedBox.expand(),
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _scanLineAnim,
+              builder: (_, __) => CustomPaint(
+                painter: _ScanOverlayPainter(scanProgress: _scanLineAnim.value),
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
           // Framing hint just above the scan window (the window is 65 % of the width, centred).

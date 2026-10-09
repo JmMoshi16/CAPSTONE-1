@@ -33,6 +33,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _headerCtrl.value = 1;
+  }
+
+  @override
   void dispose() { _headerCtrl.dispose(); _listCtrl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
@@ -194,6 +200,16 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      for (final c in _ctrls) {
+        c.value = 1;
+      }
+    }
+  }
+
+  @override
   void dispose() {
     for (final c in _ctrls) {
       c.dispose();
@@ -304,6 +320,12 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
     _slide = Tween<Offset>(begin: const Offset(0.08, 0), end: Offset.zero)
         .animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
     Future.delayed(widget.delay, () { if (mounted) _c.forward(); });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) _c.value = 1;
   }
 
   @override
