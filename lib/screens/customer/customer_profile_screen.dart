@@ -9,6 +9,7 @@ import '../../widgets/ui.dart';
 import '../login_screen.dart';
 import 'leaderboard_screen.dart';
 import 'badges_screen.dart';
+import 'info_sheets.dart';
 
 class CustomerProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -242,7 +243,12 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   padding: const EdgeInsets.symmetric(vertical: AppSpace.md + 2),
                   decoration: cardDecoration(context),
                   child: Row(children: [
-                    Expanded(child: _statPill('$winRate%', 'Eco Rate', Icons.recycling_rounded, c.success, count: winRate, suffix: '%')),
+                    Expanded(child: Tap(
+                      label: 'Eco Rate $winRate%, what this means',
+                      onTap: () => showEcoRateSheet(context, bio: bio, rec: rec, res: res),
+                      child: _statPill('$winRate%', 'Eco Rate', Icons.recycling_rounded, c.success,
+                          count: winRate, suffix: '%', info: true),
+                    )),
                     _divider(),
                     // FIX 8: Show rank (icon + label) with rank color
                     Expanded(child: _statPill('${rankInfo.icon} ${rankInfo.label}', 'Rank',
@@ -554,7 +560,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  Widget _statPill(String value, String label, IconData icon, Color color, {int? count, String suffix = ''}) =>
+  Widget _statPill(String value, String label, IconData icon, Color color,
+          {int? count, String suffix = '', bool info = false}) =>
       Column(children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: AppSpace.xs - 2),
@@ -565,7 +572,14 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           Text(value, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
               maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 2),
-        Text(label, style: context.text.labelSmall),
+        if (info)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(label, style: context.text.labelSmall),
+            const SizedBox(width: 2),
+            Icon(Icons.info_outline_rounded, size: 12, color: context.colors.textSecondary),
+          ])
+        else
+          Text(label, style: context.text.labelSmall),
       ]);
 
   Widget _divider() => Container(width: 1, height: 40, color: context.colors.border);

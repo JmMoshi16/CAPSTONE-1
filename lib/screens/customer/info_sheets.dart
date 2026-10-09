@@ -117,6 +117,39 @@ Future<void> showRankLevelSheet(BuildContext context, {required int lifetimePoin
   ]);
 }
 
+// ── Eco Rate ──────────────────────────────────────────────────────────────────
+Future<void> showEcoRateSheet(BuildContext context, {required int bio, required int rec, required int res}) {
+  final c = context.colors;
+  final t = context.text;
+  final total = bio + rec + res;
+  final rate = total == 0 ? 0 : ((bio + rec) / total * 100).round();
+  Widget row(String k, int n) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+        child: Row(children: [
+          IconBadge(icon: wasteIcon(k), color: c.wasteFill(k), size: 32),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(child: Text(k, style: t.bodyMedium)),
+          Text('$n', style: t.titleSmall),
+        ]),
+      );
+  return _sheet(context, 'Eco Rate', [
+    Text('$rate%', style: t.displaySmall!.copyWith(color: c.success)),
+    const SizedBox(height: AppSpace.xs),
+    Text('The share of your scans that were Biodegradable or Recyclable, the waste that '
+        'can be composted or recycled instead of going to landfill.',
+        style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+    const SizedBox(height: AppSpace.lg),
+    row('Biodegradable', bio),
+    row('Recyclable', rec),
+    row('Residual', res),
+    const SizedBox(height: AppSpace.sm),
+    Text(total == 0
+        ? 'Scan your first bin to start your Eco Rate.'
+        : 'Residual scans still earn points; sorting more into the other bins raises the rate.',
+        style: t.bodySmall),
+  ]);
+}
+
 // ── One scan ──────────────────────────────────────────────────────────────────
 Future<void> showScanDetailSheet(BuildContext context, WasteLog log) {
   final c = context.colors;
