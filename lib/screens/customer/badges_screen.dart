@@ -45,11 +45,13 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     final earned     = widget.user.badges;
     final earnedDefs = allDefs.where((b) => earned.contains(b['id'])).toList();
     final lockedDefs = allDefs.where((b) => !earned.contains(b['id'])).toList();
-    // Taller cards when the user enlarges text, so descriptions are not clipped.
-    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+    // Card height from its content: a fixed part (padding, emoji, gaps) plus the text,
+    // which grows with the user's text size, so labels and descriptions never clip.
+    final textScale = AppLayout.textScale(context).clamp(1.0, 2.0);
     final gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: AppLayout.columns(context, minTile: 160, max: 6), crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
-      childAspectRatio: 1.05 / textScale,
+      // (larger text also wraps onto extra lines, hence the second term)
+      mainAxisExtent: 96 + 80 * textScale + 120 * (textScale - 1),
     );
 
     return Scaffold(
@@ -263,7 +265,7 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
               Text(widget.def['label'] as String,
                   style: t.labelMedium!.copyWith(fontWeight: FontWeight.w700,
                       color: widget.earned ? c.textPrimary : c.textSecondary),
-                  textAlign: TextAlign.center),
+                  textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: AppSpace.xxs),
               Text(widget.def['desc'] as String,
                   style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400),
