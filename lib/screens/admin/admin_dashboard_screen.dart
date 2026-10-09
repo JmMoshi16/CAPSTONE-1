@@ -465,9 +465,9 @@ class _DashboardTab extends StatelessWidget {
     return PieChart(PieChartData(
       sectionsSpace: 2, centerSpaceRadius: 10,
       sections: [
-        PieChartSectionData(value: bio.toDouble(), color: const Color(0xFF8BC34A), title: '', radius: 14),
+        PieChartSectionData(value: bio.toDouble(), color: AdminColors.bio, title: '', radius: 14),
         PieChartSectionData(value: rec.toDouble(), color: kBlue, title: '', radius: 14),
-        PieChartSectionData(value: res.toDouble(), color: const Color(0xFFEF5350), title: '', radius: 14),
+        PieChartSectionData(value: res.toDouble(), color: AdminColors.res, title: '', radius: 14),
       ],
     ));
   }

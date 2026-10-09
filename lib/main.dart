@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'core/app_theme.dart';
+import 'core/tokens.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 import 'models/models.dart';
@@ -34,14 +36,10 @@ class ECORewardApp extends StatelessWidget {
     return MaterialApp(
       title: 'ECOReward Bin',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4CAF50),
-          primary: const Color(0xFF4CAF50),
-        ),
-      ),
+      // Customer screens follow the phone's light/dark setting; admin screens are always dark.
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       // Branded splash first, then the same auth gate as before (saved session -> home, else login).
       home: const SmartCafeSplash(next: _AuthGate()),
     );
@@ -67,8 +65,8 @@ class _AuthGate extends StatelessWidget {
         builder: (_, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Scaffold(
-              backgroundColor: Color(0xFF0A2E0C),
-              body: Center(child: CircularProgressIndicator(color: Color(0xFF66BB6A))),
+              backgroundColor: AppPalette.forestDeep,
+              body: Center(child: CircularProgressIndicator(color: AppPalette.mint)),
             );
           }
           final user = snap.data;

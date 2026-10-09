@@ -15,7 +15,7 @@ class Skeleton extends StatefulWidget {
 
 class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+      AnimationController(vsync: this, duration: AppMotion.ambient);
 
   @override
   void didChangeDependencies() {

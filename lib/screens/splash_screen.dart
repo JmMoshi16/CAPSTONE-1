@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../widgets/eco_animations.dart';
+import '../core/tokens.dart';
 
 class SmartCafeSplash extends StatefulWidget {
   const SmartCafeSplash({
@@ -50,7 +51,7 @@ class _SmartCafeSplashState extends State<SmartCafeSplash>
       Future.delayed(const Duration(milliseconds: 700), _leave);
     } else {
       _c.forward().whenComplete(
-          () => Future.delayed(const Duration(milliseconds: 250), _leave)); // brief hold
+          () => Future.delayed(AppMotion.medium, _leave)); // brief hold
     }
   }
 
@@ -58,7 +59,7 @@ class _SmartCafeSplashState extends State<SmartCafeSplash>
     if (_left || !mounted) return;
     _left = true;
     Navigator.of(context).pushReplacement(PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 450),
+      transitionDuration: AppMotion.slow,
       pageBuilder: (_, __, ___) => widget.next,
       transitionsBuilder: (_, a, __, child) =>
           FadeTransition(opacity: CurvedAnimation(parent: a, curve: Curves.easeOut), child: child),

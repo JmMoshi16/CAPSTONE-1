@@ -20,6 +20,11 @@ class AdminColors {
   static const danger = Color(0xFFFF7B72);       // danger text/icons
   static const dangerFill = Color(0xFFDA3633);   // solid danger buttons with white text (4.6:1)
   static const gold = Color(0xFFE3B341);
+
+  // Waste-type accents on dark surfaces (all above 7:1 on card).
+  static const bio = Color(0xFF8BC34A);
+  static const rec = Color(0xFF29B6F6);
+  static const res = Color(0xFFEF5350);
 }
 
 // Older names, kept so admin screens read the same palette.

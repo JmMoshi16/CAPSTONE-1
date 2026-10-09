@@ -78,7 +78,7 @@ class _AppButtonState extends State<AppButton> {
           child: content),
       AppButtonKind.danger => FilledButton(
           onPressed: onPressed,
-          style: FilledButton.styleFrom(minimumSize: size, backgroundColor: c.isDark ? const Color(0xFFB3261E) : c.danger,
+          style: FilledButton.styleFrom(minimumSize: size, backgroundColor: AppColors.light.danger, // white text 5.6:1 in both themes
               foregroundColor: Colors.white),
           child: content),
     };

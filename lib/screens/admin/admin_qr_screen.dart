@@ -79,9 +79,9 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
               children: _types.map((t) {
                 final selected = _selectedType == t;
                 final colors = {
-                  'Biodegradable': const Color(0xFF8BC34A),
-                  'Recyclable': const Color(0xFF29B6F6),
-                  'Residual': const Color(0xFFEF5350),
+                  'Biodegradable': AdminColors.bio,
+                  'Recyclable': AdminColors.rec,
+                  'Residual': AdminColors.res,
                 };
                 final color = colors[t]!;
                 return Expanded(
@@ -269,7 +269,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: AppSpace.lg, horizontal: AppSpace.lg),
           decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [Color(0xFF43A047), Color(0xFF1B5E20)],
+            gradient: LinearGradient(colors: [AppPalette.forestLight, AppPalette.forestDeep],
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
             borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
           ),
@@ -319,7 +319,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 data: _qrData,
                 version: QrVersions.auto,
                 size: 160,
-                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF1B5E20)),
+                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppPalette.forestDeep),
                 dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF4CAF50)),
               ),
             ),
@@ -332,11 +332,11 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 border: Border.all(color: kGreen.withValues(alpha: 0.2)),
               ),
               child: const Row(children: [
-                Icon(Icons.info_outline_rounded, color: Color(0xFF2E7D32), size: 16),
+                Icon(Icons.info_outline_rounded, color: AppPalette.forest, size: 16),
                 SizedBox(width: AppSpace.xs),
                 Expanded(child: Text(
                   'Customer can scan this QR with the ECOReward app to claim their points. Valid for 20 minutes.',
-                  style: TextStyle(color: Color(0xFF2E7D32), fontSize: 11),
+                  style: TextStyle(color: AppPalette.forest, fontSize: 11),
                 )),
               ]),
             ),
@@ -364,7 +364,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: _kReceiptInk, fontSize: 13)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1B5E20))),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppPalette.forestDeep)),
         ],
       );
 

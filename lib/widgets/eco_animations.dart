@@ -8,13 +8,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../core/tokens.dart';
 
 /// Brand palette used by the animations. Keep in sync with tool/generate_lottie.py.
 class EcoBrand {
-  static const forest = Color(0xFF2F5D3A);
-  static const coffee = Color(0xFF6B4A34);
-  static const cream = Color(0xFFF5EDE0);
-  static const mint = Color(0xFF7CCFA5);
+  static const forest = AppPalette.forest;
+  static const coffee = AppPalette.coffee;
+  static const cream = AppPalette.cream;
+  static const mint = AppPalette.mint;
 }
 
 class EcoAnimations {

@@ -102,11 +102,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Waste Breakdown', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 14),
-                  _wasteBar('Biodegradable', bio, userLogs.length, const Color(0xFF8BC34A)),
+                  _wasteBar('Biodegradable', bio, userLogs.length, AdminColors.bio),
                   const SizedBox(height: 10),
                   _wasteBar('Recyclable', rec, userLogs.length, kBlue),
                   const SizedBox(height: 10),
-                  _wasteBar('Residual', res, userLogs.length, const Color(0xFFEF5350)),
+                  _wasteBar('Residual', res, userLogs.length, AdminColors.res),
                 ]),
               ),
 
@@ -116,7 +116,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 const Text('Recent Activity', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 10),
                 ...userLogs.take(3).map((log) {
-                  final colors = {'Biodegradable': const Color(0xFF8BC34A), 'Recyclable': kBlue, 'Residual': const Color(0xFFEF5350)};
+                  final colors = {'Biodegradable': AdminColors.bio, 'Recyclable': kBlue, 'Residual': AdminColors.res};
                   final icons = {'Biodegradable': Icons.compost_rounded, 'Recyclable': Icons.recycling_rounded, 'Residual': Icons.delete_outline_rounded};
                   final c = colors[log.wasteType] ?? kGreen;
                   return Container(
