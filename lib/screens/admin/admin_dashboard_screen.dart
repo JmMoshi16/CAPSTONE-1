@@ -722,7 +722,7 @@ class _AdminFloatingNav extends StatelessWidget {
                     selected: selected,
                     onTap: () => onTap(i),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(selected ? items[i].$1 : items[i].$2, color: fg, size: 22),
+                      NavIconMorph(selected: selected, active: items[i].$1, inactive: items[i].$2, color: fg),
                       const SizedBox(height: 2),
                       AnimatedDefaultTextStyle(
                         duration: AppMotion.of(context, AppMotion.fast),

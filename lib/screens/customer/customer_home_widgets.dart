@@ -396,14 +396,8 @@ class _FloatingNavBar extends StatelessWidget {
                     onTap: onScan,
                     onLongPress: onScanWithLight,
                     longPressHint: 'scan with the flashlight on',
-                    child: Container(
-                      width: 54, height: 54,
-                      decoration: BoxDecoration(
-                        color: c.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.of(context,
-                            [BoxShadow(color: c.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))]),
-                      ),
+                    child: _Breathing(
+                      color: c.primary,
                       child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 26),
                     ),
                   ),
@@ -428,10 +422,7 @@ class _FloatingNavBar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            AnimatedSwitcher(
-              duration: AppMotion.of(context, AppMotion.fast),
-              child: Icon(selected ? active : inactive, key: ValueKey(selected), color: fg, size: 22),
-            ),
+            NavIconMorph(selected: selected, active: active, inactive: inactive, color: fg),
             const SizedBox(height: 2),
             AnimatedDefaultTextStyle(
               duration: AppMotion.of(context, AppMotion.fast),
@@ -444,6 +435,64 @@ class _FloatingNavBar extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Breathing scan button ─────────────────────────────────────────────────────
+/// The centre Scan button breathes slowly (scale and glow) so it feels alive; still with
+/// reduced motion. Paints on its own layer.
+class _Breathing extends StatefulWidget {
+  const _Breathing({required this.color, required this.child});
+  final Color color;
+  final Widget child;
+  @override
+  State<_Breathing> createState() => _BreathingState();
+}
+
+class _BreathingState extends State<_Breathing> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _c..stop()..value = 0;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _c,
+          child: widget.child,
+          builder: (_, child) {
+            final v = Curves.easeInOut.transform(_c.value);
+            return Transform.scale(
+              scale: 1 + 0.05 * v,
+              child: Container(
+                width: 54, height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  shape: BoxShape.circle,
+                  boxShadow: AppShadows.of(context, [
+                    BoxShadow(color: widget.color.withValues(alpha: 0.30 + 0.20 * v), blurRadius: 10 + 10 * v,
+                        spreadRadius: 1 + 3 * v, offset: const Offset(0, 4)),
+                  ]),
+                ),
+                child: child,
+              ),
+            );
+          },
+        ),
+      );
 }
 
 // ── Bell wiggle ───────────────────────────────────────────────────────────────

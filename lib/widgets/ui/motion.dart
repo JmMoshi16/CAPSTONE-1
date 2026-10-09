@@ -157,3 +157,30 @@ class AnimatedBar extends StatelessWidget {
 Widget heroMaterialFlight(BuildContext _, Animation<double> __, HeroFlightDirection ___,
         BuildContext from, BuildContext to) =>
     Material(type: MaterialType.transparency, child: (to.widget as Hero).child);
+
+/// Nav-bar icon that morphs when selected: the filled icon pops in (scale + a small turn)
+/// and sits slightly larger; reduced motion swaps it without movement.
+class NavIconMorph extends StatelessWidget {
+  const NavIconMorph({super.key, required this.selected, required this.active, required this.inactive,
+      required this.color, this.size = 22});
+  final bool selected;
+  final IconData active, inactive;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => AnimatedScale(
+        scale: selected ? 1.12 : 1,
+        duration: AppMotion.of(context, AppMotion.medium),
+        curve: AppMotion.spring,
+        child: AnimatedSwitcher(
+          duration: AppMotion.of(context, AppMotion.medium),
+          switchInCurve: AppMotion.spring,
+          transitionBuilder: (child, a) => ScaleTransition(
+            scale: Tween<double>(begin: 0.5, end: 1).animate(a),
+            child: RotationTransition(turns: Tween<double>(begin: -0.08, end: 0).animate(a), child: child),
+          ),
+          child: Icon(selected ? active : inactive, key: ValueKey(selected), color: color, size: size),
+        ),
+      );
+}
