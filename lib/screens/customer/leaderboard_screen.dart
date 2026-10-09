@@ -228,7 +228,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
     const medals  = ['🥈', '🥇', '🥉'];
     final c = context.colors;
     final t = context.text;
-    final colors  = [const Color(0xFF9E9E9E), const Color(0xFFFFC107), const Color(0xFFCD7F32)];
+    final colors  = [AppPalette.medalSilver, AppPalette.medalGold, AppPalette.medalBronze];
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,

@@ -21,6 +21,14 @@ class AdminColors {
   static const dangerFill = Color(0xFFDA3633);   // solid danger buttons with white text (4.6:1)
   static const gold = Color(0xFFE3B341);
 
+  // Avatar gradients for customer initials (white letter on each).
+  static const avatarGradients = [
+    [Color(0xFF00E676), Color(0xFF00C853)],
+    [Color(0xFF00B0FF), Color(0xFF0081CB)],
+    [Color(0xFFFF6D00), Color(0xFFE65100)],
+    [Color(0xFFD500F9), Color(0xFF9C00D4)],
+  ];
+
   // Waste-type accents on dark surfaces (all above 7:1 on card).
   static const bio = Color(0xFF8BC34A);
   static const rec = Color(0xFF29B6F6);

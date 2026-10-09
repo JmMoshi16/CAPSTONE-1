@@ -22,8 +22,8 @@ class _ConfettiBurstState extends State<ConfettiBurst> with SingleTickerProvider
   );
   late final List<_Piece> _pieces = _make();
 
-  static const _brand = [AppPalette.mint, Color(0xFF66BB6A), Color(0xFF29B6F6), Color(0xFFFF7043), Color(0xFFAB47BC)];
-  static const _gold = [Color(0xFFFFD700), Color(0xFFFFE566), Color(0xFFFFB300)];
+  static const _brand = AppPalette.confetti;
+  static const _gold = AppPalette.confettiGold;
 
   List<_Piece> _make() {
     final r = math.Random();

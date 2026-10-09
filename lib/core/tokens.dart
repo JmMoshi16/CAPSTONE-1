@@ -15,6 +15,20 @@ class AppPalette {
   static const coffee = Color(0xFF6B4A34);
   static const cream = Color(0xFFF5EDE0);
   static const coin = [Color(0xFFFFE566), Color(0xFFFFD700), Color(0xFFB8860B)]; // decorative points coin
+
+  // Decorative accents (icons, fills, confetti). Text drawn in them goes through colors.ink().
+  static const categories = {
+    'Coffee': Color(0xFF795548),
+    'Food': Color(0xFFFF7043),
+    'Discount': Color(0xFF7C4DFF),
+  };
+  static const medalSilver = Color(0xFF9E9E9E);
+  static const medalGold = Color(0xFFFFC107);
+  static const medalBronze = Color(0xFFCD7F32);
+  static const confetti = [mint, Color(0xFF66BB6A), Color(0xFF29B6F6), Color(0xFFFF7043), Color(0xFFAB47BC)];
+  static const confettiGold = [Color(0xFFFFD700), Color(0xFFFFE566), Color(0xFFFFB300)];
+  static const goldWash = Color(0xFFFFF8E1);   // light background behind badge news
+  static const soldOut = Color(0xFF424242);     // white text 10:1
 }
 
 // ── Spacing: 4/8 grid ────────────────────────────────────────────────────────
@@ -95,6 +109,7 @@ class AppMotion {
   static const celebration = Duration(milliseconds: 1600); // confetti; the only motion allowed over 400 ms
   static const stagger = Duration(milliseconds: 50);   // delay between list items
   static const ambient = Duration(milliseconds: 1500); // looping hints (scan line, pulse)
+  static const page = Duration(milliseconds: 300);     // page / tab / dialog-route transitions
 
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubicEmphasized;

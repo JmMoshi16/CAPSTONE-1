@@ -161,7 +161,7 @@ class AnimatedProgressRing extends StatelessWidget {
       value: '${(p * 100).round()}%',
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: fromZero ? 0 : p, end: p),
-        duration: AppMotion.of(context, const Duration(milliseconds: 700)),
+        duration: AppMotion.of(context, AppMotion.slow),
         curve: AppMotion.emphasized,
         child: child,
         builder: (_, v, inner) => SizedBox(

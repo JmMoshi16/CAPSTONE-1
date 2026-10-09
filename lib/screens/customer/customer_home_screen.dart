@@ -642,7 +642,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 Row(children: [
                   Expanded(child: _gridTile(onTap: () => widget.onRewardsCategory('Coffee'), icon: Icons.coffee_rounded, color: c.coffee, label: 'Coffee rewards', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available')),
                   const SizedBox(width: AppSpace.sm),
-                  Expanded(child: _gridTile(onTap: () => widget.onRewardsCategory('Discount'), icon: Icons.local_offer_rounded, color: const Color(0xFF7C4DFF), label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available')),
+                  Expanded(child: _gridTile(onTap: () => widget.onRewardsCategory('Discount'), icon: Icons.local_offer_rounded, color: AppPalette.categories['Discount']!, label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available')),
                 ]),
                 const SizedBox(height: AppSpace.sm),
                 Row(children: [

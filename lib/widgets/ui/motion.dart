@@ -31,7 +31,7 @@ class FadeIndexedStack extends StatefulWidget {
 
 class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 300), value: 1);
+      AnimationController(vsync: this, duration: AppMotion.page, value: 1);
   late final Animation<double> _fade = CurvedAnimation(parent: _c, curve: const Interval(0.2, 1, curve: Curves.easeOut));
   late final Animation<double> _scale =
       Tween<double>(begin: 0.96, end: 1).animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
@@ -41,7 +41,7 @@ class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerPr
   void didUpdateWidget(FadeIndexedStack old) {
     super.didUpdateWidget(old);
     if (old.index != widget.index) {
-      _c.duration = AppMotion.reduced(context) ? AppMotion.fast : const Duration(milliseconds: 300);
+      _c.duration = AppMotion.reduced(context) ? AppMotion.fast : AppMotion.page;
       _c.forward(from: 0);
     }
   }

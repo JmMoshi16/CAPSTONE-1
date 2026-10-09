@@ -292,7 +292,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _userCard(UserModel u, int rank) {
     final userLogs = _logCount(u.uid);
-    final medalColors = [AdminColors.gold, Colors.grey.shade400, const Color(0xFFCD7F32)];
+    final medalColors = [AdminColors.gold, Colors.grey.shade400, AppPalette.medalBronze];
     final medalIcons = ['🥇', '🥈', '🥉'];
 
     return Tap(
@@ -350,12 +350,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _avatar(UserModel u, {required double size, required double fontSize}) {
-    final colors = [
-      [const Color(0xFF00E676), const Color(0xFF00C853)],
-      [const Color(0xFF00B0FF), const Color(0xFF0081CB)],
-      [const Color(0xFFFF6D00), const Color(0xFFE65100)],
-      [const Color(0xFFD500F9), const Color(0xFF9C00D4)],
-    ];
+    const colors = AdminColors.avatarGradients;
     final colorIdx = u.username.isNotEmpty ? u.username.codeUnitAt(0) % colors.length : 0;
     return Container(
       width: size, height: size,
@@ -372,10 +367,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _rankBadge(int points, {bool small = false}) {
     String label; Color color;
-    if (points >= 500) { label = 'Platinum'; color = const Color(0xFF00B0FF); }
+    if (points >= 500) { label = 'Platinum'; color = AdminColors.blue; }
     else if (points >= 200) { label = 'Gold'; color = AdminColors.gold; }
     else if (points >= 50) { label = 'Silver'; color = Colors.grey.shade400; }
-    else { label = 'Bronze'; color = const Color(0xFFCD7F32); }
+    else { label = 'Bronze'; color = AppPalette.medalBronze; }
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 6 : AppSpace.xs, vertical: small ? 2 : 3),

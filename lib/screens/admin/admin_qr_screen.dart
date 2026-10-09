@@ -16,6 +16,8 @@ const kBorder = kAdminBorder;
 // The receipt is printed paper, so it stays light in every theme (secondary text 6.2:1 on white).
 const _kReceiptInk = Color(0xFF5B635D);
 const _kReceiptRule = Color(0xFFE2E0D8);
+const _kReceiptNote = Color(0xFFF0FFF4);
+const _kReceiptFooter = Color(0xFFF9F9F9);
 
 
 class AdminQRScreen extends StatefulWidget {
@@ -373,7 +375,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
             Container(
               padding: const EdgeInsets.all(AppSpace.sm),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FFF4),
+                color: _kReceiptNote,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: kGreen.withValues(alpha: 0.2)),
               ),
@@ -396,7 +398,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: const BoxDecoration(
-            color: Color(0xFFF9F9F9),
+            color: _kReceiptFooter,
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
           ),
           child: const Text('Thank you for helping the environment! 🌍',

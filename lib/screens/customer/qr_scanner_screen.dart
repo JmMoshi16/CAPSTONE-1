@@ -513,7 +513,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpace.md),
-                    decoration: cardDecoration(context, color: c.isDark ? c.surface : const Color(0xFFFFF8E1),
+                    decoration: cardDecoration(context, color: c.isDark ? c.surface : AppPalette.goldWash,
                         borderColor: c.gold.withValues(alpha: 0.5)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

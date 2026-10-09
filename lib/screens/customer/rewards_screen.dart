@@ -6,11 +6,7 @@ import '../../widgets/ui.dart';
 import '../../widgets/eco_animations.dart';
 
 /// Category accent colours (decorative; text drawn in them goes through `colors.ink`).
-const _catColors = {
-  'Coffee': Color(0xFF795548),
-  'Food': Color(0xFFFF7043),
-  'Discount': Color(0xFF7C4DFF),
-};
+const _catColors = AppPalette.categories;
 
 class RewardsScreen extends StatefulWidget {
   final UserModel user;
@@ -107,7 +103,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       barrierDismissible: true,
       barrierColor: Colors.black54,
       barrierLabel: 'Cancel',
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: AppMotion.page,
       reverseTransitionDuration: AppMotion.medium,
       transitionsBuilder: (_, a, __, child) =>
           FadeTransition(opacity: CurvedAnimation(parent: a, curve: AppMotion.standard), child: child),
@@ -753,7 +749,7 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
                       alignment: Alignment.center,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs - 2),
-                        decoration: BoxDecoration(color: const Color(0xFF424242), borderRadius: AppRadius.all(AppRadius.sm)),
+                        decoration: BoxDecoration(color: AppPalette.soldOut, borderRadius: AppRadius.all(AppRadius.sm)),
                         child: Text('SOLD OUT',
                             style: t.labelMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
                       ),
