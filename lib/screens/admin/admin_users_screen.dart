@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
+import '../../widgets/ui.dart';
 
 const kGreen = kAdminGreen;
 const kDarkGreen = kAdminDGreen;
@@ -60,46 +61,46 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         expand: false,
         builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, AppSpace.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Handle
               Center(child: Container(width: 40, height: 4,
                   decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpace.lg),
 
               // User header
               Row(children: [
                 _avatar(u, size: 60, fontSize: 26),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppSpace.md),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(u.username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(u.username, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 2),
-                  Text(u.email, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                  Text(u.email, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
                   const SizedBox(height: 6),
                   _rankBadge(u.points),
                 ])),
               ]),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpace.xl),
 
               // Stats row
               Row(children: [
-                Expanded(child: _detailStat('${u.points}', 'Points', Icons.stars_rounded, Colors.amber)),
+                Expanded(child: _detailStat('${u.points}', 'Points', Icons.stars_rounded, AdminColors.gold)),
                 const SizedBox(width: 10),
                 Expanded(child: _detailStat('${userLogs.length}', 'Disposals', Icons.recycling_rounded, kGreen)),
                 const SizedBox(width: 10),
-                Expanded(child: _detailStat('$totalPts', 'Pts Earned', Icons.emoji_events_rounded, Colors.orange)),
+                Expanded(child: _detailStat('$totalPts', 'Pts Earned', Icons.emoji_events_rounded, AdminColors.orange)),
               ]),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpace.lg),
 
               // Waste breakdown
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpace.md),
                 decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Waste Breakdown', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
+                  const Text('Waste Breakdown', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 14),
                   _wasteBar('Biodegradable', bio, userLogs.length, const Color(0xFF8BC34A)),
                   const SizedBox(height: 10),
@@ -111,21 +112,21 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
               // Recent logs
               if (userLogs.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                const Text('Recent Activity', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: AppSpace.lg),
+                const Text('Recent Activity', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 10),
                 ...userLogs.take(3).map((log) {
                   final colors = {'Biodegradable': const Color(0xFF8BC34A), 'Recyclable': kBlue, 'Residual': const Color(0xFFEF5350)};
                   final icons = {'Biodegradable': Icons.compost_rounded, 'Recyclable': Icons.recycling_rounded, 'Residual': Icons.delete_outline_rounded};
                   final c = colors[log.wasteType] ?? kGreen;
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
+                    margin: const EdgeInsets.only(bottom: AppSpace.xs),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
                     child: Row(children: [
                       Icon(icons[log.wasteType] ?? Icons.recycling_rounded, color: c, size: 18),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(log.wasteType, style: const TextStyle(color: Colors.white70, fontSize: 13))),
+                      Expanded(child: Text(log.wasteType, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13))),
                       Text('+${log.pointsAwarded} pts', style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 12)),
                     ]),
                   );
@@ -142,10 +143,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final pct = total == 0 ? 0.0 : count / total;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Text(label, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 12)),
         Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
       ]),
-      const SizedBox(height: 4),
+      const SizedBox(height: AppSpace.xxs),
       ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: LinearProgressIndicator(value: pct, backgroundColor: Colors.white.withValues(alpha: 0.06),
@@ -155,14 +156,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _detailStat(String v, String l, IconData icon, Color c) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
         decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14),
             border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(children: [
           Icon(icon, color: c, size: 18),
-          const SizedBox(height: 4),
-          Text(v, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(l, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+          const SizedBox(height: AppSpace.xxs),
+          Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
         ]),
       );
 
@@ -184,7 +185,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -193,18 +194,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             decoration: BoxDecoration(color: kBlue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: kBlue.withValues(alpha: 0.3))),
                             child: const Icon(Icons.people_rounded, color: kBlue, size: 20)),
-                        const SizedBox(width: 12),
-                        const Text('Customers', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                        const SizedBox(width: AppSpace.sm),
+                        const Text('Customers', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 6),
                           decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: kGreen.withValues(alpha: 0.3))),
                           child: Text('${widget.customers.length} users',
                               style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
                       ]),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpace.md),
 
                       // Summary stats
                       Row(children: [
@@ -212,9 +213,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         const SizedBox(width: 10),
                         Expanded(child: _headerStat('${widget.logs.length}', 'Disposals', Icons.recycling_rounded, kGreen)),
                         const SizedBox(width: 10),
-                        Expanded(child: _headerStat('$totalPts', 'Pts Given', Icons.stars_rounded, Colors.amber)),
+                        Expanded(child: _headerStat('$totalPts', 'Pts Given', Icons.stars_rounded, AdminColors.gold)),
                       ]),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpace.md),
 
                       // Search bar
                       Container(
@@ -222,22 +223,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             border: Border.all(color: kBorder)),
                         child: TextField(
                           onChanged: (v) => setState(() => _search = v),
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: const TextStyle(color: AdminColors.textPrimary, fontSize: 14),
                           decoration: const InputDecoration(
                             hintText: 'Search by name or email...',
-                            hintStyle: TextStyle(color: Colors.white24, fontSize: 14),
-                            prefixIcon: Icon(Icons.search_rounded, color: Colors.white24, size: 20),
+                            hintStyle: TextStyle(color: AdminColors.textTertiary, fontSize: 14),
+                            prefixIcon: Icon(Icons.search_rounded, color: AdminColors.textTertiary, size: 20),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            contentPadding: EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 14),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.sm),
 
                       // Sort chips
                       Row(children: [
-                        const Text('Sort:', style: TextStyle(color: Colors.white38, fontSize: 12)),
-                        const SizedBox(width: 8),
+                        const Text('Sort:', style: TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
+                        const SizedBox(width: AppSpace.xs),
                         _sortChip('Points', 'points'),
                         const SizedBox(width: 6),
                         _sortChip('Disposals', 'disposals'),
@@ -251,20 +252,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.md)),
 
           // User list
           filtered.isEmpty
               ? SliverFillRemaining(
                   child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.person_search_rounded, color: Colors.white24, size: 56),
-                    const SizedBox(height: 12),
+                    const Icon(Icons.person_search_rounded, color: AdminColors.textTertiary, size: 56),
+                    const SizedBox(height: AppSpace.sm),
                     Text(_search.isEmpty ? 'No customers yet' : 'No results for "$_search"',
-                        style: const TextStyle(color: Colors.white38, fontSize: 14)),
+                        style: const TextStyle(color: AdminColors.textTertiary, fontSize: 14)),
                   ])),
                 )
               : SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+                  padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, 110),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (_, i) {
@@ -283,10 +284,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _userCard(UserModel u, int rank) {
     final userLogs = _logCount(u.uid);
-    final medalColors = [Colors.amber, Colors.grey.shade400, const Color(0xFFCD7F32)];
+    final medalColors = [AdminColors.gold, Colors.grey.shade400, const Color(0xFFCD7F32)];
     final medalIcons = ['🥇', '🥈', '🥉'];
 
-    return GestureDetector(
+    return Tap(
+      label: '${u.username}, ${u.points} points, open details',
       onTap: () => _showUserDetail(u),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -302,37 +304,37 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             width: 28,
             child: rank < 3
                 ? Text(medalIcons[rank], style: const TextStyle(fontSize: 20))
-                : Text('${rank + 1}', style: const TextStyle(color: Colors.white24, fontSize: 13, fontWeight: FontWeight.bold)),
+                : Text('${rank + 1}', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 13, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpace.xs),
           _avatar(u, size: 46, fontSize: 18),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpace.sm),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text(u.username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(u.username, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(width: 6),
               _rankBadge(u.points, small: true),
             ]),
             const SizedBox(height: 2),
-            Text(u.email, style: const TextStyle(color: Colors.white38, fontSize: 11),
+            Text(u.email, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpace.xs),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Row(children: [
-              const Icon(Icons.stars_rounded, color: Colors.amber, size: 13),
+              const Icon(Icons.stars_rounded, color: AdminColors.gold, size: 13),
               const SizedBox(width: 3),
-              Text('${u.points}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13)),
+              Text('${u.points}', style: const TextStyle(color: AdminColors.gold, fontWeight: FontWeight.bold, fontSize: 13)),
             ]),
             const SizedBox(height: 3),
             Row(children: [
-              const Icon(Icons.recycling_rounded, color: Colors.white24, size: 12),
+              const Icon(Icons.recycling_rounded, color: AdminColors.textTertiary, size: 12),
               const SizedBox(width: 3),
-              Text('$userLogs', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+              Text('$userLogs', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
             ]),
           ]),
           const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
+          const Icon(Icons.chevron_right_rounded, color: AdminColors.textTertiary, size: 18),
         ]),
       ),
     );
@@ -354,7 +356,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       ),
       child: Center(child: Text(
         u.username.isNotEmpty ? u.username[0].toUpperCase() : 'U',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: fontSize),
+        style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: fontSize),
       )),
     );
   }
@@ -362,12 +364,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget _rankBadge(int points, {bool small = false}) {
     String label; Color color;
     if (points >= 500) { label = 'Platinum'; color = const Color(0xFF00B0FF); }
-    else if (points >= 200) { label = 'Gold'; color = Colors.amber; }
+    else if (points >= 200) { label = 'Gold'; color = AdminColors.gold; }
     else if (points >= 50) { label = 'Silver'; color = Colors.grey.shade400; }
     else { label = 'Bronze'; color = const Color(0xFFCD7F32); }
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: small ? 6 : 8, vertical: small ? 2 : 3),
+      padding: EdgeInsets.symmetric(horizontal: small ? 6 : AppSpace.xs, vertical: small ? 2 : 3),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6),
           border: Border.all(color: color.withValues(alpha: 0.4))),
       child: Text(label, style: TextStyle(color: color, fontSize: small ? 9 : 11, fontWeight: FontWeight.bold)),
@@ -375,30 +377,32 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _headerStat(String v, String l, IconData icon, Color c) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
         decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14),
             border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(children: [
           Icon(icon, color: c, size: 18),
-          const SizedBox(height: 4),
-          Text(v, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(l, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+          const SizedBox(height: AppSpace.xxs),
+          Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
         ]),
       );
 
   Widget _sortChip(String label, String value) {
     final selected = _sortBy == value;
-    return GestureDetector(
+    return Tap(
+      label: 'Sort by $label',
+      selected: selected,
       onTap: () => setState(() => _sortBy = value),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        duration: AppMotion.fast,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? kGreen.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? kGreen.withValues(alpha: 0.5) : kBorder),
         ),
-        child: Text(label, style: TextStyle(color: selected ? kGreen : Colors.white38,
+        child: Text(label, style: TextStyle(color: selected ? kGreen : AdminColors.textTertiary,
             fontSize: 11, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
       ),
     );

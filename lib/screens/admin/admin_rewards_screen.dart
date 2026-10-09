@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
+import '../../widgets/ui.dart';
 
 const kGreen = kAdminGreen;
 const kDarkGreen = kAdminDGreen;
@@ -67,10 +68,10 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 // Handle
                 Center(child: Container(width: 40, height: 4,
                     decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpace.md),
                 Text(reward == null ? 'Add New Reward' : 'Edit Reward',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                const SizedBox(height: 16),
+                    style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: AppSpace.md),
                 _field(titleCtrl, 'Title', Icons.title_rounded),
                 const SizedBox(height: 10),
                 _field(descCtrl, 'Description', Icons.description_rounded),
@@ -87,10 +88,10 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 DropdownButtonFormField<String>(
                   initialValue: category,
                   dropdownColor: kCard,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AdminColors.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Category',
-                    labelStyle: const TextStyle(color: Colors.white54),
+                    labelStyle: const TextStyle(color: AdminColors.textSecondary),
                     prefixIcon: const Icon(Icons.category_rounded, color: kGreen, size: 20),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.07),
@@ -98,8 +99,8 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                   ),
                   items: categories.map((c) => DropdownMenuItem(value: c,
                       child: Row(children: [
-                        Icon(_catIcon(c), size: 16, color: Colors.white70),
-                        const SizedBox(width: 8),
+                        Icon(_catIcon(c), size: 16, color: AdminColors.textSecondary),
+                        const SizedBox(width: AppSpace.xs),
                         Text(c),
                       ]))).toList(),
                   onChanged: (v) => setS(() => category = v!),
@@ -107,17 +108,17 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 const SizedBox(height: 10),
                 // Active toggle
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpace.xxs),
                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [
                     const Icon(Icons.toggle_on_rounded, color: kGreen, size: 20),
                     const SizedBox(width: 10),
-                    const Expanded(child: Text('Active (visible to customers)', style: TextStyle(color: Colors.white70, fontSize: 13))),
+                    const Expanded(child: Text('Active (visible to customers)', style: TextStyle(color: AdminColors.textSecondary, fontSize: 13))),
                     Switch(value: isActive, onChanged: (v) => setS(() => isActive = v),
                         activeThumbColor: kGreen, activeTrackColor: kGreen.withValues(alpha: 0.3)),
                   ]),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpace.lg),
                 SizedBox(
                   width: double.infinity, height: 52,
                   child: ElevatedButton(
@@ -154,10 +155,10 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     style: ElevatedButton.styleFrom(backgroundColor: kGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
                     child: Text(reward == null ? 'Add Reward' : 'Save Changes',
-                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: const TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpace.lg),
               ],
             ),
           ),
@@ -191,7 +192,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
             pinned: true,
             backgroundColor: kCard,
             automaticallyImplyLeading: false,
-            title: const Text('Rewards Manager', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            title: const Text('Rewards Manager', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
             actions: [
               IconButton(
                 icon: Container(
@@ -202,14 +203,14 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 ),
                 onPressed: _showForm,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpace.xs),
             ],
             bottom: TabBar(
               controller: _tabController,
               indicatorColor: kGreen,
               indicatorWeight: 3,
               labelColor: kGreen,
-              unselectedLabelColor: Colors.white38,
+              unselectedLabelColor: AdminColors.textTertiary,
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               tabs: [
                 Tab(text: 'Rewards (${widget.rewards.length})'),
@@ -219,8 +220,8 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(10)),
-                      child: Text('$pending', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(color: AdminColors.orange, borderRadius: BorderRadius.circular(10)),
+                      child: Text('$pending', style: const TextStyle(color: AdminColors.textPrimary, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ])),
@@ -239,13 +240,13 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   Widget _buildRewards() {
     if (widget.rewards.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.card_giftcard_rounded, color: Colors.white24, size: 64),
-        const SizedBox(height: 12),
-        const Text('No rewards yet', style: TextStyle(color: Colors.white38, fontSize: 15)),
-        const SizedBox(height: 16),
+        const Icon(Icons.card_giftcard_rounded, color: AdminColors.textTertiary, size: 64),
+        const SizedBox(height: AppSpace.sm),
+        const Text('No rewards yet', style: TextStyle(color: AdminColors.textTertiary, fontSize: 15)),
+        const SizedBox(height: AppSpace.md),
         ElevatedButton.icon(
           onPressed: _showForm,
-          style: ElevatedButton.styleFrom(backgroundColor: kGreen, foregroundColor: Colors.black,
+          style: ElevatedButton.styleFrom(backgroundColor: kGreen, foregroundColor: AdminColors.onAccent,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Add First Reward', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -254,7 +255,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+      padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 110),
       itemCount: widget.rewards.length,
       itemBuilder: (_, i) {
         final r = widget.rewards[i];
@@ -266,7 +267,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
             border: Border.all(color: r.isActive ? kGreen.withValues(alpha: 0.2) : kBorder),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpace.xs),
             leading: Container(
               width: 48, height: 48,
               decoration: BoxDecoration(
@@ -274,60 +275,64 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: r.isActive ? kGreen.withValues(alpha: 0.3) : kBorder),
               ),
-              child: Icon(_catIcon(r.category), color: r.isActive ? kGreen : Colors.white24, size: 22),
+              child: Icon(_catIcon(r.category), color: r.isActive ? kGreen : AdminColors.textTertiary, size: 22),
             ),
             title: Row(children: [
-              Expanded(child: Text(r.title, style: TextStyle(color: r.isActive ? Colors.white : Colors.white38,
+              Expanded(child: Text(r.title, style: TextStyle(color: r.isActive ? AdminColors.textPrimary : AdminColors.textTertiary,
                   fontWeight: FontWeight.w600, fontSize: 14))),
               if (!r.isActive)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                  child: const Text('Inactive', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
+                  decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                  child: const Text('Inactive', style: TextStyle(color: AdminColors.danger, fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
             ]),
             subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const SizedBox(height: 2),
-              Text(r.description, style: const TextStyle(color: Colors.white38, fontSize: 11),
+              Text(r.description, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpace.xxs),
               Row(children: [
-                const Icon(Icons.stars_rounded, color: Colors.amber, size: 12),
+                const Icon(Icons.stars_rounded, color: AdminColors.gold, size: 12),
                 const SizedBox(width: 3),
-                Text('${r.pointsCost} pts', style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 8),
+                Text('${r.pointsCost} pts', style: const TextStyle(color: AdminColors.gold, fontSize: 11, fontWeight: FontWeight.w600)),
+                const SizedBox(width: AppSpace.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(6)),
-                  child: Text(r.category, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                  child: Text(r.category, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
                 ),
               ]),
             ]),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              GestureDetector(
+              Tap(
+                label: 'Edit ${r.title}',
+                tooltip: true,
                 onTap: () => _showForm(reward: r),
                 child: Container(padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.2))),
-                    child: const Icon(Icons.edit_outlined, color: Colors.blue, size: 16)),
+                    decoration: BoxDecoration(color: AdminColors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AdminColors.blue.withValues(alpha: 0.2))),
+                    child: const Icon(Icons.edit_outlined, color: AdminColors.blue, size: 16)),
               ),
               const SizedBox(width: 6),
-              GestureDetector(
+              Tap(
+                label: 'Delete ${r.title}',
+                tooltip: true,
                 onTap: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (_) => AlertDialog(
                       backgroundColor: kCard,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: const Text('Delete Reward', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      content: Text('Delete "${r.title}"?', style: const TextStyle(color: Colors.white70)),
+                      title: const Text('Delete Reward', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
+                      content: Text('Delete "${r.title}"?', style: const TextStyle(color: AdminColors.textSecondary)),
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+                            child: const Text('Cancel', style: TextStyle(color: AdminColors.textSecondary))),
                         ElevatedButton(onPressed: () => Navigator.pop(context, true),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, elevation: 0,
+                            style: ElevatedButton.styleFrom(backgroundColor: AdminColors.dangerFill, elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                            child: const Text('Delete', style: TextStyle(color: Colors.white))),
+                            child: const Text('Delete', style: TextStyle(color: AdminColors.textPrimary))),
                       ],
                     ),
                   );
@@ -337,9 +342,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                   }
                 },
                 child: Container(padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.2))),
-                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 16)),
+                    decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AdminColors.danger.withValues(alpha: 0.2))),
+                    child: const Icon(Icons.delete_outline_rounded, color: AdminColors.danger, size: 16)),
               ),
             ]),
           ),
@@ -353,9 +358,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
 
     if (_redemptions.isEmpty) {
       return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.receipt_long_rounded, color: Colors.white24, size: 64),
-        SizedBox(height: 12),
-        Text('No redemptions yet', style: TextStyle(color: Colors.white38, fontSize: 15)),
+        Icon(Icons.receipt_long_rounded, color: AdminColors.textTertiary, size: 64),
+        SizedBox(height: AppSpace.sm),
+        Text('No redemptions yet', style: TextStyle(color: AdminColors.textTertiary, fontSize: 15)),
       ]));
     }
 
@@ -363,13 +368,13 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     final claimed = _redemptions.where((r) => r.status == 'claimed').toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+      padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 110),
       children: [
         if (pending.isNotEmpty) ...[
-          _sectionHeader('Pending Approval', Colors.orange, pending.length),
+          _sectionHeader('Pending Approval', AdminColors.orange, pending.length),
           const SizedBox(height: 10),
           ...pending.map((r) => _redemptionCard(r, isPending: true)),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpace.lg),
         ],
         if (claimed.isNotEmpty) ...[
           _sectionHeader('Claimed', kGreen, claimed.length),
@@ -382,11 +387,11 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
 
   Widget _sectionHeader(String title, Color color, int count) => Row(children: [
         Container(width: 4, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpace.xs),
         Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpace.xs),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
           decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
           child: Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
         ),
@@ -399,40 +404,40 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       decoration: BoxDecoration(
         color: kCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isPending ? Colors.orange.withValues(alpha: 0.3) : kBorder),
+        border: Border.all(color: isPending ? AdminColors.orange.withValues(alpha: 0.3) : kBorder),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: isPending ? Colors.orange.withValues(alpha: 0.1) : kGreen.withValues(alpha: 0.1),
+              color: isPending ? AdminColors.orange.withValues(alpha: 0.1) : kGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(isPending ? Icons.hourglass_top_rounded : Icons.check_circle_rounded,
-                color: isPending ? Colors.orange : kGreen, size: 22),
+                color: isPending ? AdminColors.orange : kGreen, size: 22),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpace.sm),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(r.rewardTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
             Text(r.userEmail.isNotEmpty ? r.userEmail : r.userId.substring(0, 8),
-                style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
           ])),
-          Text('-${r.pointsUsed} pts', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text('-${r.pointsUsed} pts', style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.bold, fontSize: 13)),
         ]),
         const SizedBox(height: 10),
         // Redemption code
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
           decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
           child: Row(children: [
-            const Icon(Icons.confirmation_number_rounded, color: Colors.white38, size: 14),
-            const SizedBox(width: 8),
-            const Text('Code: ', style: TextStyle(color: Colors.white38, fontSize: 12)),
+            const Icon(Icons.confirmation_number_rounded, color: AdminColors.textTertiary, size: 14),
+            const SizedBox(width: AppSpace.xs),
+            const Text('Code: ', style: TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
             Text(r.redemptionCode,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 2)),
+                style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 2)),
             const Spacer(),
-            Text(_formatDate(r.redeemedAt), style: const TextStyle(color: Colors.white24, fontSize: 10)),
+            Text(_formatDate(r.redeemedAt), style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
           ]),
         ),
         if (isPending) ...[
@@ -443,8 +448,8 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
               onPressed: () => _markClaimed(r),
               style: ElevatedButton.styleFrom(backgroundColor: kGreen,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
-              icon: const Icon(Icons.check_rounded, color: Colors.black, size: 16),
-              label: const Text('Mark as Claimed', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+              icon: const Icon(Icons.check_rounded, color: AdminColors.onAccent, size: 16),
+              label: const Text('Mark as Claimed', style: TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 13)),
             ),
           ),
         ],
@@ -471,10 +476,10 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       TextFormField(
         controller: ctrl,
         keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(color: AdminColors.textPrimary),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.white54),
+          labelStyle: const TextStyle(color: AdminColors.textSecondary),
           prefixIcon: Icon(icon, color: kGreen, size: 20),
           filled: true,
           fillColor: Colors.white.withValues(alpha: 0.07),

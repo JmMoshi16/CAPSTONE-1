@@ -4,11 +4,16 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../services/firebase_service.dart';
 import '../../core/admin_theme.dart';
+import '../../widgets/ui.dart';
 
 const kGreen = kAdminGreen;
 const kDark = kAdminDark;
 const kCard = kAdminCard;
 const kBorder = kAdminBorder;
+
+// The receipt is printed paper, so it stays light in every theme (secondary text 6.2:1 on white).
+const _kReceiptInk = Color(0xFF5B635D);
+const _kReceiptRule = Color(0xFFE2E0D8);
 
 
 class AdminQRScreen extends StatefulWidget {
@@ -45,30 +50,30 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
       appBar: AppBar(
         backgroundColor: kCard,
         automaticallyImplyLeading: false,
-        title: const Text('Generate for Customer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Generate for Customer', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(height: 1, color: kBorder),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpace.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
             // Mode selector
-            const Text('Customer Preference', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+            const Text('Customer Preference', style: TextStyle(color: AdminColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(child: _modeCard('qr', Icons.qr_code_rounded, 'QR Code', 'Customer scans with phone')),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpace.sm),
               Expanded(child: _modeCard('receipt', Icons.receipt_long_rounded, 'Paper Receipt', 'No phone / no internet')),
             ]),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpace.xl),
 
             // Waste type
-            const Text('Waste Type', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+            const Text('Waste Type', style: TextStyle(color: AdminColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             Row(
               children: _types.map((t) {
@@ -80,23 +85,25 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 };
                 final color = colors[t]!;
                 return Expanded(
-                  child: GestureDetector(
+                  child: Tap(
+                    label: '$t waste',
+                    selected: selected,
                     onTap: () => setState(() {
                       _selectedType = t;
                       _currentToken = null;
                       _expiresAt = null;
                     }),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      duration: AppMotion.medium,
+                      margin: const EdgeInsets.only(right: AppSpace.xs),
+                      padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
                       decoration: BoxDecoration(
                         color: selected ? color.withValues(alpha: 0.15) : kCard,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: selected ? color : kBorder),
                       ),
                       child: Text(t,
-                          style: TextStyle(color: selected ? color : Colors.white38,
+                          style: TextStyle(color: selected ? color : AdminColors.textTertiary,
                               fontSize: 11, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center),
                     ),
@@ -104,7 +111,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpace.xl),
 
             // Generate button
             SizedBox(
@@ -116,9 +123,9 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
-                icon: Icon(_mode == 'qr' ? Icons.qr_code_rounded : Icons.receipt_long_rounded, color: Colors.white),
+                icon: Icon(_mode == 'qr' ? Icons.qr_code_rounded : Icons.receipt_long_rounded, color: AdminColors.onAccent),
                 label: Text(_mode == 'qr' ? 'Generate QR Code' : 'Generate Receipt',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    style: const TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 15)),
               ),
             ),
             const SizedBox(height: 28),
@@ -129,17 +136,17 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
             else
               Center(
                 child: Container(
-                  padding: const EdgeInsets.all(32),
+                  padding: const EdgeInsets.all(AppSpace.xxl),
                   decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: kBorder)),
                   child: Column(children: [
                     Icon(_mode == 'qr' ? Icons.qr_code_rounded : Icons.receipt_long_rounded,
-                        color: Colors.white24, size: 64),
-                    const SizedBox(height: 12),
+                        color: AdminColors.textTertiary, size: 64),
+                    const SizedBox(height: AppSpace.sm),
                     Text(_mode == 'qr' ? 'No QR generated yet' : 'No receipt generated yet',
-                        style: const TextStyle(color: Colors.white38, fontSize: 14)),
+                        style: const TextStyle(color: AdminColors.textTertiary, fontSize: 14)),
                     const Text('Tap the button above to generate',
-                        style: TextStyle(color: Colors.white24, fontSize: 12)),
+                        style: TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
                   ]),
                 ),
               ),
@@ -152,14 +159,16 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
 
   Widget _modeCard(String mode, IconData icon, String title, String subtitle) {
     final selected = _mode == mode;
-    return GestureDetector(
+    return Tap(
+      label: '$title: $subtitle',
+      selected: selected,
       onTap: () => setState(() {
         _mode = mode;
         _currentToken = null;
         _expiresAt = null;
       }),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: AppMotion.medium,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: selected ? kGreen.withValues(alpha: 0.1) : kCard,
@@ -167,12 +176,12 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           border: Border.all(color: selected ? kGreen : kBorder, width: selected ? 1.5 : 1),
         ),
         child: Column(children: [
-          Icon(icon, color: selected ? kGreen : Colors.white38, size: 28),
-          const SizedBox(height: 8),
-          Text(title, style: TextStyle(color: selected ? kGreen : Colors.white54,
+          Icon(icon, color: selected ? kGreen : AdminColors.textTertiary, size: 28),
+          const SizedBox(height: AppSpace.xs),
+          Text(title, style: TextStyle(color: selected ? kGreen : AdminColors.textSecondary,
               fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 2),
-          Text(subtitle, style: const TextStyle(color: Colors.white24, fontSize: 10),
+          Text(subtitle, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
               textAlign: TextAlign.center),
         ]),
       ),
@@ -183,7 +192,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
     return Center(
       child: Column(children: [
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpace.xl),
           decoration: BoxDecoration(
             color: _isExpired ? Colors.grey.shade800 : kCard,
             borderRadius: BorderRadius.circular(24),
@@ -194,16 +203,16 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           child: Column(children: [
             if (_isExpired)
               const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.only(bottom: AppSpace.sm),
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.timer_off_rounded, color: Colors.red, size: 20),
+                  Icon(Icons.timer_off_rounded, color: AdminColors.danger, size: 20),
                   SizedBox(width: 6),
-                  Text('QR Expired', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  Text('QR Expired', style: TextStyle(color: AdminColors.danger, fontWeight: FontWeight.bold)),
                 ]),
               )
             else
               _ExpiryTimer(expiresAt: _expiresAt!, onExpired: () => setState(() {})),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.sm),
             ColorFiltered(
               colorFilter: _isExpired
                   ? const ColorFilter.matrix([
@@ -214,16 +223,16 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                     ])
                   : const ColorFilter.mode(Colors.transparent, BlendMode.color),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpace.sm),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                 child: QrImageView(data: _qrData, version: QrVersions.auto, size: 180),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(_selectedType, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpace.sm),
+            Text(_selectedType, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: AppSpace.xxs),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: AppSpace.xxs),
               decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
               child: const Text('Single-use · 20 min expiry',
                   style: TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600)),
@@ -231,7 +240,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           ]),
         ),
         if (_isExpired) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpace.md),
           TextButton.icon(
             onPressed: _generate,
             icon: const Icon(Icons.refresh_rounded, color: kGreen),
@@ -252,13 +261,13 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 16, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: AdminColors.onAccent.withValues(alpha: 0.2), blurRadius: 16, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
         // Receipt header
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.lg, horizontal: AppSpace.lg),
           decoration: const BoxDecoration(
             gradient: LinearGradient(colors: [Color(0xFF43A047), Color(0xFF1B5E20)],
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
@@ -266,11 +275,11 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           ),
           child: Column(children: [
             const Icon(Icons.recycling_rounded, color: Colors.white, size: 32),
-            const SizedBox(height: 8),
-            const Text('ECOReward Bin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            const Text('Smart Waste Recycling System', style: TextStyle(color: Colors.white70, fontSize: 11)),
-            const SizedBox(height: 4),
-            Text(dateStr, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+            const SizedBox(height: AppSpace.xs),
+            const Text('ECOReward Bin', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text('Smart Waste Recycling System', style: TextStyle(color: AdminColors.textSecondary, fontSize: 11)),
+            const SizedBox(height: AppSpace.xxs),
+            Text(dateStr, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 11)),
           ]),
         ),
 
@@ -278,7 +287,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
 
         // Receipt details
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.md),
           child: Column(children: [
             _receiptRow('Waste Type', _selectedType),
             const SizedBox(height: 10),
@@ -294,11 +303,11 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
 
         // QR code
         Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpace.lg),
           child: Column(children: [
             const Text('Scan QR to Claim Points',
-                style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
+                style: TextStyle(color: _kReceiptInk, fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: AppSpace.sm),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -314,9 +323,9 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF4CAF50)),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.sm),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpace.sm),
               decoration: BoxDecoration(
                 color: const Color(0xFFF0FFF4),
                 borderRadius: BorderRadius.circular(12),
@@ -324,7 +333,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
               ),
               child: const Row(children: [
                 Icon(Icons.info_outline_rounded, color: Color(0xFF2E7D32), size: 16),
-                SizedBox(width: 8),
+                SizedBox(width: AppSpace.xs),
                 Expanded(child: Text(
                   'Customer can scan this QR with the ECOReward app to claim their points. Valid for 20 minutes.',
                   style: TextStyle(color: Color(0xFF2E7D32), fontSize: 11),
@@ -345,7 +354,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
           ),
           child: const Text('Thank you for helping the environment! 🌍',
-              style: TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
+              style: TextStyle(color: _kReceiptInk, fontSize: 11), textAlign: TextAlign.center),
         ),
       ]),
     );
@@ -354,16 +363,16 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
   Widget _receiptRow(String label, String value) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(label, style: const TextStyle(color: _kReceiptInk, fontSize: 13)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1B5E20))),
         ],
       );
 
   Widget _dashedDivider() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
         child: Row(
           children: List.generate(28, (_) => Expanded(
-            child: Container(margin: const EdgeInsets.symmetric(horizontal: 2), height: 1, color: Colors.grey.shade200),
+            child: Container(margin: const EdgeInsets.symmetric(horizontal: 2), height: 1, color: _kReceiptRule),
           )),
         ),
       );
@@ -398,10 +407,10 @@ class _ExpiryTimerState extends State<_ExpiryTimer> {
     final secs = _remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
     final isLow = _remaining.inSeconds < 60;
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.timer_rounded, color: isLow ? Colors.red : kGreen, size: 16),
-      const SizedBox(width: 4),
+      Icon(Icons.timer_rounded, color: isLow ? AdminColors.danger : kGreen, size: 16),
+      const SizedBox(width: AppSpace.xxs),
       Text('Expires in $mins:$secs',
-          style: TextStyle(color: isLow ? Colors.red : kGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+          style: TextStyle(color: isLow ? AdminColors.danger : kGreen, fontWeight: FontWeight.bold, fontSize: 13)),
     ]);
   }
 }

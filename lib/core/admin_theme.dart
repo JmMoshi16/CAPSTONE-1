@@ -17,7 +17,8 @@ class AdminColors {
   static const blue = Color(0xFF58A6FF);
   static const purple = Color(0xFFB388FF);
   static const orange = Color(0xFFFFAB40);
-  static const danger = Color(0xFFFF7B72);
+  static const danger = Color(0xFFFF7B72);       // danger text/icons
+  static const dangerFill = Color(0xFFDA3633);   // solid danger buttons with white text (4.6:1)
   static const gold = Color(0xFFE3B341);
 }
 
