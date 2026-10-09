@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'haptics.dart';
+import 'min_tap_area.dart';
 import 'tokens.dart';
 
 /// A tappable area that screen readers announce as a button with [label] (audit M-14).
@@ -48,17 +49,13 @@ class _TapState extends State<Tap> {
         onTapCancel: () => _press(false),
         behavior: HitTestBehavior.opaque,
         // At least 48x48 dp to touch, even when the visible child is smaller.
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
-          child: Align(
-            widthFactor: 1,
-            heightFactor: 1,
-            child: AnimatedScale(
-              scale: _down ? 0.94 : 1,
-              duration: AppMotion.of(context, AppMotion.fast),
-              curve: AppMotion.standard,
-              child: widget.child,
-            ),
+        child: MinTapArea(
+          min: kMinInteractiveDimension,
+          child: AnimatedScale(
+            scale: _down ? 0.94 : 1,
+            duration: AppMotion.of(context, AppMotion.fast),
+            curve: AppMotion.standard,
+            child: widget.child,
           ),
         ),
       ),

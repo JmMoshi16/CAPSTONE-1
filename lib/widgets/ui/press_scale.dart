@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/haptics.dart';
+import '../../core/min_tap_area.dart';
 import '../../core/tokens.dart';
 
 /// A tappable area with press-scale feedback, a 48 dp minimum touch target and
@@ -53,17 +54,13 @@ class _PressScaleState extends State<PressScale> {
         onTapDown: (_) => _set(true),
         onTapUp: (_) => _set(false),
         onTapCancel: () => _set(false),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: widget.minSize, minHeight: widget.minSize),
-          child: Align(
-            widthFactor: 1,
-            heightFactor: 1,
-            child: AnimatedScale(
-              scale: _down ? widget.scale : 1,
-              duration: AppMotion.of(context, AppMotion.fast),
-              curve: AppMotion.standard,
-              child: widget.child,
-            ),
+        child: MinTapArea(
+          min: widget.minSize,
+          child: AnimatedScale(
+            scale: _down ? widget.scale : 1,
+            duration: AppMotion.of(context, AppMotion.fast),
+            curve: AppMotion.standard,
+            child: widget.child,
           ),
         ),
       ),
