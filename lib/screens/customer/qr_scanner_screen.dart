@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show NumberFormat;
 import 'package:flutter/services.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -21,12 +23,17 @@ class QRScannerScreen extends StatefulWidget {
   final String username;
   /// Lifetime points before this scan, to celebrate a rank-up (display only).
   final int lifetimeBefore;
-  const QRScannerScreen({super.key, required this.userId, required this.username, this.lifetimeBefore = 0});
+  /// Spendable balance before this scan, for the success screen's counter (display only).
+  final int pointsBefore;
+  const QRScannerScreen({super.key, required this.userId, required this.username, this.lifetimeBefore = 0,
+      this.pointsBefore = 0});
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProviderStateMixin {
+class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderStateMixin {
+  /// 0 -> 1 when a code is detected: the brackets tighten, thicken and turn white ("lock on").
+  late final AnimationController _lockCtrl = AnimationController(vsync: this, duration: AppMotion.medium);
   final MobileScannerController _controller = MobileScannerController();
   bool _scanned = false;
   bool _processing = false;
@@ -68,6 +75,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
   @override
   void dispose() {
     _scanLineCtrl.dispose();
+    _lockCtrl.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -78,6 +86,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
     AppHaptics.primary();
     SystemSound.play(SystemSoundType.click);
     setState(() => _processing = true);
+    _lockCtrl.forward();
     await _controller.stop();
 
     // Limit to 3 parts so colons inside the UUID token are preserved
@@ -157,6 +166,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               username: widget.username,
               newBadges: newBadges,
               lifetimeBefore: widget.lifetimeBefore,
+              pointsBefore: widget.pointsBefore,
             ),
           ),
         );
@@ -173,6 +183,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
       {_ErrorKind kind = _ErrorKind.error, IconData icon = Icons.error_rounded}) {
     if (!mounted) return;
     setState(() => _processing = false);
+    _lockCtrl.reverse();
     AppHaptics.error();
     showDialog(
       context: context,
@@ -299,9 +310,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
           // FIX 5: Animated scan line via AnimatedBuilder
           RepaintBoundary(
             child: AnimatedBuilder(
-              animation: _scanLineAnim,
+              animation: Listenable.merge([_scanLineAnim, _lockCtrl]),
               builder: (_, __) => CustomPaint(
-                painter: _ScanOverlayPainter(scanProgress: _scanLineAnim.value),
+                painter: _ScanOverlayPainter(
+                    scanProgress: _scanLineAnim.value, lock: AppMotion.spring.transform(_lockCtrl.value)),
                 child: const SizedBox.expand(),
               ),
             ),
@@ -371,24 +383,37 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               margin: const EdgeInsets.fromLTRB(AppSpace.xl, 0, AppSpace.xl, AppSpace.xxl * 2),
               padding: const EdgeInsets.all(AppSpace.lg),
               decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: AppRadius.all(AppRadius.xl)),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                if (_processing)
-                  const EcoLoader(size: 56, semanticLabel: 'Verifying your code')
-                else
-                  const Icon(Icons.recycling_rounded, color: _kScanAccent, size: 28),
-                const SizedBox(height: AppSpace.xs),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _processing ? 'Verifying your code…' : 'Point your camera at the code on the ECOReward bin',
-                    style: t.bodyMedium!.copyWith(color: Colors.white, fontWeight: _processing ? FontWeight.w700 : null),
-                    textAlign: TextAlign.center),
+              // The card morphs: it resizes smoothly while its content cross-fades and grows in.
+              child: AnimatedSize(
+                duration: AppMotion.of(context, AppMotion.medium),
+                curve: AppMotion.standard,
+                child: AnimatedSwitcher(
+                  duration: AppMotion.of(context, AppMotion.medium),
+                  transitionBuilder: (child, a) => FadeTransition(
+                    opacity: a,
+                    child: ScaleTransition(scale: Tween<double>(begin: 0.9, end: 1).animate(a), child: child),
+                  ),
+                  child: _processing
+                      ? Column(key: const ValueKey('verifying'), mainAxisSize: MainAxisSize.min, children: [
+                          const EcoLoader(size: 56, semanticLabel: 'Verifying your code'),
+                          const SizedBox(height: AppSpace.xs),
+                          Semantics(
+                            liveRegion: true,
+                            child: Text('Verifying your code…',
+                                style: t.titleSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                                textAlign: TextAlign.center),
+                          ),
+                        ])
+                      : Column(key: const ValueKey('aim'), mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.recycling_rounded, color: _kScanAccent, size: 28),
+                          const SizedBox(height: AppSpace.xs),
+                          Text('Point your camera at the code on the ECOReward bin',
+                              style: t.bodyMedium!.copyWith(color: Colors.white), textAlign: TextAlign.center),
+                          const SizedBox(height: AppSpace.xxs),
+                          Text('Tap the flash icon if it is dark', style: t.labelSmall!.copyWith(color: Colors.white70)),
+                        ]),
                 ),
-                if (!_processing) ...[
-                  const SizedBox(height: AppSpace.xxs),
-                  Text('Tap the flash icon if it is dark', style: t.labelSmall!.copyWith(color: Colors.white70)),
-                ],
-              ]),
+              ),
             ),
           ),
         ],
@@ -406,10 +431,12 @@ Widget successScreenPreview({
   double multiplier = 1.5,
   List<String> newBadges = const [],
   int lifetimeBefore = 0,
+  int pointsBefore = 120,
 }) =>
     _SuccessScreen(
       wasteType: wasteType, points: points, basePoints: basePoints, multiplier: multiplier,
       token: 'test-token', username: 'tester', newBadges: newBadges, lifetimeBefore: lifetimeBefore,
+      pointsBefore: pointsBefore,
     );
 
 // ── Full-screen Success Screen ────────────────────────────────────────────────
@@ -422,7 +449,9 @@ class _SuccessScreen extends StatefulWidget {
   final String username;
   final List<String> newBadges;
   final int lifetimeBefore;
+  final int pointsBefore;
   const _SuccessScreen({
+    this.pointsBefore = 0,
     required this.wasteType,
     required this.points,
     required this.basePoints,
@@ -436,9 +465,43 @@ class _SuccessScreen extends StatefulWidget {
   State<_SuccessScreen> createState() => _SuccessScreenState();
 }
 
-class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProviderStateMixin {
+class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderStateMixin {
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
+
+  // "+N" flies from the points card into the balance counter, which then counts up.
+  late final AnimationController _flyCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+  final _stackKey = GlobalKey();
+  final _cardKey = GlobalKey();
+  final _balanceKey = GlobalKey();
+  (Offset, Offset)? _flight;
+  bool _landed = false;
+
+  Offset? _centreOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final stack = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || stack == null || !box.hasSize) return null;
+    return stack.globalToLocal(box.localToGlobal(box.size.center(Offset.zero)));
+  }
+
+  void _startFlight() {
+    if (!mounted) return;
+    if (AppMotion.reduced(context)) {
+      setState(() => _landed = true);
+      return;
+    }
+    final from = _centreOf(_cardKey), to = _centreOf(_balanceKey);
+    if (from == null || to == null) {
+      setState(() => _landed = true);
+      return;
+    }
+    setState(() => _flight = (from, to));
+    _flyCtrl.forward().then((_) {
+      if (!mounted) return;
+      AppHaptics.tap();
+      setState(() => _landed = true);
+    });
+  }
   @override
   void initState() {
     super.initState();
@@ -446,6 +509,8 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _animCtrl.forward();
     if (_rankedUp) HapticFeedback.heavyImpact();
+    // Let the screen settle (fade-in, Lottie) before the points take off.
+    Future.delayed(const Duration(milliseconds: 650), _startFlight);
     // Once per device, after the celebration: explain notifications, then ask (Android 13+).
     Future.delayed(AppMotion.celebration, () {
       if (mounted) askForNotificationsOnce(context);
@@ -458,7 +523,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
   bool get _rankedUp => widget.lifetimeBefore > 0 && _rankAfter.minPts > _rankBefore.minPts;
 
   @override
-  void dispose() { _animCtrl.dispose(); super.dispose(); }
+  void dispose() { _animCtrl.dispose(); _flyCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -466,7 +531,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
     final t = context.text;
     final fill = c.wasteFill(widget.wasteType);
     return Scaffold(
-      body: Stack(children: [
+      body: Stack(key: _stackKey, children: [
       SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.lg),
@@ -474,6 +539,24 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
             opacity: _fadeAnim,
             child: Column(
               children: [
+                // Balance counter: the earned points fly into it, then it counts up.
+                Container(
+                  key: _balanceKey,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xs),
+                  decoration: cardDecoration(context, radius: AppRadius.pill, borderColor: c.gold.withValues(alpha: 0.5)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.stars_rounded, color: AppPalette.coin[1], size: 20),
+                    const SizedBox(width: AppSpace.xs - 2),
+                    AnimatedCount(
+                      _landed ? widget.pointsBefore + widget.points : widget.pointsBefore,
+                      format: NumberFormat('#,###').format,
+                      suffix: ' pts',
+                      duration: const Duration(milliseconds: 600),   // part of the celebration
+                      style: t.titleMedium!.copyWith(fontFamily: AppType.displayFamily),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: AppSpace.xs),
                 // Brand success animation (plays once)
                 const EcoSuccess(size: 140),
                 const SizedBox(height: AppSpace.xs),
@@ -530,8 +613,14 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                           // Each new badge flips into view, one after another.
                           return FlipReveal(
                             delay: const Duration(milliseconds: 500) + AppMotion.slow * i,
-                            child: Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpace.xs - 2),
+                            child: Container(
+                            margin: const EdgeInsets.only(bottom: AppSpace.xs),
+                            padding: const EdgeInsets.all(AppSpace.xs),
+                            decoration: BoxDecoration(
+                              color: c.surface.withValues(alpha: c.isDark ? 1 : 0.8),
+                              borderRadius: AppRadius.all(AppRadius.md),
+                              boxShadow: AppShadows.glow(AppPalette.medalGold, strength: 0.55),
+                            ),
                             child: Row(children: [
                               Text(info['icon'] as String, style: const TextStyle(fontSize: 22)),
                               const SizedBox(width: AppSpace.sm - 2),
@@ -550,6 +639,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
 
                 // Points card (white text on a deep waste-type fill: at least 5.6:1)
                 Container(
+                  key: _cardKey,
                   padding: const EdgeInsets.all(AppSpace.lg),
                   decoration: BoxDecoration(
                     color: fill,
@@ -599,6 +689,38 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
       ),
       // Celebration: a confetti burst, stronger (gold, side cannons) when a badge unlocked.
       Positioned.fill(child: ConfettiBurst(strong: widget.newBadges.isNotEmpty || _rankedUp)),
+      if (_flight != null && !_landed)
+        AnimatedBuilder(
+          animation: _flyCtrl,
+          builder: (_, __) {
+            final t = Curves.easeInOutCubic.transform(_flyCtrl.value);
+            final (from, to) = _flight!;
+            final p = Offset.lerp(from, to, t)!;
+            return Positioned(
+              left: p.dx,
+              top: p.dy - 60 * math.sin(math.pi * t),   // a gentle arc
+              child: FractionalTranslation(
+                translation: const Offset(-0.5, -0.5),
+                child: IgnorePointer(
+                  child: Transform.scale(
+                    scale: 1.2 - 0.4 * t,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xxs + 2),
+                      decoration: BoxDecoration(
+                        // Light gold only: the dark text stays >= 9.9:1 across the chip.
+                        gradient: LinearGradient(colors: [AppPalette.coin[0], AppPalette.coin[1]]),
+                        borderRadius: AppRadius.all(AppRadius.pill),
+                        boxShadow: AppShadows.glow(AppPalette.coin[1], strength: 0.8),
+                      ),
+                      child: Text('+${widget.points}',
+                          style: context.text.titleMedium!.copyWith(color: const Color(0xFF3A2A00), fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
     ]),
     );
   }
@@ -612,7 +734,9 @@ enum _ErrorKind { error, warning }
 // FIX 5: Accepts scanProgress (0.0–1.0) to animate the scan line
 class _ScanOverlayPainter extends CustomPainter {
   final double scanProgress;
-  const _ScanOverlayPainter({required this.scanProgress});
+  /// 0 = searching, 1 = locked on a code.
+  final double lock;
+  const _ScanOverlayPainter({required this.scanProgress, this.lock = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -628,8 +752,17 @@ class _ScanOverlayPainter extends CustomPainter {
       ),
       paint,
     );
-    final cp = Paint()..color = _kScanAccent..strokeWidth = 3.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
-    const c = 28.0;
+    final cp = Paint()
+      ..color = Color.lerp(_kScanAccent, Colors.white, lock.clamp(0.0, 1.0))!
+      ..strokeWidth = 3.5 + 2 * lock
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final c = 28.0 + 16 * lock;
+    // Locking on: the brackets close in by 6 % of the window.
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.scale(1 - 0.12 * lock);
+    canvas.translate(-size.width / 2, -size.height / 2);
     canvas.drawLine(Offset(left, top + c), Offset(left, top), cp);
     canvas.drawLine(Offset(left, top), Offset(left + c, top), cp);
     canvas.drawLine(Offset(left + scanSize - c, top), Offset(left + scanSize, top), cp);
@@ -638,15 +771,19 @@ class _ScanOverlayPainter extends CustomPainter {
     canvas.drawLine(Offset(left, top + scanSize), Offset(left + c, top + scanSize), cp);
     canvas.drawLine(Offset(left + scanSize - c, top + scanSize), Offset(left + scanSize, top + scanSize), cp);
     canvas.drawLine(Offset(left + scanSize, top + scanSize), Offset(left + scanSize, top + scanSize - c), cp);
+    canvas.restore();
 
-    // Animated scan line moves from top to bottom of scan zone
-    final lineY = top + scanSize * scanProgress;
-    final linePaint = Paint()
-      ..shader = LinearGradient(colors: [Colors.transparent, _kScanAccent.withValues(alpha: 0.8), Colors.transparent])
-          .createShader(Rect.fromLTWH(left, lineY, scanSize, 2));
-    canvas.drawLine(Offset(left, lineY), Offset(left + scanSize, lineY), linePaint..strokeWidth = 2);
+    // Animated scan line moves from top to bottom of scan zone (fades out once locked)
+    if (lock < 1) {
+      final lineY = top + scanSize * scanProgress;
+      final a = 0.8 * (1 - lock.clamp(0.0, 1.0));
+      final linePaint = Paint()
+        ..shader = LinearGradient(colors: [Colors.transparent, _kScanAccent.withValues(alpha: a), Colors.transparent])
+            .createShader(Rect.fromLTWH(left, lineY, scanSize, 2));
+      canvas.drawLine(Offset(left, lineY), Offset(left + scanSize, lineY), linePaint..strokeWidth = 2);
+    }
   }
 
   @override
-  bool shouldRepaint(_ScanOverlayPainter old) => old.scanProgress != scanProgress;
+  bool shouldRepaint(_ScanOverlayPainter old) => old.scanProgress != scanProgress || old.lock != lock;
 }
