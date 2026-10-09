@@ -5,10 +5,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/firebase_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/models.dart';
+import '../../widgets/eco_animations.dart';
 
 const _kGreen = Color(0xFF2ECC71);
 const _kDarkGreen = Color(0xFF1A8A4A);
-const _kEmerald = Color(0xFF00B894);
 
 /// Shared points mapping — single source of truth in this file.
 const _kPointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
@@ -298,7 +298,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
                     style: TextStyle(color: Colors.white, fontSize: 13), textAlign: TextAlign.center),
                 if (_processing) ...[
                   const SizedBox(height: 10),
-                  const CircularProgressIndicator(color: _kGreen, strokeWidth: 2),
+                  const EcoLoader(size: 56, semanticLabel: 'Processing QR code'),
                 ],
               ]),
             ),
@@ -331,13 +331,11 @@ class _SuccessScreen extends StatefulWidget {
 
 class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animCtrl;
-  late Animation<double> _scaleAnim;
   late Animation<double> _fadeAnim;
   @override
   void initState() {
     super.initState();
     _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _scaleAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.elasticOut);
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeIn);
     _animCtrl.forward();
   }
@@ -372,21 +370,9 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
             opacity: _fadeAnim,
             child: Column(
               children: [
-                // Check animation
-                ScaleTransition(
-                  scale: _scaleAnim,
-                  child: Container(
-                    width: 100, height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(colors: [_kGreen, _kEmerald],
-                          begin: Alignment.topLeft, end: Alignment.bottomRight),
-                      boxShadow: [BoxShadow(color: _kGreen.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
-                    ),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 52),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                // Brand success animation (plays once)
+                const EcoSuccess(size: 140),
+                const SizedBox(height: 8),
                 const Text('Waste Verified!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
                 const SizedBox(height: 4),
                 Text('Thank you for recycling responsibly 🌿', style: TextStyle(color: Colors.green.shade700, fontSize: 13)),

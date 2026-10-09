@@ -6,6 +6,7 @@ import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../core/gamification.dart';
+import '../../widgets/eco_animations.dart';
 import 'qr_scanner_screen.dart';
 import 'rewards_screen.dart';
 import 'impact_screen.dart';
@@ -90,7 +91,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
     if (_user == null) {
       return const Scaffold(backgroundColor: kBg,
-          body: Center(child: CircularProgressIndicator(color: kGreenLight)));
+          body: Center(child: EcoLoader(size: 72)));
     }
 
     final screens = [

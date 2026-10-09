@@ -22,6 +22,8 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.5.1
   flutter_local_notifications: ^17.2.2
+  # Brand animations (Lottie)
+  lottie: ^3.1.2
 
 dev_dependencies:
   flutter_test:
@@ -43,4 +45,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+    - assets/animations/
     - assets/config/rules.json

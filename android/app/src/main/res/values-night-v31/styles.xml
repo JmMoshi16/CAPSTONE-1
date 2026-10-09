@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode on Android 12+: Android prefers values-night over values-v31, so the cream
+         system splash must be declared here too or dark-mode phones flash black first. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_cream</item>
+    </style>
+</resources>

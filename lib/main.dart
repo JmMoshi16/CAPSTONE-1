@@ -5,6 +5,7 @@ import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 import 'models/models.dart';
 import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/customer/customer_home_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 
@@ -41,7 +42,8 @@ class ECORewardApp extends StatelessWidget {
           primary: const Color(0xFF4CAF50),
         ),
       ),
-      home: const _AuthGate(),
+      // Branded splash first, then the same auth gate as before (saved session -> home, else login).
+      home: const SmartCafeSplash(next: _AuthGate()),
     );
   }
 }
