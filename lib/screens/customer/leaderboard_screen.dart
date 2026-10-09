@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
@@ -14,6 +15,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   List<UserModel> _users = [];
   bool _loading = true;
   bool _error = false;
+  bool _denied = false;   // Firestore refused the read (rules), not a connection problem
   int _myRank = 0;
   late AnimationController _headerCtrl;
   late Animation<double> _headerFade;
@@ -40,7 +42,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   void dispose() { _headerCtrl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = false; });
+    setState(() { _loading = true; _error = false; _denied = false; });
     try {
       // Never leave the user on an endless spinner: offline or a missing index ends in an error state.
       final results = await Future.wait([
@@ -54,8 +56,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
           _loading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() { _loading = false; _error = true; });
+    } catch (e) {
+      // The exact cause goes to the debug log (flutter run / logcat), never to the screen.
+      debugPrint('Leaderboard load failed: ${e is FirebaseException ? '${e.code}: ${e.message}' : e}');
+      final denied = e is FirebaseException && (e.code == 'permission-denied' || e.code == 'failed-precondition');
+      if (mounted) setState(() { _loading = false; _error = true; _denied = denied; });
     }
   }
 
@@ -122,7 +127,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                 hasScrollBody: false,
                 child: ErrorState(
                   title: "Couldn't load the leaderboard",
-                  message: 'Check your connection, then try again.',
+                  message: _denied
+                      ? "The leaderboard isn't available right now. Please try again later."
+                      : 'Check your connection, then try again.',
+                  icon: _denied ? Icons.lock_clock_rounded : Icons.wifi_off_rounded,
                   onRetry: _load,
                 ),
               )

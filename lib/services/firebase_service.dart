@@ -338,8 +338,9 @@ class FirebaseService {
         username: data['username'] ?? '',
         email: '',
         role: 'customer',
-        points: (data['points'] ?? 0) as int,
-        lifetimePoints: data['lifetimePoints'] as int?,
+        // Tolerate numbers stored as doubles (e.g. 12.0 written by a tool) instead of failing the list.
+        points: (data['points'] as num?)?.toInt() ?? 0,
+        lifetimePoints: (data['lifetimePoints'] as num?)?.toInt(),
         createdAt: DateTime.now(),
         badges: List<String>.from(data['badges'] ?? []),
       );
