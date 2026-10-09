@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
-import '../../core/theme.dart';
+import '../../widgets/ui.dart';
 
 class BadgesScreen extends StatefulWidget {
   final UserModel user;
@@ -18,10 +18,10 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _headerCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
+    _headerCtrl  = AnimationController(vsync: this, duration: AppMotion.slow);
+    _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut));
+        .animate(CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard));
     _headerCtrl.forward();
   }
 
@@ -30,13 +30,20 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final allDefs    = FirebaseService.getAllBadgeDefs();
     final earned     = widget.user.badges;
     final earnedDefs = allDefs.where((b) => earned.contains(b['id'])).toList();
     final lockedDefs = allDefs.where((b) => !earned.contains(b['id'])).toList();
+    // Taller cards when the user enlarges text, so descriptions are not clipped.
+    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+    final gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2, crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
+      childAspectRatio: 1.05 / textScale,
+    );
 
     return Scaffold(
-      backgroundColor: kBg,
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -45,33 +52,24 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               child: SlideTransition(
                 position: _headerSlide,
                 child: Container(
-                  decoration: gradientHeader,
+                  decoration: heroDecoration(context,
+                      radius: const BorderRadius.vertical(bottom: Radius.circular(AppSpace.xxl))),
                   child: SafeArea(
                     bottom: false,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                      padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.lg, AppSpace.xl + 4),
                       child: Column(children: [
                         Row(children: [
-                          GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text('My Badges', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                          HeroBackButton(onTap: () => Navigator.pop(context)),
+                          const SizedBox(width: AppSpace.xs),
+                          Text('My Badges', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 20)),
                         ]),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppSpace.md),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: AppRadius.all(AppRadius.lg),
                           ),
                           child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
                             _headerStat('${earnedDefs.length}', 'Earned'),
@@ -92,21 +90,18 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
           if (earnedDefs.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, AppSpace.sm),
                 child: Row(children: [
-                  const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Earned (${earnedDefs.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
+                  Icon(Icons.emoji_events_rounded, color: c.gold, size: 18),
+                  const SizedBox(width: AppSpace.xs),
+                  Text('Earned (${earnedDefs.length})', style: t.titleMedium!.copyWith(fontSize: 15)),
                 ]),
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.1,
-                ),
+                gridDelegate: gridDelegate,
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i),
                   childCount: earnedDefs.length,
@@ -118,21 +113,18 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
           if (lockedDefs.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, AppSpace.sm),
                 child: Row(children: [
-                  Icon(Icons.lock_outline_rounded, color: Colors.grey.shade400, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Locked (${lockedDefs.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
+                  Icon(Icons.lock_outline_rounded, color: c.textTertiary, size: 18),
+                  const SizedBox(width: AppSpace.xs),
+                  Text('Locked (${lockedDefs.length})', style: t.titleMedium!.copyWith(fontSize: 15)),
                 ]),
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, AppSpace.navClearance),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.1,
-                ),
+                gridDelegate: gridDelegate,
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length),
                   childCount: lockedDefs.length,
@@ -146,8 +138,8 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   }
 
   Widget _headerStat(String value, String label) => Column(children: [
-    Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
-    Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+    Text(value, style: context.text.headlineSmall!.copyWith(color: context.colors.onHero)),
+    Text(label, style: context.text.labelSmall!.copyWith(color: context.colors.onHeroMuted)),
   ]);
 }
 
@@ -168,71 +160,76 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
   @override
   void initState() {
     super.initState();
-    _ctrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
-    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    final delay = (widget.index * 70).clamp(0, 600);
-    Future.delayed(Duration(milliseconds: 100 + delay), () { if (mounted) _ctrl.forward(); });
+    _ctrl  = AnimationController(vsync: this, duration: AppMotion.slow);
+    _scale = Tween<double>(begin: 0.85, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.spring));
+    _fade  = CurvedAnimation(parent: _ctrl, curve: AppMotion.standard);
+    final delay = AppMotion.stagger * widget.index;
+    Future.delayed(AppMotion.fast + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _ctrl.forward(); });
   }
 
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: _fade,
-    child: ScaleTransition(
-      scale: _scale,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: widget.earned ? Colors.white : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: widget.earned
-              ? Border.all(color: Colors.amber.shade300, width: 1.5)
-              : Border.all(color: Colors.grey.shade200),
-          boxShadow: widget.earned
-              ? [BoxShadow(color: Colors.amber.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))]
-              : [],
-        ),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          widget.earned
-              ? Text(widget.def['icon'] as String, style: const TextStyle(fontSize: 36))
-              : Stack(alignment: Alignment.center, children: [
-                  ColorFiltered(
-                    colorFilter: const ColorFilter.matrix([
-                      0.2126, 0.7152, 0.0722, 0, 0,
-                      0.2126, 0.7152, 0.0722, 0, 0,
-                      0.2126, 0.7152, 0.0722, 0, 0,
-                      0,      0,      0,      0.4, 0,
-                    ]),
-                    child: Text(widget.def['icon'] as String, style: const TextStyle(fontSize: 36)),
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Semantics(
+          label: '${widget.def['label']}, ${widget.earned ? 'earned' : 'locked'}. ${widget.def['desc']}',
+          excludeSemantics: true,
+          child: Container(
+            padding: const EdgeInsets.all(AppSpace.md),
+            decoration: widget.earned
+                ? cardDecoration(context, borderColor: c.gold.withValues(alpha: 0.5))
+                : BoxDecoration(
+                    color: c.surfaceAlt,
+                    borderRadius: AppRadius.all(AppRadius.xl),
+                    border: Border.all(color: c.border),
                   ),
-                  const Icon(Icons.lock_rounded, color: Colors.grey, size: 18),
-                ]),
-          const SizedBox(height: 8),
-          Text(widget.def['label'] as String,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12,
-                  color: widget.earned ? Colors.black87 : Colors.grey),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          Text(widget.def['desc'] as String,
-              style: TextStyle(fontSize: 10, color: widget.earned ? Colors.grey : Colors.grey.shade400),
-              textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
-          if (widget.earned) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade200),
-              ),
-              child: const Text('✓ Earned', style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ]),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              widget.earned
+                  ? Text(widget.def['icon'] as String, style: const TextStyle(fontSize: 36))
+                  : Stack(alignment: Alignment.center, children: [
+                      ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0,      0,      0,      0.4, 0,
+                        ]),
+                        child: Text(widget.def['icon'] as String, style: const TextStyle(fontSize: 36)),
+                      ),
+                      Icon(Icons.lock_rounded, color: c.textSecondary, size: 18),
+                    ]),
+              const SizedBox(height: AppSpace.xs),
+              Text(widget.def['label'] as String,
+                  style: t.labelMedium!.copyWith(fontWeight: FontWeight.w700,
+                      color: widget.earned ? c.textPrimary : c.textSecondary),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: AppSpace.xxs),
+              Text(widget.def['desc'] as String,
+                  style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400),
+                  textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+              if (widget.earned) ...[
+                const SizedBox(height: AppSpace.xs - 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: c.gold.withValues(alpha: 0.12),
+                    borderRadius: AppRadius.all(AppRadius.sm),
+                    border: Border.all(color: c.gold.withValues(alpha: 0.4)),
+                  ),
+                  child: Text('✓ Earned', style: t.labelSmall!.copyWith(color: c.gold, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ]),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
