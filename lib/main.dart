@@ -44,8 +44,8 @@ class ECORewardApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      // Branded splash first, then the same auth gate as before (saved session -> home, else login).
-      home: const SmartCafeSplash(next: _AuthGate()),
+      // Auth gate: a still launch screen while the saved session is checked, then home or login.
+      home: const _AuthGate(),
     );
   }
 }
@@ -88,11 +88,8 @@ class _AuthGateState extends State<_AuthGate> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
-            return const Scaffold(
-              // Same cream as the splash, so restoring the session looks like part of it.
-              backgroundColor: AppPalette.cream,
-              body: Center(child: EcoLoader(size: 72, semanticLabel: 'Signing you in')),
-            );
+            // The still launch screen, shown only while the saved sign-in is checked.
+            return const BrandSplash();
           }
           final (state, user) = snap.data ?? (_Restore.unreachable, null);
           switch (state) {

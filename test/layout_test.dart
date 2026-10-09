@@ -28,6 +28,7 @@ import 'package:ecoreward_bin/screens/customer/reward_detail_screen.dart';
 import 'package:ecoreward_bin/screens/customer/scan_history_screen.dart';
 import 'package:ecoreward_bin/screens/login_screen.dart';
 import 'package:ecoreward_bin/screens/register_screen.dart';
+import 'package:ecoreward_bin/screens/splash_screen.dart';
 
 /// The app's own bundled fonts (DM Sans body, Fraunces headings): measure with what ships.
 Future<void> _loadAppFonts() async {
@@ -99,6 +100,7 @@ final _customers = [
 
 // ── Screens under test ────────────────────────────────────────────────────────
 final Map<String, Widget Function()> _customerScreens = {
+  'Launch screen': () => const BrandSplash(),
   'Login': () => const LoginScreen(),
   'Register': () => const RegisterScreen(),
   'Home': () => homeTabPreview(user: _user, logs: _logs, rewards: _rewards, redemptions: _redemptions, myRank: 3),

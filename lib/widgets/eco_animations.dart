@@ -1,7 +1,7 @@
 // ECOReward Bin brand animations (Lottie).
 //
 // Requires:  lottie: ^3.1.2   (pubspec.yaml)
-// Assets:    assets/animations/{splash,loader,success,idle}.json
+// Assets:    assets/animations/{loader,success,idle}.json
 //
 // Every widget respects the system "Remove animations" setting
 // (MediaQuery.disableAnimations): it shows the finished frame instead of moving.
@@ -19,7 +19,6 @@ class EcoBrand {
 }
 
 class EcoAnimations {
-  static const splash = 'assets/animations/splash.json';   // 4.0 s, plays once
   static const loader = 'assets/animations/loader.json';   // 1.5 s, loops
   static const success = 'assets/animations/success.json'; // 1.2 s, plays once
   static const idle = 'assets/animations/idle.json';       // 4.0 s, loops
@@ -27,7 +26,6 @@ class EcoAnimations {
   /// Optional: call once at startup so the first animation shows instantly.
   static Future<void> precache() async {
     await Future.wait([
-      AssetLottie(splash).load(),
       AssetLottie(loader).load(),
       AssetLottie(success).load(),
     ]);
