@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/tap.dart';
 import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
@@ -155,7 +156,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
           const SizedBox(height: 20),
           const Text('Your Redemption Code', style: TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 8),
-          GestureDetector(
+          Tap(label: 'Copy redemption code ${r.redemptionCode}', 
             onTap: () {
               Clipboard.setData(ClipboardData(text: r.redemptionCode));
               _showSnack('Code copied!', _kGreen);
@@ -305,7 +306,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
               itemBuilder: (_, i) {
                 final cat = _categories[i];
                 final selected = _selectedCategory == cat;
-                return GestureDetector(
+                return Tap(label: '$cat rewards', selected: selected, 
                   onTap: () => setState(() => _selectedCategory = cat),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
@@ -339,7 +340,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                 Text('No $_selectedCategory rewards yet',
                     style: const TextStyle(color: Colors.grey, fontSize: 15, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                GestureDetector(
+                Tap(label: 'Show all rewards', 
                   onTap: () => setState(() => _selectedCategory = 'All'),
                   child: const Text('Show all rewards',
                       style: TextStyle(color: _kGreen, fontSize: 13, fontWeight: FontWeight.w500)),
@@ -426,7 +427,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
     final daysLeft = isPending ? r.expiresAt.difference(now).inDays : 0;
     final expiryColor = daysLeft <= 3 ? Colors.orange : Colors.grey;
 
-    return GestureDetector(
+    return Tap(label: '${r.rewardTitle}${isPending && !isExpired ? ', show redemption code' : ''}', 
       onTap: (isPending && !isExpired) ? () => _showRedemptionCode(r) : null,
       child: Opacity(
         opacity: isExpired ? 0.6 : 1.0,
@@ -472,7 +473,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                             fontSize: 12, letterSpacing: 2, color: _kDarkGreen)),
                   ),
                   const SizedBox(width: 6),
-                  GestureDetector(
+                  Tap(label: 'Copy code', tooltip: true, 
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: r.redemptionCode));
                       _showSnack('Code copied!', _kGreen);
@@ -582,7 +583,7 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
       opacity: _fade,
       child: ScaleTransition(
         scale: _scale,
-        child: GestureDetector(
+        child: Tap(label: '${widget.reward.title}, ${widget.reward.pointsCost} points${isSoldOut ? ', sold out' : ''}', 
           // FIX 10: Disable tap for sold-out rewards
           onTap: isSoldOut ? null : widget.onTap,
           child: Container(

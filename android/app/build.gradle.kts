@@ -1,4 +1,13 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+// Release signing (audit M-18): android/key.properties (git-ignored) holds
+// storeFile, storePassword, keyAlias, keyPassword. Without it, release builds fall back to
+// the debug key and print a warning - fine for testing, never for distribution.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
 
 plugins {
     id("com.android.application")
@@ -32,9 +41,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keystoreProperties.containsKey("storeFile")) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystoreProperties.containsKey("storeFile")) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("WARNING: android/key.properties not found - release build is signed with the DEBUG key.")
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -4,7 +4,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
-        android:label="ecoreward_bin"
+        android:label="ECOReward Bin"
+        android:allowBackup="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

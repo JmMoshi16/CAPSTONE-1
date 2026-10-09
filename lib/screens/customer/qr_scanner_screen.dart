@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/tap.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/firebase_service.dart';
@@ -249,7 +250,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  GestureDetector(
+                  Tap(label: 'Back', tooltip: true, 
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.all(10),
@@ -261,7 +262,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
                   const Text('Scan QR Code', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                   const Spacer(),
                   // FIX 4: Torch toggle with visual on/off state
-                  GestureDetector(
+                  Tap(label: _torchOn ? 'Turn flashlight off' : 'Turn flashlight on', tooltip: true, selected: _torchOn, 
                     onTap: () {
                       _controller.toggleTorch();
                       setState(() => _torchOn = !_torchOn);
