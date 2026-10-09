@@ -3,12 +3,15 @@ import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart' show wasteIcon;
 import '../../widgets/ui.dart';
+import 'info_sheets.dart';
 
 class ImpactScreen extends StatefulWidget {
   final List<WasteLog> logs;
   final Future<void> Function()? onRefresh;
   final VoidCallback? onScan;
-  const ImpactScreen({super.key, required this.logs, this.onRefresh, this.onScan});
+  /// Opens Scan History filtered to one waste type (the type cards).
+  final ValueChanged<String>? onOpenHistory;
+  const ImpactScreen({super.key, required this.logs, this.onRefresh, this.onScan, this.onOpenHistory});
   @override
   State<ImpactScreen> createState() => _ImpactScreenState();
 }
@@ -137,7 +140,13 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     );
   }
 
-  Widget _typeCard(String label, int count, IconData icon, Color color) => Container(
+  Widget _typeCard(String label, int count, IconData icon, Color color) => Tap(
+    label: '$count $label scans, show them',
+    onTap: widget.onOpenHistory == null ? null : () => widget.onOpenHistory!(label),
+    child: _typeCardBody(label, count, icon, color),
+  );
+
+  Widget _typeCardBody(String label, int count, IconData icon, Color color) => Container(
     padding: const EdgeInsets.symmetric(vertical: AppSpace.md - 2, horizontal: AppSpace.xs),
     decoration: cardDecoration(context, radius: AppRadius.lg),
     child: Column(children: [
@@ -164,6 +173,8 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
         Text('Bin: ${log.binId}', style: context.text.bodySmall),
       ]),
       trailing: PointsPill('+${log.pointsAwarded} pts'),
+      onTap: () => showScanDetailSheet(context, log),
+      semanticLabel: '${log.wasteType} scan, +${log.pointsAwarded} points, details',
     );
   }
 }

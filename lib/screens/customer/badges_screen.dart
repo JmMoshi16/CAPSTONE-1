@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
+import 'info_sheets.dart';
 
 class BadgesScreen extends StatefulWidget {
   final UserModel user;
@@ -109,7 +110,11 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               sliver: SliverGrid(
                 gridDelegate: gridDelegate,
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i),
+                  (_, i) => Tap(
+                    label: '${earnedDefs[i]['label']}, earned, details',
+                    onTap: () => showBadgeSheet(context, def: earnedDefs[i], user: widget.user),
+                    child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i),
+                  ),
                   childCount: earnedDefs.length,
                 ),
               ),
@@ -132,7 +137,11 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               sliver: SliverGrid(
                 gridDelegate: gridDelegate,
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length),
+                  (_, i) => Tap(
+                    label: '${lockedDefs[i]['label']}, locked, how to unlock',
+                    onTap: () => showBadgeSheet(context, def: lockedDefs[i], user: widget.user),
+                    child: _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length),
+                  ),
                   childCount: lockedDefs.length,
                 ),
               ),

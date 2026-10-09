@@ -17,10 +17,18 @@ class RewardsScreen extends StatefulWidget {
   final VoidCallback onRedeemed;
   const RewardsScreen({super.key, required this.user, required this.rewards, required this.onRedeemed});
   @override
-  State<RewardsScreen> createState() => _RewardsScreenState();
+  State<RewardsScreen> createState() => RewardsScreenState();
 }
 
-class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderStateMixin {
+/// Public so Home can open the tab on a category (Quick Access) or on My Codes (notifications).
+class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderStateMixin {
+  void showCategory(String category) {
+    _tabController.animateTo(0);
+    setState(() => _selectedCategory = category);
+  }
+
+  void showMyCodes() => _tabController.animateTo(1);
+
   late TabController _tabController;
   List<Redemption> _redemptions = [];
   // Start from what Home already loaded; a fresh copy is fetched in the background.
@@ -272,7 +280,11 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                         const SizedBox(height: AppSpace.md - 2),
                         Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
                           _headerPill(Icons.stars_rounded, AppPalette.coin[1], widget.user.points, bold: true),
-                          _headerPill(Icons.receipt_long_rounded, c.onHeroMuted, _redemptions.length),
+                          Tap(
+                            label: '${_redemptions.length} redeemed, open My Codes',
+                            onTap: showMyCodes,
+                            child: _headerPill(Icons.receipt_long_rounded, c.onHeroMuted, _redemptions.length),
+                          ),
                         ]),
                       ],
                     ),
@@ -306,8 +318,14 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   Widget _headerPill(IconData icon, Color iconColor, int count, {bool bold = false}) {
     final c = context.colors;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: AppRadius.all(AppRadius.pill)),
+      padding: EdgeInsets.symmetric(horizontal: bold ? 0 : AppSpace.md - 2, vertical: AppSpace.xs),
+      decoration: bold
+          ? null
+          : BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: AppRadius.all(AppRadius.pill),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+            ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, color: iconColor, size: 16),
         const SizedBox(width: AppSpace.xs - 2),
@@ -481,8 +499,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
     final expiryColor = daysLeft <= 3 ? c.warning : c.textSecondary;
     final statusColor = isExpired ? c.danger : (isPending ? c.warning : c.success);
 
-    return Tap(label: '${r.rewardTitle}${isPending && !isExpired ? ', show redemption code' : ''}',
-      onTap: (isPending && !isExpired) ? () => _showRedemptionCode(r) : null,
+    return Tap(label: '${r.rewardTitle}, ${isPending && !isExpired ? 'show redemption code' : 'details'}',
+      onTap: (isPending && !isExpired) ? () => _showRedemptionCode(r) : () => _showCodeDetails(r, expired: isExpired),
       child: Opacity(
         opacity: isExpired ? 0.7 : 1.0,
         child: Container(
@@ -555,6 +573,44 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   }
 
   String _rewardHeroTag(Reward r) => 'reward-${r.id ?? r.title}';
+
+  /// Read-only details for a claimed or expired code (these cards used to do nothing).
+  void _showCodeDetails(Redemption r, {required bool expired}) {
+    final c = context.colors;
+    final t = context.text;
+    AppSheet.show(
+      context,
+      title: r.rewardTitle,
+      initialSize: 0.45,
+      builder: (ctx, scroll) => ListView(
+        controller: scroll,
+        padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xl),
+        children: [
+          Center(child: PointsPill(expired ? 'Expired' : 'Claimed', color: expired ? c.danger : c.success)),
+          const SizedBox(height: AppSpace.md),
+          Center(child: Text(spacedCode(r.redemptionCode),
+              style: t.headlineSmall!.copyWith(fontFamily: 'monospace', letterSpacing: 3,
+                  color: c.textTertiary, decoration: TextDecoration.lineThrough))),
+          const SizedBox(height: AppSpace.lg),
+          _detailRow(ctx, 'Redeemed', _formatDate(r.redeemedAt)),
+          _detailRow(ctx, expired ? 'Expired' : 'Valid until', _formatDate(r.expiresAt)),
+          _detailRow(ctx, 'Points used', '${r.pointsUsed} pts'),
+          const SizedBox(height: AppSpace.md),
+          Text(expired
+              ? "This code wasn't picked up in time, so it can no longer be used."
+              : 'Staff have already handed this reward over.', style: t.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext ctx, String k, String v) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+        child: Row(children: [
+          Expanded(child: Text(k, style: ctx.text.bodyMedium!.copyWith(color: ctx.colors.textSecondary))),
+          Text(v, style: ctx.text.titleSmall),
+        ]),
+      );
 
   IconData _catIcon(String cat) {
     switch (cat) {

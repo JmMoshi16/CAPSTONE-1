@@ -6,8 +6,9 @@ class _HeroHeaderCard extends StatelessWidget {
   final int myRank, pendingRedemptions, lifetimePoints, streak;
   final int points;                     // spendable balance, counted up when it changes
   final bool countFromZero;
-  final VoidCallback onBell, onProfile;
+  final VoidCallback onBell, onProfile, onRankInfo, onLeaderboard;
   const _HeroHeaderCard({
+    required this.onRankInfo, required this.onLeaderboard,
     required this.user, required this.myRank, required this.pendingRedemptions,
     required this.lifetimePoints, required this.points, required this.countFromZero, required this.streak,
     required this.onBell, required this.onProfile,
@@ -146,9 +147,9 @@ class _HeroHeaderCard extends StatelessWidget {
 
             // ── Rank + Level pills ─────────────────────────────────────────
             Wrap(alignment: WrapAlignment.center, spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-              _pill(context, '${lv.emoji} Lv ${lv.level} ${lv.title}'),
-              _pill(context, '${rk.icon} ${rk.label}'),
-              if (myRank > 0) _pill(context, '🏆 #$myRank'),
+              _pill(context, '${lv.emoji} Lv ${lv.level} ${lv.title}', onRankInfo, 'Level ${lv.level} ${lv.title}, explain levels'),
+              _pill(context, '${rk.icon} ${rk.label}', onRankInfo, '${rk.label} rank, explain ranks'),
+              if (myRank > 0) _pill(context, '🏆 #$myRank', onLeaderboard, 'Leaderboard position $myRank, open leaderboard'),
             ]),
           ]),
         )),
@@ -156,7 +157,10 @@ class _HeroHeaderCard extends StatelessWidget {
     );
   }
 
-  Widget _pill(BuildContext context, String label) => Container(
+  Widget _pill(BuildContext context, String label, VoidCallback onTap, String semantics) =>
+      Tap(label: semantics, onTap: onTap, child: _pillBody(context, label));
+
+  Widget _pillBody(BuildContext context, String label) => Container(
     padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xxs + 1),
     decoration: BoxDecoration(
       color: Colors.white.withValues(alpha: 0.13),
@@ -216,7 +220,7 @@ class _WeeklyGoalBar extends StatelessWidget {
         Row(children: [
           const ExcludeSemantics(child: Text('🎯', style: TextStyle(fontSize: 13))),
           const SizedBox(width: AppSpace.xs - 2),
-          Expanded(child: Text('Weekly Goal · last 7 days', style: t.labelMedium)),
+          Expanded(child: Text('7-day goal', style: t.labelMedium)),
           Text(
             done ? '✅ Goal reached!' : '$scanCount / $weeklyGoal scans',
             style: t.labelSmall!.copyWith(
@@ -382,9 +386,24 @@ class _WiggleBellState extends State<_WiggleBell> with SingleTickerProviderState
 }
 
 // ── Offline banner ────────────────────────────────────────────────────────────
-class _OfflineBanner extends StatelessWidget {
+class _OfflineBanner extends StatefulWidget {
   const _OfflineBanner({required this.onRetry});
   final Future<void> Function() onRetry;
+  @override
+  State<_OfflineBanner> createState() => _OfflineBannerState();
+}
+
+class _OfflineBannerState extends State<_OfflineBanner> {
+  bool _busy = false;
+
+  Future<void> _retry() async {
+    setState(() => _busy = true);
+    try {
+      await widget.onRetry();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -403,7 +422,12 @@ class _OfflineBanner extends StatelessWidget {
           const SizedBox(width: AppSpace.sm),
           Expanded(child: Text("Couldn't refresh. Showing your last saved data.",
               style: context.text.bodySmall!.copyWith(color: c.textPrimary))),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
+          _busy
+              ? const Padding(
+                  padding: EdgeInsets.all(AppSpace.md - 2),
+                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                )
+              : TextButton(onPressed: _retry, child: const Text('Retry')),
         ]),
       ),
     );
@@ -419,8 +443,11 @@ class _NotifItem {
   final String time;
   final bool isUnread;
   final VoidCallback? onTap;
+  /// Close the sheet before running [onTap] (false for in-place actions such as copy).
+  final bool closes;
 
   const _NotifItem({
+    this.closes = true,
     required this.icon,
     required this.iconColor,
     required this.title,

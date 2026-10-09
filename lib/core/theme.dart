@@ -63,6 +63,9 @@ const _levels = [
   LevelInfo(level: 6, title: 'Eco Legend',   emoji: '💎', color: Color(0xFF7B1FA2), bgColor: Color(0xFFF3E5F5), minPts: 2000, maxPts: -1),
 ];
 
+/// Every level, lowest first (for the level explainer).
+List<LevelInfo> get allLevels => _levels;
+
 LevelInfo getLevel(int points) {
   for (int i = _levels.length - 1; i >= 0; i--) {
     if (points >= _levels[i].minPts) return _levels[i];

@@ -16,6 +16,7 @@ import 'scan_history_screen.dart';
 import 'customer_profile_screen.dart';
 import 'leaderboard_screen.dart';
 import 'badges_screen.dart';
+import 'info_sheets.dart';
 
 part 'customer_home_widgets.dart';
 
@@ -101,23 +102,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         redemptions: _redemptions,
         offline: _offline,
         onScan: _openScanner,
-        onRewards:     () => setState(() => _selectedIndex = 1),
+        onRewards:     () => _openRewards(),
+        onRewardsCategory: (cat) => _openRewards(category: cat),
+        onMyCodes: () => _openRewards(myCodes: true),
         onImpact:      () => setState(() => _selectedIndex = 2),
-        onHistory: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => ScanHistoryScreen(
-              logs: _logs,
-              onRefresh: () async { await _loadData(); return _logs; },
-              onScan: _openScanner,
-            ))).then((_) => _loadData()),
+        onHistory: () => _openHistory(),
         onLeaderboard: () => Navigator.push(context, MaterialPageRoute(
             builder: (_) => LeaderboardScreen(currentUid: _user!.uid))),
         onBadges: () => Navigator.push(context, MaterialPageRoute(
             builder: (_) => BadgesScreen(user: _user!))),
         onRefresh: _loadData,
       ),
-      RewardsScreen(user: _user!, rewards: _rewards, onRedeemed: _loadData),
-      ImpactScreen(logs: _logs, onRefresh: _loadData, onScan: _openScanner),
-      CustomerProfileScreen(user: _user!, logs: _logs, onUpdated: _loadData),
+      RewardsScreen(key: _rewardsKey, user: _user!, rewards: _rewards, onRedeemed: _loadData),
+      ImpactScreen(logs: _logs, onRefresh: _loadData, onScan: _openScanner,
+          onOpenHistory: (type) => _openHistory(filter: type)),
+      CustomerProfileScreen(user: _user!, logs: _logs, onUpdated: _loadData, onOpenRewards: () => _openRewards()),
     ];
 
     return Scaffold(
@@ -130,6 +129,31 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       ),
     );
   }
+
+  final _rewardsKey = GlobalKey<RewardsScreenState>();
+
+  /// Rewards tab, optionally pre-filtered to a category or showing My Codes.
+  void _openRewards({String? category, bool myCodes = false}) {
+    setState(() => _selectedIndex = 1);
+    // The tab may be built for the first time in this frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final rewards = _rewardsKey.currentState;
+      if (rewards == null) return;
+      if (myCodes) {
+        rewards.showMyCodes();
+      } else {
+        rewards.showCategory(category ?? 'All');
+      }
+    });
+  }
+
+  void _openHistory({String filter = 'All'}) => Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ScanHistoryScreen(
+        logs: _logs,
+        initialFilter: filter,
+        onRefresh: () async { await _loadData(); return _logs; },
+        onScan: _openScanner,
+      ))).then((_) => _loadData());
 
   Future<void> _openScanner() async {
     if (_scannerOpen || _user == null) return;
@@ -156,7 +180,8 @@ Widget homeTabPreview({
       extendBody: true,
       body: _HomeTab(
         user: user, logs: logs, rewards: rewards, redemptions: redemptions, myRank: myRank, offline: offline,
-        onScan: () {}, onRewards: () {}, onImpact: () {}, onHistory: () {}, onLeaderboard: () {}, onBadges: () {},
+        onScan: () {}, onRewards: () {}, onRewardsCategory: (_) {}, onMyCodes: () {},
+        onImpact: () {}, onHistory: () {}, onLeaderboard: () {}, onBadges: () {},
         onRefresh: () async {},
       ),
       bottomNavigationBar: _FloatingNavBar(selectedIndex: 0, onTap: (_) {}, onScan: () {}),
@@ -172,6 +197,8 @@ class _HomeTab extends StatefulWidget {
   final bool offline;
   final VoidCallback onScan;
   final VoidCallback onRewards;
+  final ValueChanged<String> onRewardsCategory;
+  final VoidCallback onMyCodes;
   final VoidCallback onImpact;
   final VoidCallback onHistory;
   final VoidCallback onLeaderboard;
@@ -183,7 +210,8 @@ class _HomeTab extends StatefulWidget {
     required this.redemptions,
     required this.myRank,
     required this.offline,
-    required this.onScan, required this.onRewards, required this.onImpact,
+    required this.onScan, required this.onRewards, required this.onRewardsCategory, required this.onMyCodes,
+    required this.onImpact,
     required this.onHistory, required this.onLeaderboard, required this.onBadges,
     required this.onRefresh,
   });
@@ -282,6 +310,8 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 : 'Claimed on ${_fmtDate(r.redeemedAt)}',
         time: _fmtDate(r.redeemedAt),
         isUnread: isPending && !isExpired,
+        // Pending: copy the code (sheet stays open). Expired/claimed: open My Codes.
+        closes: !(isPending && !isExpired),
         onTap: (isPending && !isExpired)
             ? () {
                 Clipboard.setData(ClipboardData(text: r.redemptionCode));
@@ -290,7 +320,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                   backgroundColor: c.success,
                 ));
               }
-            : null,
+            : widget.onMyCodes,
       ));
     }
 
@@ -300,7 +330,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.recycling_rounded, iconColor: c.success,
         title: 'Points Credited',
         subtitle: '${widget.user.scanCount} scan${widget.user.scanCount > 1 ? "s" : ""} recorded. Keep recycling!',
-        time: _lastScanLabel(widget.user.lastScanDate), isUnread: false, onTap: null,
+        time: _lastScanLabel(widget.user.lastScanDate), isUnread: false, onTap: widget.onHistory,
       ));
     }
     if (widget.user.badges.isNotEmpty) {
@@ -308,7 +338,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.military_tech_rounded, iconColor: c.gold,
         title: 'Badge Unlocked',
         subtitle: 'You earned ${widget.user.badges.length} badge${widget.user.badges.length > 1 ? "s" : ""}. Check your collection!',
-        time: '', isUnread: false, onTap: null,
+        time: '', isUnread: false, onTap: widget.onBadges,
       ));
     }
     if (widget.myRank > 0 && widget.myRank <= 10) {
@@ -316,7 +346,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.leaderboard_rounded, iconColor: c.gold,
         title: 'Top 10 Leaderboard',
         subtitle: "You're ranked #${widget.myRank} on the leaderboard!",
-        time: 'Now', isUnread: false, onTap: null,
+        time: 'Now', isUnread: false, onTap: widget.onLeaderboard,
       ));
     }
     final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, DateTime.now());
@@ -325,7 +355,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.local_fire_department_rounded, iconColor: c.warning,
         title: '$streak-Day Streak',
         subtitle: 'Amazing! Keep recycling every day.',
-        time: 'Now', isUnread: false, onTap: null,
+        time: 'Now', isUnread: false, onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
       ));
     }
     if (items.isEmpty) {
@@ -333,7 +363,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         icon: Icons.eco_rounded, iconColor: c.success,
         title: 'Welcome to ECOReward!',
         subtitle: 'Start scanning waste QR codes to earn points and rewards.',
-        time: 'Now', isUnread: false, onTap: null,
+        time: 'Now', isUnread: false, onTap: widget.onScan,
       ));
     }
 
@@ -359,7 +389,11 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
           final n = items[i];
           final t = ctx.text;
           return InkWell(
-            onTap: n.onTap,
+            onTap: n.onTap == null ? null : () {
+              AppHaptics.tap();
+              if (n.closes) Navigator.pop(ctx);
+              n.onTap!();
+            },
             child: Container(
               color: n.isUnread ? c.primaryContainer.withValues(alpha: 0.5) : Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
@@ -451,9 +485,15 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               countFromZero: _firstLoad,
               streak: streak,
               onBell: () => _showNotificationsSheet(context),
+              onRankInfo: () => showRankLevelSheet(context, lifetimePoints: lifetime),
+              onLeaderboard: widget.onLeaderboard,
               onProfile: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => CustomerProfileScreen(
-                      user: widget.user, logs: widget.logs, onUpdated: widget.onRefresh, heroAvatar: true))),
+                      user: widget.user, logs: widget.logs, onUpdated: widget.onRefresh, heroAvatar: true,
+                      onOpenRewards: () {
+                        Navigator.pop(context);
+                        widget.onRewards();
+                      }))),
               pendingRedemptions: widget.redemptions.where((r) => r.status == 'pending' && !DateTime.now().isAfter(r.expiresAt)).length,
             )),
           ),
@@ -506,7 +546,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 const SizedBox(height: AppSpace.sm),
                 // Rewards button
                 AppButton.secondary(
-                  label: 'Claim Rewards',
+                  label: 'Redeem rewards',
                   icon: Icons.card_giftcard_rounded,
                   onPressed: widget.onRewards,
                 ),
@@ -546,7 +586,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 Row(children: [
                   Expanded(child: StatCard(emoji: '🔥', value: '${streak}d', label: 'streak',
                       accent: c.warning, valueColor: streak > 0 ? null : c.textTertiary,
-                      onTap: widget.onLeaderboard)),
+                      onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan))),
                   const SizedBox(width: AppSpace.sm - 2),
                   Expanded(child: StatCard(emoji: '🏆', value: widget.myRank > 0 ? '#${widget.myRank}' : '--',
                       label: 'rank', accent: c.gold, valueColor: widget.myRank > 0 ? null : c.textTertiary,
@@ -602,9 +642,9 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 const SectionHeader(title: 'Quick Access'),
                 const SizedBox(height: AppSpace.sm),
                 Row(children: [
-                  Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.coffee_rounded, color: c.coffee, label: 'Coffee rewards', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available')),
+                  Expanded(child: _gridTile(onTap: () => widget.onRewardsCategory('Coffee'), icon: Icons.coffee_rounded, color: c.coffee, label: 'Coffee rewards', subtitle: '${widget.rewards.where((r) => r.category == 'Coffee').length} available')),
                   const SizedBox(width: AppSpace.sm),
-                  Expanded(child: _gridTile(onTap: widget.onRewards, icon: Icons.local_offer_rounded, color: const Color(0xFF7C4DFF), label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available')),
+                  Expanded(child: _gridTile(onTap: () => widget.onRewardsCategory('Discount'), icon: Icons.local_offer_rounded, color: const Color(0xFF7C4DFF), label: 'Eco Discount', subtitle: '${widget.rewards.where((r) => r.category == 'Discount').length} available')),
                 ]),
                 const SizedBox(height: AppSpace.sm),
                 Row(children: [
@@ -631,7 +671,11 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _fadeSlide(5, _activityTile(recent[i])),
+                  (_, i) => _fadeSlide(5, Tap(
+                    label: '${recent[i].wasteType} scan, +${recent[i].pointsAwarded} points, details',
+                    onTap: () => showScanDetailSheet(context, recent[i]),
+                    child: _activityTile(recent[i]),
+                  )),
                   childCount: recent.length,
                 ),
               ),

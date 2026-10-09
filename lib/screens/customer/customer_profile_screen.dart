@@ -15,8 +15,10 @@ class CustomerProfileScreen extends StatefulWidget {
   final VoidCallback onUpdated;
   /// True when opened from the Home avatar, so the avatar flies in (Hero).
   final bool heroAvatar;
+  /// Opens the Rewards tab from the points chip (spend your points).
+  final VoidCallback? onOpenRewards;
   const CustomerProfileScreen({super.key, required this.user, required this.logs, required this.onUpdated,
-      this.heroAvatar = false});
+      this.heroAvatar = false, this.onOpenRewards});
   @override
   State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
 }
@@ -147,8 +149,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     children: [
                       // Points chip — taps to leaderboard
                       PressScale(
-                        label: '${widget.user.points} points, open leaderboard',
-                        onTap: _openLeaderboard,
+                        label: '${widget.user.points} points, open rewards',
+                        onTap: widget.onOpenRewards ?? _openLeaderboard,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
                           decoration: cardDecoration(context, radius: AppRadius.pill,

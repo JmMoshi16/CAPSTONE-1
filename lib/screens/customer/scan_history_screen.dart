@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart' show wasteIcon;
 import '../../widgets/ui.dart';
+import 'info_sheets.dart';
 import '../../widgets/eco_animations.dart';
 
 class ScanHistoryScreen extends StatefulWidget {
@@ -10,14 +11,16 @@ class ScanHistoryScreen extends StatefulWidget {
   /// Reloads from Firestore and returns the fresh list (pull-to-refresh).
   final Future<List<WasteLog>> Function()? onRefresh;
   final VoidCallback? onScan;
-  const ScanHistoryScreen({super.key, required this.logs, this.onRefresh, this.onScan});
+  /// Filter to open with ('All' or a waste type), e.g. from an Impact type card.
+  final String initialFilter;
+  const ScanHistoryScreen({super.key, required this.logs, this.onRefresh, this.onScan, this.initialFilter = 'All'});
 
   @override
   State<ScanHistoryScreen> createState() => _ScanHistoryScreenState();
 }
 
 class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
-  String _filter = 'All';
+  late String _filter = widget.initialFilter;
   late List<WasteLog> _logs = widget.logs;
 
   Future<void> _refresh() async {
@@ -155,6 +158,8 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
       title: log.wasteType,
       subtitle: Text(DateFormat('MMM d, yyyy · h:mm a').format(log.timestamp), style: context.text.bodySmall),
       trailing: PointsPill('+${log.pointsAwarded} pts'),
+      onTap: () => showScanDetailSheet(context, log),
+      semanticLabel: '${log.wasteType} scan, +${log.pointsAwarded} points, details',
     );
   }
 }
