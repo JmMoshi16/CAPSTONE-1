@@ -278,7 +278,9 @@ class _FloatingNavBar extends StatelessWidget {
               _navItem(context, Icons.home_rounded, Icons.home_outlined, 'Home', 0),
               _navItem(context, Icons.card_giftcard_rounded, Icons.card_giftcard_outlined, 'Rewards', 1),
               Expanded(
+                // heightFactor 1: size to the button, not to all the height the bottom-bar slot allows.
                 child: Center(
+                  heightFactor: 1,
                   child: Tap(label: 'Scan QR code', tooltip: true,
                     onTap: onScan,
                     child: Container(
