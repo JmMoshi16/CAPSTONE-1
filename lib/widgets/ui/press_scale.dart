@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/haptics.dart';
 import '../../core/tokens.dart';
 
 /// A tappable area with press-scale feedback, a 48 dp minimum touch target and
@@ -28,6 +29,11 @@ class PressScale extends StatefulWidget {
 class _PressScaleState extends State<PressScale> {
   bool _down = false;
 
+  void _activate() {
+    AppHaptics.tap();
+    widget.onTap!();
+  }
+
   void _set(bool v) {
     if (widget.onTap != null && _down != v) setState(() => _down = v);
   }
@@ -39,11 +45,11 @@ class _PressScaleState extends State<PressScale> {
       enabled: widget.onTap != null,
       selected: widget.selected,
       label: widget.label,
-      onTap: widget.onTap,
+      onTap: widget.onTap == null ? null : _activate,
       excludeSemantics: widget.label != null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
+        onTap: widget.onTap == null ? null : _activate,
         onTapDown: (_) => _set(true),
         onTapUp: (_) => _set(false),
         onTapCancel: () => _set(false),

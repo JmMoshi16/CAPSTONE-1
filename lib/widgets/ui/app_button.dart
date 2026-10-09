@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/haptics.dart';
 import '../../core/tokens.dart';
 
 enum AppButtonKind { primary, secondary, danger }
@@ -65,7 +66,13 @@ class _AppButtonState extends State<AppButton> {
           ]);
 
     final size = Size(widget.expand ? double.infinity : AppSpace.touch, widget.height);
-    final onPressed = enabled ? widget.onPressed : null;
+    // Primary actions get a light haptic; secondary ones a softer click.
+    final onPressed = enabled
+        ? () {
+            widget.kind == AppButtonKind.secondary ? AppHaptics.tap() : AppHaptics.primary();
+            widget.onPressed!();
+          }
+        : null;
     final Widget button = switch (widget.kind) {
       AppButtonKind.primary => FilledButton(
           onPressed: onPressed,
