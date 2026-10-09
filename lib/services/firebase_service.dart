@@ -65,6 +65,12 @@ class FirebaseService {
       badges: [],
     );
     await _db.collection('users').doc(user.uid).set(user.toMap());
+    // H-13: mirror public stats to profiles so leaderboard never touches users
+    await _db.collection('profiles').doc(user.uid).set({
+      'username': username,
+      'points': 0,
+      'badges': <String>[],
+    });
     return user;
   }
 
@@ -91,6 +97,12 @@ class FirebaseService {
           badges: [],
         );
         await _db.collection('users').doc(uid).set(fallback.toMap());
+        // H-13: create corresponding profile doc
+        await _db.collection('profiles').doc(uid).set({
+          'username': fallback.username,
+          'points': 0,
+          'badges': <String>[],
+        });
         return fallback;
       } catch (_) {
         await Future.delayed(const Duration(seconds: 1));
@@ -114,6 +126,9 @@ class FirebaseService {
   /// and re-sends `role` (audit H-01).
   static Future<void> updateUsername(String uid, String username) async {
     await _db.collection('users').doc(uid).update({'username': username});
+    // H-13: keep profiles in sync
+    await _db.collection('profiles').doc(uid).set(
+      {'username': username}, SetOptions(merge: true));
   }
 
   // ── Waste Logs ──────────────────────────────────────────────────────────────
@@ -127,6 +142,8 @@ class FirebaseService {
     final todayStr = '${today.year}-${today.month.toString().padLeft(2,'0')}-${today.day.toString().padLeft(2,'0')}';
 
     List<String> newBadges = [];
+
+    final profileRef = _db.collection('profiles').doc(log.userId);  // H-13
 
     await _db.runTransaction((tx) async {
       final userDoc = await tx.get(userRef);
@@ -175,6 +192,12 @@ class FirebaseService {
         'lastScanDate': todayStr,
         'badges':       allBadges,
       });
+      // H-13: mirror public stats to profiles
+      tx.set(profileRef, {
+        'username': snapshot.username,
+        'points':   FieldValue.increment(earnedPts),
+        'badges':   allBadges,
+      }, SetOptions(merge: true));
     });
 
     return newBadges;
@@ -230,7 +253,8 @@ class FirebaseService {
     bool success = false;
 
     await _db.runTransaction((tx) async {
-      final userRef   = _db.collection('users').doc(user.uid);
+      final userRef    = _db.collection('users').doc(user.uid);
+      final profileRef = _db.collection('profiles').doc(user.uid);  // H-13
       final rewardRef = _db.collection('rewards').doc(reward.id);
       final userDoc   = await tx.get(userRef);
       final rewardDoc = await tx.get(rewardRef);
@@ -258,6 +282,10 @@ class FirebaseService {
       );
       tx.set(redemptionRef, redemption.toMap());
       tx.update(userRef, {'points': FieldValue.increment(-reward.pointsCost)});
+      // H-13: mirror deduction to profiles
+      tx.set(profileRef,
+        {'points': FieldValue.increment(-reward.pointsCost)},
+        SetOptions(merge: true));
 
       // FIX 10: Decrement stock only if limited
       if (reward.stock != -1 && rewardDoc.exists) {
@@ -300,32 +328,40 @@ class FirebaseService {
 
   static Map<String, dynamic> getBadgeInfo(String id) => _badgeInfo(id);
 
+  // H-13: query public profiles instead of users (no email exposure)
   static Future<List<UserModel>> getLeaderboard({int limit = 20}) async {
     final snap = await _db
-        .collection('users')
-        .where('role', isEqualTo: 'customer')  // filter in Firestore, not in Dart
+        .collection('profiles')
         .orderBy('points', descending: true)
         .limit(limit)
         .get();
-    return snap.docs
-        .map((d) => UserModel.fromDoc(d))
-        .toList();
+    return snap.docs.map((d) {
+      final data = d.data();
+      return UserModel(
+        uid: d.id,
+        username: data['username'] ?? '',
+        email: '',
+        role: 'customer',
+        points: (data['points'] ?? 0) as int,
+        createdAt: DateTime.now(),
+        badges: List<String>.from(data['badges'] ?? []),
+      );
+    }).toList();
   }
 
+  // H-13: rank from profiles so no role filter / cross-user read of users required
   static Future<int> getUserRank(String uid) async {
     try {
-      final userDoc = await _db.collection('users').doc(uid).get()
+      final profileDoc = await _db.collection('profiles').doc(uid).get()
           .timeout(const Duration(seconds: 5));
-      if (!userDoc.exists) return 0;
-      final pts = (userDoc.data()?['points'] ?? 0) as int;
+      if (!profileDoc.exists) return 0;
+      final pts = (profileDoc.data()?['points'] ?? 0) as int;
       final snap = await _db
-          .collection('users')
-          .where('role', isEqualTo: 'customer')  // exclude admins from rank
+          .collection('profiles')
           .where('points', isGreaterThan: pts)
           .get()
           .timeout(const Duration(seconds: 5));
-      final above = snap.docs.length;
-      return above + 1;
+      return snap.docs.length + 1;
     } catch (_) {
       return 0;
     }

@@ -198,3 +198,41 @@ class Redemption {
     );
   }
 }
+
+// H-13: public leaderboard profile — no email, no role, no private fields
+class ProfileModel {
+  final String uid;
+  final String username;
+  final int points;
+  final List<String> badges;
+
+  ProfileModel({
+    required this.uid,
+    required this.username,
+    this.points = 0,
+    this.badges = const [],
+  });
+
+  Map<String, dynamic> toMap() => {
+        'username': username,
+        'points': points,
+        'badges': badges,
+      };
+
+  factory ProfileModel.fromDoc(DocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return ProfileModel(
+      uid: doc.id,
+      username: d['username'] ?? '',
+      points: d['points'] ?? 0,
+      badges: List<String>.from(d['badges'] ?? []),
+    );
+  }
+
+  factory ProfileModel.fromUser(UserModel user) => ProfileModel(
+        uid: user.uid,
+        username: user.username,
+        points: user.points,
+        badges: user.badges,
+      );
+}
