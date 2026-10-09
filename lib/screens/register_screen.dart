@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   bool _loading = false;
   bool _obscure = true;
   bool _obscureConfirm = true;
+  final _shakeKey = GlobalKey<ShakeState>();
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -49,7 +50,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _shakeKey.currentState?.shake();
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     try {
@@ -62,6 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       }
     } catch (e) {
       if (mounted) {
+        _shakeKey.currentState?.shake(haptic: false);
         AppSnackbar.error(context, registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()));
         setState(() => _loading = false);
       }
@@ -80,9 +85,12 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         child: Column(children: [
           Container(
             width: double.infinity,
+            clipBehavior: Clip.antiAlias,
             decoration: heroDecoration(context,
                 radius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxxl))),
-            child: SafeArea(
+            child: Stack(children: [
+              const Positioned.fill(child: FloatingLeaves()),
+              SafeArea(
               bottom: false,
               child: Center(
                 child: ConstrainedBox(
@@ -126,7 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   ),
                 ),
               ),
-            ),
+            )]),
           ),
 
           // Form
@@ -145,7 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 4)),
                       ),
                       padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xl + 4, AppSpace.xl + 4, AppSpace.xl),
-                      child: Form(
+                      child: Shake(key: _shakeKey, child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +211,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                 icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
                               ),
                               validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
+                              onChanged: (_) => setState(() {}),   // redraw the strength meter
                             ),
+                            PasswordStrengthMeter(password: _passCtrl.text),
 
                             const SizedBox(height: AppSpace.md),
 
@@ -227,10 +237,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             const SizedBox(height: AppSpace.xl + 4),
 
                             // Create button
-                            AppButton(
+                            GlowButton(
                               label: 'Create Account',
+                              icon: Icons.eco_rounded,
                               trailingIcon: Icons.arrow_forward_rounded,
-                              height: 56,
                               loading: _loading,
                               onPressed: _register,
                             ),
@@ -251,7 +261,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             const SizedBox(height: AppSpace.xl),
                           ],
                         ),
-                      ),
+                      )),
                     ),
                   ),
                 ),
@@ -291,17 +301,17 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     bool obscure = false,
     Widget? suffixIcon,
     String? Function(String?)? validator,
+    ValueChanged<String>? onChanged,
   }) =>
-      TextFormField(
+      AppTextField(
         controller: controller,
         keyboardType: keyboardType,
-        obscureText: obscure,
-        style: context.text.bodyLarge,
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Icon(icon, size: 20),
-          suffixIcon: suffixIcon,
-        ),
+        obscure: obscure,
+        hint: hint,
+        icon: icon,
+        suffix: suffixIcon,
         validator: validator,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.next,
       );
 }

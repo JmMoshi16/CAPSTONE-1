@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
@@ -21,10 +20,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _loading = false;
   bool _obscure = true;
   bool _sendingReset = false;
+  final _shakeKey = GlobalKey<ShakeState>();
 
   late AnimationController _heroCtrl;
   late AnimationController _formCtrl;
-  late AnimationController _particleCtrl;
   late AnimationController _btnCtrl;
 
   late Animation<double> _heroFade;
@@ -51,7 +50,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _btnFade = Tween<double>(begin: 0, end: 1).animate(
         CurvedAnimation(parent: _formCtrl, curve: const Interval(0.65, 1.0, curve: AppMotion.standard)));
 
-    _particleCtrl = AnimationController(vsync: this, duration: AppMotion.ambient * 4)..repeat();
 
     _btnCtrl = AnimationController(vsync: this, duration: AppMotion.ambient)..repeat(reverse: true);
     _btnScale = Tween<double>(begin: 1.0, end: 1.02)
@@ -69,7 +67,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     super.didChangeDependencies();
     // Reduced motion: no drifting leaves, no pulsing button, the form is simply there.
     if (AppMotion.reduced(context)) {
-      _particleCtrl.stop();
       _btnCtrl
         ..stop()
         ..value = 0;
@@ -82,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void dispose() {
     _heroCtrl.dispose();
     _formCtrl.dispose();
-    _particleCtrl.dispose();
     _btnCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
@@ -90,7 +86,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _shakeKey.currentState?.shake();
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     try {
@@ -106,6 +105,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
     } catch (e) {
       if (mounted) {
+        _shakeKey.currentState?.shake(haptic: false);   // the error snackbar buzzes
         _snack(loginErrorMessage(e is FirebaseAuthException ? e.code : e.toString()), context.colors.danger);
         setState(() => _loading = false);
       }
@@ -168,16 +168,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         Positioned(bottom: size.height * 0.35, left: -40,
           child: _circle(160, c.accent.withValues(alpha: 0.08))),
 
-        // Floating particles (own layer so the form never repaints with them)
-        RepaintBoundary(
-          child: AnimatedBuilder(
-            animation: _particleCtrl,
-            builder: (_, __) => CustomPaint(
-              size: Size(size.width, size.height),
-              painter: _LeafParticlePainter(_particleCtrl.value),
-            ),
-          ),
-        ),
+        // Floating leaves (own layer; they hold still with reduced motion)
+        const Positioned.fill(child: FloatingLeaves()),
 
         // Header and form scroll together; on tall screens the form card fills the rest.
         // (The form used to start at a fixed 46 % of the height, hiding the header on
@@ -244,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 8)),
                             ),
                             padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xxl, AppSpace.xl + 4, AppSpace.xxl),
-                            child: Form(
+                            child: Shake(key: _shakeKey, child: Form(
                               key: _formKey,
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               // Handle
@@ -266,14 +258,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   _label('Email address'),
                                   const SizedBox(height: AppSpace.xs),
-                                  TextFormField(
+                                  AppTextField(
                                     controller: _emailCtrl,
                                     keyboardType: TextInputType.emailAddress,
-                                    style: t.bodyLarge,
-                                    decoration: const InputDecoration(
-                                      hintText: 'you@example.com',
-                                      prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
-                                    ),
+                                    textInputAction: TextInputAction.next,
+                                    autofillHints: const [AutofillHints.email],
+                                    hint: 'you@example.com',
+                                    icon: Icons.alternate_email_rounded,
                                     validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
                                   ),
                                 ])),
@@ -284,20 +275,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   _label('Password'),
                                   const SizedBox(height: AppSpace.xs),
-                                  TextFormField(
+                                  AppTextField(
                                     controller: _passCtrl,
-                                    obscureText: _obscure,
-                                    style: t.bodyLarge,
-                                    decoration: InputDecoration(
-                                      hintText: '••••••••',
-                                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                                      suffixIcon: IconButton(
-                                        tooltip: _obscure ? 'Show password' : 'Hide password',
-                                        onPressed: () => setState(() => _obscure = !_obscure),
-                                        icon: AnimatedSwitcher(duration: AppMotion.medium,
-                                          child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                              key: ValueKey(_obscure), size: 20)),
-                                      ),
+                                    obscure: _obscure,
+                                    textInputAction: TextInputAction.done,
+                                    autofillHints: const [AutofillHints.password],
+                                    onSubmitted: (_) => _login(),
+                                    hint: '••••••••',
+                                    icon: Icons.lock_outline_rounded,
+                                    suffix: IconButton(
+                                      tooltip: _obscure ? 'Show password' : 'Hide password',
+                                      onPressed: () => setState(() => _obscure = !_obscure),
+                                      icon: AnimatedSwitcher(duration: AppMotion.medium,
+                                        child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                            key: ValueKey(_obscure), size: 20)),
                                     ),
                                     validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null,
                                   ),
@@ -315,11 +306,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               FadeTransition(opacity: _btnFade,
                                 child: ScaleTransition(
                                   scale: _loading ? const AlwaysStoppedAnimation(1.0) : _btnScale,
-                                  child: AppButton(
+                                  child: GlowButton(
                                     label: 'Sign In',
                                     icon: Icons.eco_rounded,
                                     trailingIcon: Icons.arrow_forward_rounded,
-                                    height: 56,
                                     loading: _loading,
                                     onPressed: _login,
                                   ),
@@ -347,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                               Center(child: Text('ECOReward Bin  ·  Smart Waste Recycling', style: t.labelSmall)),
                               ]),
-                            ),
+                            )),
                           ),
                         ),
                       ),
@@ -381,46 +371,4 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   Widget _label(String text) => Text(text, style: context.text.labelMedium!.copyWith(
       color: context.colors.textSecondary, fontSize: 13));
-}
-
-// Floating leaf particle painter
-class _LeafParticlePainter extends CustomPainter {
-  final double progress;
-  static final _rand = math.Random(42);
-  static final _particles = List.generate(14, (i) => _Particle(
-    x:       _rand.nextDouble(),
-    speed:   0.04 + _rand.nextDouble() * 0.07,
-    size:    4 + _rand.nextDouble() * 7,
-    opacity: 0.06 + _rand.nextDouble() * 0.13,
-    phase:   _rand.nextDouble(),
-    drift:   (_rand.nextDouble() - 0.5) * 0.04,
-  ));
-
-  _LeafParticlePainter(this.progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final p in _particles) {
-      final t = ((p.phase + progress * p.speed * 10) % 1.0);
-      final y = size.height * (1.0 - t);
-      final x = size.width * (p.x + math.sin(t * math.pi * 2 + p.phase) * p.drift);
-      final paint = Paint()
-        ..color = Colors.white.withValues(alpha: p.opacity)
-        ..style = PaintingStyle.fill;
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(t * math.pi * 2);
-      canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 1.6), paint);
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(_LeafParticlePainter old) => old.progress != progress;
-}
-
-class _Particle {
-  final double x, speed, size, opacity, phase, drift;
-  const _Particle({required this.x, required this.speed, required this.size,
-      required this.opacity, required this.phase, required this.drift});
 }
