@@ -81,7 +81,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
             Row(children: [
               Expanded(child: _modeCard('qr', Icons.qr_code_rounded, 'QR Code', 'Customer scans with phone')),
               const SizedBox(width: AppSpace.sm),
-              Expanded(child: _modeCard('receipt', Icons.receipt_long_rounded, 'Paper Receipt', 'No phone / no internet')),
+              Expanded(child: _modeCard('receipt', Icons.receipt_long_rounded, 'Paper Receipt', 'Print it; scan in the app within 20 min')),
             ]),
             const SizedBox(height: AppSpace.xl),
 

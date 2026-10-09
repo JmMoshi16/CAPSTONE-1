@@ -82,7 +82,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      _DashboardTab(logs: _logs, customers: _customers, onRefresh: _loadData, onLogout: _logout),
+      _DashboardTab(logs: _logs, customers: _customers, onRefresh: _loadData, onLogout: _logout,
+          onOpenUsers: () => setState(() => _selectedIndex = 2)),
       AdminRewardsScreen(rewards: _rewards, onChanged: _loadData),
       AdminUsersScreen(customers: _customers, logs: _logs, onRefresh: _loadData),
       const AdminQRScreen(),
@@ -114,14 +115,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 /// The dashboard tab without Firebase, for layout tests.
 @visibleForTesting
 Widget dashboardTabPreview({required List<WasteLog> logs, required List<UserModel> customers}) =>
-    Scaffold(body: _DashboardTab(logs: logs, customers: customers, onRefresh: () {}, onLogout: () {}));
+    Scaffold(body: _DashboardTab(logs: logs, customers: customers, onRefresh: () {}, onLogout: () {}, onOpenUsers: () {}));
 
 class _DashboardTab extends StatelessWidget {
   final List<WasteLog> logs;
   final List<UserModel> customers;
   final VoidCallback onRefresh;
   final VoidCallback onLogout;
-  const _DashboardTab({required this.logs, required this.customers, required this.onRefresh, required this.onLogout});
+  final VoidCallback onOpenUsers;
+  const _DashboardTab({required this.logs, required this.customers, required this.onRefresh, required this.onLogout,
+      required this.onOpenUsers});
+
+  static const _typeColors = {'Biodegradable': AdminColors.bio, 'Recyclable': AdminColors.rec, 'Residual': AdminColors.res};
+
+  /// Count per waste type, largest first.
+  List<(String, int)> _byType() {
+    final m = <String, int>{};
+    for (final l in logs) { m[l.wasteType] = (m[l.wasteType] ?? 0) + 1; }
+    return m.entries.map((e) => (e.key, e.value)).toList()..sort((a, b) => b.$2.compareTo(a.$2));
+  }
+
+  String _hourLabel(int h) => h == 0 ? '12 AM' : h < 12 ? '$h AM' : h == 12 ? '12 PM' : '${h - 12} PM';
+
 
   List<double> _linearRegression(List<double> y) {
     final n = y.length;
@@ -210,11 +225,15 @@ class _DashboardTab extends StatelessWidget {
                   ]),
                   const SizedBox(height: AppSpace.md),
                   Row(children: [
-                    Expanded(child: _statCard('$total', 'Disposals', Icons.recycling_rounded, kGreen)),
+                    Expanded(child: _statCard('$total', 'Disposals', Icons.recycling_rounded, kGreen,
+                        onTap: () => _detail(context, 'Disposals', [
+                          for (final (type, n) in _byType()) _DetailRow(type, '$n', fraction: total == 0 ? 0 : n / total, color: _typeColors[type]),
+                          for (var i = 6; i >= 0; i--) _DetailRow(DateFormat('EEE, MMM d').format(days[i]), '${actual[i].round()}'),
+                        ], note: 'All logged disposals by waste type, then the last 7 days.'))),
                     const SizedBox(width: 10),
-                    Expanded(child: _statCard('${customers.length}', 'Customers', Icons.people_rounded, kBlue)),
+                    Expanded(child: _statCard('${customers.length}', 'Customers', Icons.people_rounded, kBlue, onTap: onOpenUsers)),
                     const SizedBox(width: 10),
-                    Expanded(child: _statCard('$totalPoints', 'Pts Balance', Icons.stars_rounded, kOrange)),
+                    Expanded(child: _statCard('$totalPoints', 'Pts Balance', Icons.stars_rounded, kOrange, onTap: onOpenUsers)),
                   ]),
                 ]),
               )),
@@ -317,6 +336,16 @@ class _DashboardTab extends StatelessWidget {
                   title: 'Peak Disposal Hours',
                   value: _peakHour(),
                   sub: 'Highest activity window',
+                  onTap: () {
+                    final byHour = List.filled(24, 0);
+                    for (final l in logs) { byHour[l.timestamp.hour]++; }
+                    final top = [for (var h = 0; h < 24; h++) (h, byHour[h])]..sort((a, b) => b.$2.compareTo(a.$2));
+                    final most = top.isEmpty ? 1 : (top.first.$2 == 0 ? 1 : top.first.$2);
+                    _detail(context, 'Busiest hours', [
+                      for (final (h, n) in top.take(8).where((e) => e.$2 > 0))
+                        _DetailRow('${_hourLabel(h)} – ${_hourLabel((h + 1) % 24)}', '$n', fraction: n / most, color: kOrange),
+                    ], note: 'Disposals per hour of the day, all logged data.');
+                  },
                 )),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(child: _infoCard(
@@ -324,6 +353,11 @@ class _DashboardTab extends StatelessWidget {
                   title: 'Most Common Waste',
                   value: _mostCommonWaste(),
                   sub: 'Across all logged disposals',
+                  onTap: () => _detail(context, 'Waste by type', [
+                    for (final (type, n) in _byType())
+                      _DetailRow(type, '$n (${total == 0 ? 0 : (n / total * 100).round()}%)',
+                          fraction: total == 0 ? 0 : n / total, color: _typeColors[type]),
+                  ]),
                 )),
               ]),
             ),
@@ -351,8 +385,13 @@ class _DashboardTab extends StatelessWidget {
                       icon: Icons.show_chart_rounded, color: kGreen,
                       title: 'Waste Trend',
                       value: '${diff >= 0 ? '+' : ''}$diff',
-                      sub: 'vs yesterday',
+                      sub: 'forecast tomorrow vs today',
                       chart: _miniLineChart(actual, kGreen),
+                      onTap: () => _detail(context, 'Waste trend', [
+                        for (var i = 6; i >= 0; i--) _DetailRow(DateFormat('EEE, MMM d').format(days[i]), '${actual[i].round()}',
+                            fraction: actual.reduce((a, b) => a > b ? a : b) == 0 ? 0 : actual[i] / actual.reduce((a, b) => a > b ? a : b),
+                            color: kGreen),
+                      ], note: 'Disposals per day. The tile compares the forecast for tomorrow with today.'),
                     ),
                     _biTile(
                       icon: Icons.delete_rounded, color: binColor,
@@ -360,6 +399,9 @@ class _DashboardTab extends StatelessWidget {
                       value: '$binPct%',
                       sub: 'simulated, no fill sensor',
                       chart: _binLevelBar(binLevel, binColor),
+                      onTap: () => _detail(context, 'Bin Status (demo)', const [],
+                          note: 'This tile is a demonstration: it is computed from the number of logged disposals '
+                              '(total modulo 100), not measured. The bin has no fill-level sensor yet.'),
                     ),
                     _biTile(
                       icon: Icons.pie_chart_rounded, color: kBlue,
@@ -367,6 +409,11 @@ class _DashboardTab extends StatelessWidget {
                       value: total > 0 ? '${(rec / total * 100).round()}%' : '0%',
                       sub: 'recyclable',
                       chart: _miniPieChart(bio, rec, res),
+                      onTap: () => _detail(context, 'Waste split', [
+                        for (final (type, n) in _byType())
+                          _DetailRow(type, '${total == 0 ? 0 : (n / total * 100).round()}%',
+                              fraction: total == 0 ? 0 : n / total, color: _typeColors[type]),
+                      ]),
                     ),
                     _biTile(
                       icon: Icons.trending_up_rounded, color: kPurple,
@@ -374,6 +421,11 @@ class _DashboardTab extends StatelessWidget {
                       value: '~$nextDay',
                       sub: 'disposals tomorrow',
                       chart: _miniLineChart(predicted.take(7).toList(), kPurple),
+                      onTap: () => _detail(context, 'Forecast', [
+                        for (var i = 0; i < 3; i++)
+                          _DetailRow(DateFormat('EEE, MMM d').format(allDays[7 + i]), '~${predicted[7 + i].round()}'),
+                      ], note: 'A straight-line (least-squares) trend through the last 7 days, extended 3 days. '
+                          'It is a rough guide, not a prediction of events.'),
                     ),
                   ],
                 ),
@@ -387,7 +439,10 @@ class _DashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _statCard(String v, String l, IconData icon, Color c) => Container(
+  Widget _statCard(String v, String l, IconData icon, Color c, {required VoidCallback onTap}) =>
+      Tap(label: '$l: $v, details', onTap: onTap, child: _statCardBody(v, l, icon, c));
+
+  Widget _statCardBody(String v, String l, IconData icon, Color c) => Container(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.sm, horizontal: AppSpace.xs),
         decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14),
             border: Border.all(color: c.withValues(alpha: 0.2))),
@@ -399,8 +454,9 @@ class _DashboardTab extends StatelessWidget {
         ]),
       );
 
-  Widget _infoCard({required IconData icon, required Color color, required String title, required String value, required String sub}) =>
-      Container(
+  Widget _infoCard({required IconData icon, required Color color, required String title, required String value,
+      required String sub, required VoidCallback onTap}) =>
+      Tap(label: '$title: $value, details', onTap: onTap, child: Container(
         padding: const EdgeInsets.all(AppSpace.md),
         decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(20), border: Border.all(color: kBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -416,14 +472,14 @@ class _DashboardTab extends StatelessWidget {
           const SizedBox(height: 2),
           Text(sub, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
         ]),
-      );
+      ));
 
   Widget _biTile({required IconData icon, required Color color, required String title,
-      required String value, required String sub, required Widget chart}) =>
+      required String value, required String sub, required Widget chart, required VoidCallback onTap}) =>
       // One spoken summary per tile; the mini chart is decorative.
-      Semantics(
-        label: '$title: $value, $sub',
-        excludeSemantics: true,
+      Tap(
+        label: '$title: $value, $sub, details',
+        onTap: onTap,
         child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(20), border: Border.all(color: kBorder)),
@@ -491,6 +547,49 @@ class _DashboardTab extends StatelessWidget {
 
   Widget _legendDot(Color c) => Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle));
   Widget _legendDash(Color c) => Container(width: 16, height: 2, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(1)));
+}
+
+/// One line in an admin detail sheet, with an optional proportion bar.
+class _DetailRow {
+  const _DetailRow(this.label, this.value, {this.fraction, this.color});
+  final String label, value;
+  final double? fraction;
+  final Color? color;
+}
+
+void _detail(BuildContext context, String title, List<_DetailRow> rows, {String? note}) {
+  AppSheet.show(
+    context,
+    title: title,
+    initialSize: 0.5,
+    builder: (ctx, scroll) => ListView(
+      controller: scroll,
+      padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xl),
+      children: [
+        if (rows.isEmpty && note == null)
+          const Text('No data yet.', style: TextStyle(color: AdminColors.textSecondary)),
+        for (final r in rows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(r.label, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 14))),
+                Text(r.value, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+              ]),
+              if (r.fraction != null) ...[
+                const SizedBox(height: AppSpace.xxs),
+                AnimatedBar(progress: r.fraction!, color: r.color ?? AdminColors.accent, height: 6,
+                    trackColor: Colors.white.withValues(alpha: 0.06)),
+              ],
+            ]),
+          ),
+        if (note != null) ...[
+          const SizedBox(height: AppSpace.md),
+          Text(note, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 12, height: 1.4)),
+        ],
+      ],
+    ),
+  );
 }
 
 // ── Admin Floating Nav ────────────────────────────────────────────────────────

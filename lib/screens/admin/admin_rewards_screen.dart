@@ -26,6 +26,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   bool _redemptionsError = false;
   String _codeQuery = '';
   final Set<String> _claiming = {};
+  /// Rewards deleted but still undoable (hidden until the Undo snackbar closes).
+  final Set<String> _hidden = {};
+  List<Reward> get _visibleRewards => widget.rewards.where((r) => !_hidden.contains(r.id)).toList();
 
   @override
   void initState() {
@@ -63,6 +66,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     String category = reward?.category ?? 'Coffee';
     bool isActive = reward?.isActive ?? true;
     final formKey = GlobalKey<FormState>();
+    bool saving = false;   // disables Save while writing (a double tap used to add the reward twice)
     final categories = ['Coffee', 'Food', 'Discount', 'Other'];
 
     showModalBottomSheet(
@@ -136,8 +140,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 SizedBox(
                   width: double.infinity, height: 52,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
+                    onPressed: saving ? null : () async {
+                      if (!formKey.currentState!.validate()) {
+                        AppHaptics.error();
+                        return;
+                      }
+                      setS(() => saving = true);
                       final r = Reward(
                         id: reward?.id,
                         title: titleCtrl.text.trim(),
@@ -158,9 +166,13 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                           if (changes.isNotEmpty) await FirebaseService.updateReward(reward.id!, changes);
                         }
                         widget.onChanged();
+                        AppHaptics.success();
                         if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) _snack(reward == null ? '✓ "${r.title}" added' : '✓ Changes saved');
                       } catch (_) {
+                        AppHaptics.error();
                         if (ctx.mounted) {
+                          setS(() => saving = false);
                           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
                               content: Text('Could not save the reward. Check your connection and try again.')));
                         }
@@ -168,8 +180,11 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: kGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
-                    child: Text(reward == null ? 'Add Reward' : 'Save Changes',
-                        style: const TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+                    child: saving
+                        ? const SizedBox(width: 22, height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: AdminColors.onAccent))
+                        : Text(reward == null ? 'Add Reward' : 'Save Changes',
+                            style: const TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
                 const SizedBox(height: AppSpace.lg),
@@ -328,9 +343,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       child: ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 110),
-      itemCount: widget.rewards.length,
+      itemCount: _visibleRewards.length,
       itemBuilder: (_, i) {
-        final r = widget.rewards[i];
+        final r = _visibleRewards[i];
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
@@ -409,12 +424,28 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                       ],
                     ),
                   );
-                  if (confirm == true) {
-                    try {
-                      await FirebaseService.deleteReward(r.id!);
-                      widget.onChanged();
-                    } catch (_) {
-                      if (mounted) _snack("Couldn't delete the reward. Check your connection and try again.", error: true);
+                  if (confirm != true || !mounted) return;
+                  // Hide it at once and offer Undo; the delete runs only when the snackbar closes.
+                  setState(() => _hidden.add(r.id!));
+                  final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+                  final reason = await messenger.showSnackBar(SnackBar(
+                    content: Text('"${r.title}" deleted', style: const TextStyle(color: AdminColors.textPrimary)),
+                    backgroundColor: AdminColors.cardAlt,
+                    duration: const Duration(seconds: 5),
+                    action: SnackBarAction(label: 'Undo', textColor: AdminColors.accent, onPressed: () {}),
+                  )).closed;
+                  if (reason == SnackBarClosedReason.action) {
+                    if (mounted) setState(() => _hidden.remove(r.id));
+                    return;
+                  }
+                  try {
+                    await FirebaseService.deleteReward(r.id!);
+                    widget.onChanged();
+                  } catch (_) {
+                    AppHaptics.error();
+                    if (mounted) {
+                      setState(() => _hidden.remove(r.id));
+                      _snack("Couldn't delete the reward. Check your connection and try again.", error: true);
                     }
                   }
                 },
