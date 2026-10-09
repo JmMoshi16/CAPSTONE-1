@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
@@ -290,7 +291,15 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _showNotificationsSheet(BuildContext context) {
+  static const _dismissedKey = 'dismissed_notifications';
+
+  Future<void> _showNotificationsSheet(BuildContext context) async {
+    // Dismissed rows are remembered on this phone only (nothing is written to Firestore).
+    var dismissed = <String>{};
+    try {
+      dismissed = (await SharedPreferences.getInstance()).getStringList(_dismissedKey)?.toSet() ?? {};
+    } catch (_) {}
+    if (!context.mounted) return;
     final c = context.colors;
     // Build flat notification list
     final items = <_NotifItem>[];
@@ -300,6 +309,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
       final isPending = r.status == 'pending';
       final isExpired = isPending && DateTime.now().isAfter(r.expiresAt);
       items.add(_NotifItem(
+        id: 'redemption-${r.id}-${r.status}-${isExpired ? 'expired' : 'live'}',
         icon: isExpired
             ? Icons.timer_off_rounded
             : isPending
@@ -329,6 +339,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     if (widget.user.scanCount > 0) {
       items.add(_NotifItem(
         icon: Icons.recycling_rounded, iconColor: c.success,
+        id: 'points-${widget.user.scanCount}',
         title: 'Points Credited',
         subtitle: '${widget.user.scanCount} scan${widget.user.scanCount > 1 ? "s" : ""} recorded. Keep recycling!',
         time: _lastScanLabel(widget.user.lastScanDate), isUnread: false, onTap: widget.onHistory,
@@ -337,6 +348,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     if (widget.user.badges.isNotEmpty) {
       items.add(_NotifItem(
         icon: Icons.military_tech_rounded, iconColor: c.gold,
+        id: 'badges-${widget.user.badges.length}',
         title: 'Badge Unlocked',
         subtitle: 'You earned ${widget.user.badges.length} badge${widget.user.badges.length > 1 ? "s" : ""}. Check your collection!',
         time: '', isUnread: false, onTap: widget.onBadges,
@@ -345,6 +357,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     if (widget.myRank > 0 && widget.myRank <= 10) {
       items.add(_NotifItem(
         icon: Icons.leaderboard_rounded, iconColor: c.gold,
+        id: 'rank-${widget.myRank}',
         title: 'Top 10 Leaderboard',
         subtitle: "You're ranked #${widget.myRank} on the leaderboard!",
         time: 'Now', isUnread: false, onTap: widget.onLeaderboard,
@@ -354,6 +367,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     if (streak > 2) {
       items.add(_NotifItem(
         icon: Icons.local_fire_department_rounded, iconColor: c.warning,
+        id: 'streak-$streak',
         title: '$streak-Day Streak',
         subtitle: 'Amazing! Keep recycling every day.',
         time: 'Now', isUnread: false, onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
@@ -362,6 +376,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     if (items.isEmpty) {
       items.add(_NotifItem(
         icon: Icons.eco_rounded, iconColor: c.success,
+        id: 'welcome',
         title: 'Welcome to ECOReward!',
         subtitle: 'Start scanning waste QR codes to earn points and rewards.',
         time: 'Now', isUnread: false, onTap: widget.onScan,
@@ -382,59 +397,102 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                   style: context.text.labelMedium!.copyWith(color: c.onPrimaryContainer)),
             )
           : null,
-      builder: (ctx, scroll) => ListView.separated(
-        controller: scroll,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, indent: 68, endIndent: AppSpace.md),
-        itemBuilder: (_, i) {
-          final n = items[i];
-          final t = ctx.text;
-          return InkWell(
-            onTap: n.onTap == null ? null : () {
-              AppHaptics.tap();
-              if (n.closes) Navigator.pop(ctx);
-              n.onTap!();
-            },
-            child: Container(
-              color: n.isUnread ? c.primaryContainer.withValues(alpha: 0.5) : Colors.transparent,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 42, height: 42,
-                  decoration: BoxDecoration(
-                    color: n.iconColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(n.icon, color: n.iconColor, size: 20),
-                ),
-                const SizedBox(width: AppSpace.sm),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Expanded(child: Text(n.title, style: t.titleSmall!.copyWith(
-                        fontWeight: n.isUnread ? FontWeight.w700 : FontWeight.w600))),
-                    Text(n.time, style: t.labelSmall!.copyWith(
-                        color: n.isUnread ? c.primary : c.textTertiary)),
-                  ]),
-                  const SizedBox(height: 3),
-                  Text(n.subtitle, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
-                ])),
-                if (n.isUnread) ...[
-                  const SizedBox(width: AppSpace.xs),
-                  Container(
-                    width: 8, height: 8,
-                    margin: const EdgeInsets.only(top: AppSpace.xxs),
-                    decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                  ),
-                ],
-              ]),
-            ),
-          );
-        },
-      ),
+      builder: (ctx, scroll) => StatefulBuilder(builder: (ctx, setSheet) {
+        final c = ctx.colors;
+        final visible = items.where((n) => !dismissed.contains(n.id)).toList();
+        final fresh = visible.where((n) => n.isUnread).toList();
+        final earlier = visible.where((n) => !n.isUnread).toList();
+        if (visible.isEmpty) {
+          return const EmptyState(icon: Icons.notifications_none_rounded, title: "You're all caught up", dense: true);
+        }
+
+        Widget group(String label) => Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xs),
+              child: Semantics(header: true, child: Text(label.toUpperCase(),
+                  style: ctx.text.labelSmall!.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w800))),
+            );
+
+        // Swipe either way to dismiss (remembered on this phone).
+        Widget row(_NotifItem n) => Dismissible(
+              key: ValueKey(n.id),
+              background: _dismissBackground(ctx, Alignment.centerLeft),
+              secondaryBackground: _dismissBackground(ctx, Alignment.centerRight),
+              onDismissed: (_) async {
+                AppHaptics.tap();
+                setSheet(() => dismissed.add(n.id));
+                try {
+                  await (await SharedPreferences.getInstance()).setStringList(_dismissedKey, dismissed.toList());
+                } catch (_) {}
+              },
+              child: _notifRow(ctx, n),
+            );
+
+        return ListView(controller: scroll, children: [
+          if (fresh.isNotEmpty) ...[group('New'), ...fresh.map(row)],
+          if (earlier.isNotEmpty) ...[group('Earlier'), ...earlier.map(row)],
+          Padding(
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: Text('Swipe a notification sideways to dismiss it.',
+                textAlign: TextAlign.center, style: ctx.text.labelSmall!.copyWith(color: c.textTertiary)),
+          ),
+        ]);
+      }),
     );
   }
 
   /// When the last scan happened ("Today", "Yesterday", "Oct 9"); the old label always said "Today".
+  Widget _dismissBackground(BuildContext ctx, Alignment align) => Container(
+        color: ctx.colors.surfaceAlt,
+        alignment: align,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.done_all_rounded, color: ctx.colors.textSecondary),
+          const SizedBox(width: AppSpace.xs),
+          Text('Dismiss', style: ctx.text.labelMedium!.copyWith(color: ctx.colors.textSecondary)),
+        ]),
+      );
+
+  Widget _notifRow(BuildContext ctx, _NotifItem n) {
+    final c = ctx.colors;
+    final t = ctx.text;
+    return InkWell(
+      onTap: n.onTap == null ? null : () {
+        AppHaptics.tap();
+        if (n.closes) Navigator.pop(ctx);
+        n.onTap!();
+      },
+      child: Container(
+        color: n.isUnread ? c.primaryContainer.withValues(alpha: 0.5) : c.surface,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(color: n.iconColor.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: Icon(n.icon, color: n.iconColor, size: 20),
+          ),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(n.title, style: t.titleSmall!.copyWith(
+                  fontWeight: n.isUnread ? FontWeight.w700 : FontWeight.w600))),
+              Text(n.time, style: t.labelSmall!.copyWith(color: n.isUnread ? c.primary : c.textTertiary)),
+            ]),
+            const SizedBox(height: 3),
+            Text(n.subtitle, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ])),
+          if (n.isUnread) ...[
+            const SizedBox(width: AppSpace.xs),
+            Container(
+              width: 8, height: 8,
+              margin: const EdgeInsets.only(top: AppSpace.xxs),
+              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+
   String _lastScanLabel(String? yyyyMmDd) {
     final d = yyyyMmDd == null ? null : DateTime.tryParse(yyyyMmDd);
     if (d == null) return '';

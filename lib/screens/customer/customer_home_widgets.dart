@@ -541,6 +541,8 @@ class _OfflineBannerState extends State<_OfflineBanner> {
 
 // ── Notification item data model ──────────────────────────────────────────────
 class _NotifItem {
+  /// Stable while the content is the same; used to remember dismissals.
+  final String id;
   final IconData icon;
   final Color iconColor;
   final String title;
@@ -552,6 +554,7 @@ class _NotifItem {
   final bool closes;
 
   const _NotifItem({
+    required this.id,
     this.closes = true,
     required this.icon,
     required this.iconColor,
