@@ -26,6 +26,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   List<Reward> _rewards = [];
   bool _loadingHistory = true;
   bool _loadingRewards = true;
+  bool _rewardsError = false;
+  bool _historyError = false;
   String _selectedCategory = 'All';
 
   @override
@@ -37,8 +39,22 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   }
 
   Future<void> _loadRewards() async {
-    final r = await FirebaseService.getRewards();
-    if (mounted) setState(() { _rewards = r; _loadingRewards = false; });
+    try {
+      final r = await FirebaseService.getRewards().timeout(const Duration(seconds: 10));
+      if (mounted) setState(() { _rewards = r; _loadingRewards = false; _rewardsError = false; });
+    } catch (_) {
+      if (mounted) setState(() { _loadingRewards = false; _rewardsError = true; });
+    }
+  }
+
+  void _retryRewards() {
+    setState(() { _loadingRewards = true; _rewardsError = false; });
+    _loadRewards();
+  }
+
+  void _retryHistory() {
+    setState(() { _loadingHistory = true; _historyError = false; });
+    _loadHistory();
   }
 
   @override
@@ -46,9 +62,16 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
 
   Future<void> _loadHistory() async {
     final uid = FirebaseService.currentUid;
-    if (uid == null) return;
-    final r = await FirebaseService.getUserRedemptions(uid);
-    if (mounted) setState(() { _redemptions = r; _loadingHistory = false; });
+    if (uid == null) {
+      if (mounted) setState(() { _loadingHistory = false; _historyError = true; });
+      return;
+    }
+    try {
+      final r = await FirebaseService.getUserRedemptions(uid).timeout(const Duration(seconds: 10));
+      if (mounted) setState(() { _redemptions = r; _loadingHistory = false; _historyError = false; });
+    } catch (_) {
+      if (mounted) setState(() { _loadingHistory = false; _historyError = true; });
+    }
   }
 
   List<Reward> get _filteredRewards {
@@ -173,8 +196,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                   Flexible(
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Text(r.redemptionCode,
-                          style: t.headlineSmall!.copyWith(letterSpacing: 4, color: c.primary)),
+                      child: Text(spacedCode(r.redemptionCode),
+                          style: t.headlineSmall!.copyWith(fontFamily: 'monospace', letterSpacing: 3, color: c.primary)),
                     ),
                   ),
                   const SizedBox(width: AppSpace.sm - 2),
@@ -187,7 +210,19 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                 style: t.bodySmall, textAlign: TextAlign.center),
           ]),
           actions: [
-            AppButton(label: 'Got it!', height: 48, onPressed: () => Navigator.pop(ctx)),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              AppButton(
+                label: 'Show to staff',
+                icon: Icons.fullscreen_rounded,
+                height: 48,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r)));
+                },
+              ),
+              const SizedBox(height: AppSpace.xs),
+              AppButton.secondary(label: 'Got it!', height: 48, onPressed: () => Navigator.pop(ctx)),
+            ]),
           ],
         );
       },
@@ -270,19 +305,31 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   }
 
   Widget _buildAvailable() {
-    if (_loadingRewards) return const Center(child: CircularProgressIndicator());
+    if (_loadingRewards) return const _RewardsGridSkeleton();
+    if (_rewardsError) {
+      return _refreshable(_loadRewards, ErrorState(
+        title: "Couldn't load rewards",
+        message: 'Check your connection, then try again.',
+        onRetry: _retryRewards,
+      ));
+    }
     if (_rewards.isEmpty) {
-      return const EmptyState(
+      return _refreshable(_loadRewards, EmptyState(
         icon: Icons.card_giftcard_rounded,
         title: 'No rewards available yet',
-        message: 'Check back later!',
-      );
+        message: 'New rewards appear here as the café adds them.',
+        actionLabel: 'Refresh',
+        onAction: _retryRewards,
+      ));
     }
 
     // Taller cards when the user enlarges text, so nothing is clipped.
     final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
 
-    return CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: _loadRewards,
+      child: CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // Category filter chips
         SliverToBoxAdapter(
@@ -339,24 +386,47 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
             ),
           ),
       ],
-    );
+    ));
   }
+
+  /// Makes a centred state (empty / error) pull-to-refresh-able.
+  Widget _refreshable(Future<void> Function() onRefresh, Widget child) => RefreshIndicator(
+        onRefresh: onRefresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [SliverFillRemaining(hasScrollBody: false, child: child)],
+        ),
+      );
 
   Widget _buildHistory() {
     final c = context.colors;
-    if (_loadingHistory) return const Center(child: CircularProgressIndicator());
+    if (_loadingHistory) {
+      return const SkeletonList(count: 4, padding: EdgeInsets.all(AppSpace.md));
+    }
+    if (_historyError) {
+      return _refreshable(_loadHistory, ErrorState(
+        title: "Couldn't load your codes",
+        message: 'Check your connection, then try again.',
+        onRetry: _retryHistory,
+      ));
+    }
     if (_redemptions.isEmpty) {
-      return const EmptyState(
+      return _refreshable(_loadHistory, EmptyState(
         icon: Icons.receipt_long_rounded,
         title: 'No redemptions yet',
         message: 'Redeem a reward to get your code',
-      );
+        actionLabel: 'Browse rewards',
+        onAction: () => _tabController.animateTo(0),
+      ));
     }
 
     final pending = _redemptions.where((r) => r.status == 'pending').toList();
     final claimed = _redemptions.where((r) => r.status == 'claimed').toList();
 
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: _loadHistory,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, AppSpace.navClearance),
       children: [
         if (pending.isNotEmpty) ...[
@@ -371,7 +441,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
           ...claimed.map((r) => _redemptionCard(r, isPending: false)),
         ],
       ],
-    );
+    ));
   }
 
   Widget _sectionHeader(String title, IconData icon, Color color, int count) => Row(children: [
@@ -421,7 +491,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
                       decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: AppRadius.all(AppRadius.sm - 2)),
-                      child: Text(r.redemptionCode,
+                      child: Text(spacedCode(r.redemptionCode),
                           overflow: TextOverflow.ellipsis,
                           style: t.labelMedium!.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.w700,
                               letterSpacing: 2, color: c.primary)),
@@ -635,6 +705,131 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
               ),
             ]),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Redemption code shown as two groups of four ("ABCD EFGH") so staff can read it aloud.
+/// Display only: the stored and copied code is unchanged.
+String spacedCode(String code) =>
+    code.length == 8 ? '${code.substring(0, 4)} ${code.substring(4)}' : code;
+
+// ── Rewards grid skeleton ─────────────────────────────────────────────────────
+class _RewardsGridSkeleton extends StatelessWidget {
+  const _RewardsGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Skeleton(
+        label: 'Loading rewards',
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpace.md),
+          child: Column(children: [
+            const Row(children: [
+              SkeletonBox(width: 56, height: 32, radius: AppRadius.pill),
+              SizedBox(width: AppSpace.xs),
+              SkeletonBox(width: 88, height: 32, radius: AppRadius.pill),
+              SizedBox(width: AppSpace.xs),
+              SkeletonBox(width: 72, height: 32, radius: AppRadius.pill),
+            ]),
+            const SizedBox(height: AppSpace.md),
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpace.sm,
+                mainAxisSpacing: AppSpace.sm,
+                childAspectRatio: 0.74,
+                physics: const NeverScrollableScrollPhysics(),
+                children: List.generate(4, (_) => const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SkeletonBox(height: 88, radius: AppRadius.xl),
+                  SizedBox(height: AppSpace.sm),
+                  SkeletonBox(width: 110, height: 14),
+                  SizedBox(height: AppSpace.xs),
+                  SkeletonBox(width: 80, height: 12),
+                  Spacer(),
+                  SkeletonBox(height: 32, radius: AppRadius.sm + 2),
+                ])),
+              ),
+            ),
+          ]),
+        ),
+      );
+}
+
+// ── Staff view of a redemption code ───────────────────────────────────────────
+/// Full-screen, maximum-contrast code for the counter: black on white in every theme,
+/// very large monospaced characters, the reward name and the expiry date.
+class StaffCodeScreen extends StatelessWidget {
+  const StaffCodeScreen({super.key, required this.redemption});
+
+  final Redemption redemption;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.text;
+    const ink = Color(0xFF000000);
+    final e = redemption.expiresAt;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: ink,
+        elevation: 0,
+        title: const Text('Show this to staff'),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpace.xl),
+          child: Column(children: [
+            const Spacer(),
+            Text(redemption.rewardTitle, textAlign: TextAlign.center,
+                style: t.headlineSmall!.copyWith(color: ink)),
+            const SizedBox(height: AppSpace.xl),
+            Semantics(
+              label: 'Redemption code ${redemption.redemptionCode.split('').join(' ')}',
+              excludeSemantics: true,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: AppSpace.xl, horizontal: AppSpace.md),
+                decoration: BoxDecoration(
+                  border: Border.all(color: ink, width: 3),
+                  borderRadius: AppRadius.all(AppRadius.xl),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(spacedCode(redemption.redemptionCode),
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 56, fontWeight: FontWeight.w900,
+                          letterSpacing: 4, color: ink)),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpace.md),
+            Text('${redemption.pointsUsed} pts · valid until ${months[e.month - 1]} ${e.day}, ${e.year}',
+                style: t.titleSmall!.copyWith(color: const Color(0xFF333333))),
+            const Spacer(),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ink,
+                side: const BorderSide(color: ink, width: 1.5),
+                minimumSize: const Size(double.infinity, 52),
+              ),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: redemption.redemptionCode));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+              },
+              icon: const Icon(Icons.copy_rounded),
+              label: const Text('Copy code'),
+            ),
+            const SizedBox(height: AppSpace.sm),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: ink, foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 52)),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Done'),
+            ),
+          ]),
         ),
       ),
     );
