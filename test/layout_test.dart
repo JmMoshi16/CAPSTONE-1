@@ -24,6 +24,7 @@ import 'package:ecoreward_bin/screens/customer/impact_screen.dart';
 import 'package:ecoreward_bin/screens/customer/leaderboard_screen.dart';
 import 'package:ecoreward_bin/screens/customer/qr_scanner_screen.dart';
 import 'package:ecoreward_bin/screens/customer/rewards_screen.dart';
+import 'package:ecoreward_bin/screens/customer/reward_detail_screen.dart';
 import 'package:ecoreward_bin/screens/customer/scan_history_screen.dart';
 import 'package:ecoreward_bin/screens/login_screen.dart';
 import 'package:ecoreward_bin/screens/register_screen.dart';
@@ -114,6 +115,10 @@ final Map<String, Widget Function()> _customerScreens = {
   'Success (badges + rank-up)': () =>
       successScreenPreview(points: 23, basePoints: 15, newBadges: ['first_scan', 'streak_7'], lifetimeBefore: 190),
   'Staff code': () => StaffCodeScreen(redemption: _redemptions.first),
+  'Reward detail (can redeem)': () => RewardDetailScreen(reward: _rewards[0], user: _user, heroTag: 't1',
+      icon: Icons.coffee_rounded, color: const Color(0xFF795548)),
+  'Reward detail (locked)': () => RewardDetailScreen(reward: _rewards[1], user: _user, heroTag: 't2',
+      icon: Icons.fastfood_rounded, color: const Color(0xFFFF7043)),
 };
 
 final Map<String, Widget Function()> _adminScreens = {

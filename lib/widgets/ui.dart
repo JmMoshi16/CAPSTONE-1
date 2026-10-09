@@ -6,6 +6,7 @@ export 'ui/app_button.dart';
 export 'ui/app_snackbar.dart';
 export 'ui/fields.dart';
 export 'ui/glow.dart';
+export 'ui/hold_and_shine.dart';
 export 'ui/leaves.dart';
 export 'ui/app_sheet.dart';
 export 'ui/celebration.dart';

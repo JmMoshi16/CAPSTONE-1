@@ -4,6 +4,8 @@ import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 import '../../widgets/eco_animations.dart';
+import 'dart:async';
+import 'reward_detail_screen.dart';
 
 /// Category accent colours (decorative; text drawn in them goes through `colors.ink`).
 const _catColors = AppPalette.categories;
@@ -26,6 +28,26 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
   void showMyCodes() => _tabController.animateTo(1);
 
+  /// Swipe left / right on the grid: next / previous category.
+  void _swipeCategory(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if (v.abs() < 250) return;
+    final cats = _categories;
+    final i = cats.indexOf(_selectedCategory);
+    final next = (i + (v < 0 ? 1 : -1)).clamp(0, cats.length - 1);
+    if (next == i) return;
+    AppHaptics.tap();
+    setState(() {
+      _swipeForward = v < 0;
+      _selectedCategory = cats[next];
+    });
+  }
+
+  bool _swipeForward = true;
+
+  /// Refreshes the live countdowns on My Codes (cheap: only while that tab shows).
+  Timer? _countdown;
+
   late TabController _tabController;
   List<Redemption> _redemptions = [];
   // Start from what Home already loaded; a fresh copy is fetched in the background.
@@ -43,6 +65,9 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _countdown = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _tabController.index == 1) setState(() {});
+    });
     _loadRewards();
     _loadHistory();
   }
@@ -68,7 +93,18 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   }
 
   @override
-  void dispose() { _tabController.dispose(); super.dispose(); }
+  void dispose() {
+    _countdown?.cancel();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  /// "6d 4h left", "5h 12m left", "8m left".
+  String _timeLeft(Duration d) {
+    if (d.inDays >= 1) return '${d.inDays}d ${d.inHours % 24}h left';
+    if (d.inHours >= 1) return '${d.inHours}h ${d.inMinutes % 60}m left';
+    return '${d.inMinutes.clamp(1, 59)}m left';
+  }
 
   Future<void> _loadHistory() async {
     try {
@@ -89,64 +125,19 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   List<String> get _categories => ['All', ..._rewards.map((r) => r.category).toSet()];
 
   Future<void> _redeem(Reward reward) async {
-    final c = context.colors;
     // FIX 10: Block sold-out rewards at UI level too
     if (reward.stock == 0) return;
 
-    if (widget.user.points < reward.pointsCost) {
-      _showSnack('Need ${reward.pointsCost - widget.user.points} more points', c.warning);
-      return;
-    }
-
-    final confirm = await Navigator.push<bool>(context, PageRouteBuilder<bool>(
-      opaque: false,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      barrierLabel: 'Cancel',
-      transitionDuration: AppMotion.page,
-      reverseTransitionDuration: AppMotion.medium,
-      transitionsBuilder: (_, a, __, child) =>
-          FadeTransition(opacity: CurvedAnimation(parent: a, curve: AppMotion.standard), child: child),
-      pageBuilder: (ctx, _, __) {
-        final t = ctx.text;
-        return AlertDialog(
-          title: const Text('Confirm Redemption'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Hero(
-              tag: _rewardHeroTag(reward),
-              flightShuttleBuilder: heroMaterialFlight,
-              child: Container(
-                width: 68, height: 68,
-                decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
-                child: Icon(_catIcon(reward.category), color: c.onPrimaryContainer, size: 34),
-              ),
-            ),
-            const SizedBox(height: AppSpace.md - 2),
-            Text(reward.title, style: t.titleMedium, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpace.xxs),
-            Text(reward.description, style: t.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
-            // FIX 10: Show low stock warning in dialog
-            if (reward.stock > 0 && reward.stock <= 5) ...[
-              const SizedBox(height: AppSpace.xs),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs - 2),
-                decoration: BoxDecoration(color: c.warningContainer, borderRadius: AppRadius.all(AppRadius.sm + 2)),
-                child: Text('Only ${reward.stock} left!',
-                    style: t.labelMedium!.copyWith(color: c.warning, fontWeight: FontWeight.w700)),
-              ),
-            ],
-            const SizedBox(height: AppSpace.sm),
-            _costRow(ctx, 'Cost', '${reward.pointsCost} pts', valueColor: c.primary),
-            const SizedBox(height: AppSpace.xs - 2),
-            _costRow(ctx, 'Remaining', '${widget.user.points - reward.pointsCost} pts'),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false),
-                child: Text('Cancel', style: TextStyle(color: c.textSecondary))),
-            AppButton(label: 'Redeem Now', expand: false, height: 48, onPressed: () => Navigator.pop(ctx, true)),
-          ],
-        );
-      },
+    // The detail page explains cost vs balance and asks for a press-and-hold to confirm
+    // (it also shows how many points are missing, instead of a snackbar).
+    final confirm = await Navigator.push<bool>(context, MaterialPageRoute(
+      builder: (_) => RewardDetailScreen(
+        reward: reward,
+        user: widget.user,
+        heroTag: _rewardHeroTag(reward),
+        icon: _catIcon(reward.category),
+        color: _catColors[reward.category] ?? AppPalette.forest,
+      ),
     ));
 
     if (confirm != true) return;
@@ -177,18 +168,6 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     }
   }
 
-  Widget _costRow(BuildContext ctx, String label, String value, {Color? valueColor}) {
-    final c = ctx.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm - 2),
-      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: AppRadius.all(AppRadius.md)),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: ctx.text.bodyMedium!.copyWith(color: c.textSecondary)),
-        Text(value, style: ctx.text.titleSmall!.copyWith(color: valueColor, fontWeight: FontWeight.w700)),
-      ]),
-    );
-  }
-
   void _showRedemptionCode(Redemption r) {
     showDialog(
       context: context,
@@ -209,7 +188,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             const SizedBox(height: AppSpace.lg),
             Text('Your Redemption Code', style: t.labelSmall),
             const SizedBox(height: AppSpace.xs),
-            Tap(label: 'Copy redemption code ${r.redemptionCode}',
+            FlipReveal(delay: const Duration(milliseconds: 250), child: Tap(label: 'Copy redemption code ${r.redemptionCode}',
               onTap: () {
                 Clipboard.setData(ClipboardData(text: r.redemptionCode));
                 _showSnack('Code copied!', c.success);
@@ -233,7 +212,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                   Icon(Icons.copy_rounded, color: c.primary, size: 18),
                 ]),
               ),
-            ),
+            )),
             const SizedBox(height: AppSpace.sm - 2),
             Text('Show this code to the staff to claim your reward',
                 style: t.bodySmall, textAlign: TextAlign.center),
@@ -321,6 +300,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         ],
         body: TabBarView(
           controller: _tabController,
+          // Horizontal swipes on the Available tab browse categories instead.
+          physics: const NeverScrollableScrollPhysics(),
           children: [_buildAvailable(), _buildHistory()],
         ),
       ),
@@ -372,7 +353,9 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     // Taller cards when the user enlarges text, so nothing is clipped.
     final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
 
-    return RefreshIndicator(
+    return GestureDetector(
+      onHorizontalDragEnd: _swipeCategory,
+      child: RefreshIndicator(
       onRefresh: _loadRewards,
       child: CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -393,7 +376,10 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                   semanticLabel: '$cat rewards',
                   icon: cat == 'All' ? null : _catIcon(cat),
                   selected: _selectedCategory == cat,
-                  onTap: () => setState(() => _selectedCategory = cat),
+                  onTap: () => setState(() {
+                    _swipeForward = _categories.indexOf(cat) >= _categories.indexOf(_selectedCategory);
+                    _selectedCategory = cat;
+                  }),
                 );
               },
             ),
@@ -420,21 +406,32 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                 childAspectRatio: 0.74 / textScale,
               ),
               delegate: SliverChildBuilderDelegate(
-                (_, i) => _AnimatedRewardCard(
-                  reward: _filteredRewards[i],
-                  index: i,
-                  onTap: () => _redeem(_filteredRewards[i]),
-                  user: widget.user,
-                  catIcon: _catIcon,
-                  animate: _animateCards,
-                  heroTag: _rewardHeroTag(_filteredRewards[i]),
+                // A category change slides the cards in from the swipe direction.
+                (_, i) => TweenAnimationBuilder<double>(
+                  key: ValueKey('$_selectedCategory#$i'),
+                  tween: Tween(begin: 0, end: 1),
+                  duration: AppMotion.of(context, AppMotion.medium),
+                  curve: AppMotion.standard,
+                  builder: (_, v, child) => Opacity(
+                    opacity: v,
+                    child: Transform.translate(offset: Offset((1 - v) * (_swipeForward ? 40 : -40), 0), child: child),
+                  ),
+                  child: _AnimatedRewardCard(
+                    reward: _filteredRewards[i],
+                    index: i,
+                    onTap: () => _redeem(_filteredRewards[i]),
+                    user: widget.user,
+                    catIcon: _catIcon,
+                    animate: _animateCards,
+                    heroTag: _rewardHeroTag(_filteredRewards[i]),
+                  ),
                 ),
                 childCount: _filteredRewards.length,
               ),
             ),
           ),
       ],
-    ));
+    )));
   }
 
   /// Makes a centred state (empty / error) pull-to-refresh-able.
@@ -505,78 +502,112 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       ]);
 
   // FIX 9: Expiry countdown for pending redemptions
+  /// My Codes entry as a ticket: a perforated stub on the right holds the points and status.
   Widget _redemptionCard(Redemption r, {required bool isPending}) {
     final c = context.colors;
     final t = context.text;
     final now = DateTime.now();
     final isExpired = isPending && now.isAfter(r.expiresAt);
-    final daysLeft = isPending ? r.expiresAt.difference(now).inDays : 0;
-    final expiryColor = daysLeft <= 3 ? c.warning : c.textSecondary;
+    final left = r.expiresAt.difference(now);
+    final urgent = isPending && !isExpired && left.inHours < 72;
     final statusColor = isExpired ? c.danger : (isPending ? c.warning : c.success);
+    const stub = 92.0;
 
-    return Tap(label: '${r.rewardTitle}, ${isPending && !isExpired ? 'show redemption code' : 'details'}',
+    return Tap(label: '${r.rewardTitle}, ${isPending && !isExpired ? 'show redemption code, ${_timeLeft(left)}' : 'details'}',
       onTap: (isPending && !isExpired) ? () => _showRedemptionCode(r) : () => _showCodeDetails(r, expired: isExpired),
-      child: Opacity(
-        opacity: isExpired ? 0.7 : 1.0,
+      child: AnimatedOpacity(
+        duration: AppMotion.of(context, AppMotion.medium),
+        opacity: isExpired ? 0.6 : 1.0,
         child: Container(
-          margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
-          padding: const EdgeInsets.all(AppSpace.md - 2),
-          decoration: cardDecoration(context, radius: AppRadius.lg + 2,
-              borderColor: isPending ? statusColor.withValues(alpha: 0.35) : null),
-          child: Row(children: [
-            IconBadge(
-              icon: isExpired ? Icons.timer_off_rounded : (isPending ? Icons.confirmation_number_rounded : Icons.check_circle_rounded),
-              color: statusColor,
-              size: 48,
+          margin: const EdgeInsets.only(bottom: AppSpace.sm),
+          decoration: ShapeDecoration(
+            color: isExpired ? c.surfaceAlt : c.surface,
+            shape: TicketBorder(
+              radius: AppRadius.lg + 2,
+              stubFromRight: stub,
+              side: BorderSide(color: isPending ? statusColor.withValues(alpha: 0.45) : c.border, width: 1.2),
             ),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r.rewardTitle, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              if (isPending && !isExpired)
-                Row(children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
-                      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: AppRadius.all(AppRadius.sm - 2)),
-                      child: Text(spacedCode(r.redemptionCode),
-                          overflow: TextOverflow.ellipsis,
-                          style: t.labelMedium!.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.w700,
-                              letterSpacing: 2, color: c.primary)),
+            shadows: AppShadows.of(context, AppShadows.e1),
+          ),
+          child: IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpace.md - 2, AppSpace.md - 2, AppSpace.sm, AppSpace.md - 2),
+                  child: Row(children: [
+                    IconBadge(
+                      icon: isExpired ? Icons.timer_off_rounded : (isPending ? Icons.confirmation_number_rounded : Icons.check_circle_rounded),
+                      color: statusColor,
+                      size: 44,
                     ),
-                  ),
-                  Tap(label: 'Copy code', tooltip: true,
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: r.redemptionCode));
-                      _showSnack('Code copied!', c.success);
-                    },
-                    child: Icon(Icons.copy_rounded, color: c.textSecondary, size: 18),
-                  ),
-                ])
-              else if (isExpired)
-                Text('Expired', style: t.labelSmall!.copyWith(color: c.danger, fontWeight: FontWeight.w700))
-              else
-                Text(_formatDate(r.redeemedAt), style: t.labelSmall),
-              // FIX 9: Expiry countdown label
-              if (isPending && !isExpired)
-                Text(
-                  daysLeft == 0 ? 'Expires today!' : 'Expires in $daysLeft day${daysLeft == 1 ? '' : 's'}',
-                  style: t.labelSmall!.copyWith(color: expiryColor),
+                    const SizedBox(width: AppSpace.sm),
+                    Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(r.rewardTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      if (isPending && !isExpired)
+                        Row(children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
+                              decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: AppRadius.all(AppRadius.sm - 2)),
+                              child: Text(spacedCode(r.redemptionCode),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.labelMedium!.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.w700,
+                                      letterSpacing: 2, color: c.primary)),
+                            ),
+                          ),
+                          Tap(label: 'Copy code', tooltip: true,
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: r.redemptionCode));
+                              _showSnack('Code copied!', c.success);
+                            },
+                            child: Icon(Icons.copy_rounded, color: c.textSecondary, size: 18),
+                          ),
+                        ])
+                      else
+                        Text(isExpired ? 'Expired ${_formatDate(r.expiresAt)}' : 'Claimed · ${_formatDate(r.redeemedAt)}',
+                            style: t.labelSmall!.copyWith(color: isExpired ? c.danger : c.textSecondary,
+                                fontWeight: isExpired ? FontWeight.w700 : FontWeight.w600)),
+                      // Live countdown (refreshed every 30 s while this tab is open).
+                      if (isPending && !isExpired)
+                        Row(children: [
+                          Icon(Icons.schedule_rounded, size: 14, color: urgent ? c.warning : c.textTertiary),
+                          const SizedBox(width: 3),
+                          Flexible(child: Text(_timeLeft(left),
+                              style: t.labelSmall!.copyWith(color: urgent ? c.warning : c.textSecondary,
+                                  fontWeight: urgent ? FontWeight.w800 : FontWeight.w600))),
+                        ]),
+                    ])),
+                  ]),
                 ),
-            ])),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('-${r.pointsUsed} pts', style: t.labelMedium!.copyWith(color: c.danger, fontWeight: FontWeight.w700, fontSize: 13)),
-              const SizedBox(height: AppSpace.xxs),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 3),
-                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: AppRadius.all(AppRadius.sm)),
-                child: Text(
-                  isExpired ? 'Expired' : (isPending ? 'Pending' : 'Claimed'),
-                  style: t.labelSmall!.copyWith(color: statusColor, fontWeight: FontWeight.w700),
+              ),
+              // Stub
+              SizedBox(
+                width: stub,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: AppSpace.sm),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('-${r.pointsUsed}',
+                          style: t.titleLarge!.copyWith(fontFamily: AppType.displayFamily, color: c.danger)),
+                    ),
+                    Text('pts', style: t.labelSmall),
+                    const SizedBox(height: AppSpace.xxs),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 3),
+                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: AppRadius.all(AppRadius.sm)),
+                      child: Text(
+                        isExpired ? 'Expired' : (isPending ? 'Ready' : 'Claimed'),
+                        style: t.labelSmall!.copyWith(color: statusColor, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ]),
                 ),
               ),
             ]),
-          ]),
+          ),
         ),
       ),
     );
@@ -680,6 +711,10 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
 
+  Widget _maybeShine({required bool locked, required Widget child}) => locked
+      ? ShineSweep(delay: Duration(milliseconds: 400 + 350 * widget.index), every: const Duration(seconds: 5), child: child)
+      : child;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -701,11 +736,13 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
           scale: 0.97,
           child: Container(
             clipBehavior: Clip.antiAlias,
+            // Affordable: a soft brand glow. Locked: an occasional shine across the picture.
             decoration: cardDecoration(context, radius: AppRadius.xl,
-                borderColor: canAfford ? c.primary.withValues(alpha: 0.35) : null),
+                    borderColor: canAfford ? c.primary.withValues(alpha: 0.35) : null)
+                .copyWith(boxShadow: canAfford && !c.isDark ? AppShadows.glow(c.primary, strength: 0.4) : null),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // FIX 10: Image area with sold-out overlay
-              Stack(children: [
+              _maybeShine(locked: !canAfford && !isSoldOut, child: Stack(children: [
                 Container(
                   height: 88,
                   decoration: BoxDecoration(
@@ -755,7 +792,7 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
                       ),
                     ),
                   ),
-              ]),
+              ])),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpace.sm - 2),
