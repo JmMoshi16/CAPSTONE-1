@@ -6,7 +6,10 @@ import '../../widgets/ui.dart';
 
 class ScanHistoryScreen extends StatefulWidget {
   final List<WasteLog> logs;
-  const ScanHistoryScreen({super.key, required this.logs});
+  /// Reloads from Firestore and returns the fresh list (pull-to-refresh).
+  final Future<List<WasteLog>> Function()? onRefresh;
+  final VoidCallback? onScan;
+  const ScanHistoryScreen({super.key, required this.logs, this.onRefresh, this.onScan});
 
   @override
   State<ScanHistoryScreen> createState() => _ScanHistoryScreenState();
@@ -14,13 +17,19 @@ class ScanHistoryScreen extends StatefulWidget {
 
 class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   String _filter = 'All';
+  late List<WasteLog> _logs = widget.logs;
+
+  Future<void> _refresh() async {
+    final fresh = await widget.onRefresh!();
+    if (mounted) setState(() => _logs = fresh);
+  }
 
   static const _types = ['All', 'Biodegradable', 'Recyclable', 'Residual'];
 
   List<WasteLog> get _filtered =>
-      _filter == 'All' ? widget.logs : widget.logs.where((l) => l.wasteType == _filter).toList();
+      _filter == 'All' ? _logs : _logs.where((l) => l.wasteType == _filter).toList();
 
-  int get _totalPoints => widget.logs.fold(0, (s, l) => s + l.pointsAwarded);
+  int get _totalPoints => _logs.fold(0, (s, l) => s + l.pointsAwarded);
 
   @override
   Widget build(BuildContext context) {
@@ -52,14 +61,14 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                         const SizedBox(height: AppSpace.xxxl),
                         Text('Scan History', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 24)),
                         const SizedBox(height: AppSpace.xxs),
-                        Text('${widget.logs.length} scans · $_totalPoints pts total',
+                        Text('${_logs.length} scans · $_totalPoints pts total',
                             style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
                         const SizedBox(height: AppSpace.md),
                         // Summary chips
                         Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-                          _summaryChip('🌿', '${widget.logs.where((l) => l.wasteType == 'Biodegradable').length}', 'Bio'),
-                          _summaryChip('♻️', '${widget.logs.where((l) => l.wasteType == 'Recyclable').length}', 'Rec'),
-                          _summaryChip('🗑️', '${widget.logs.where((l) => l.wasteType == 'Residual').length}', 'Res'),
+                          _summaryChip('🌿', '${_logs.where((l) => l.wasteType == 'Biodegradable').length}', 'Bio'),
+                          _summaryChip('♻️', '${_logs.where((l) => l.wasteType == 'Recyclable').length}', 'Rec'),
+                          _summaryChip('🗑️', '${_logs.where((l) => l.wasteType == 'Residual').length}', 'Res'),
                         ]),
                       ],
                     ),
@@ -93,23 +102,34 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
 
             // List
             Expanded(
-              child: filtered.isEmpty
-                  ? EmptyState(
-                      icon: Icons.history_rounded,
-                      title: _filter == 'All' ? 'No scans yet' : 'No $_filter scans',
-                      dense: true,
+              child: _withRefresh(filtered.isEmpty
+                  ? CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [SliverFillRemaining(hasScrollBody: false, child: EmptyState(
+                        icon: Icons.history_rounded,
+                        title: _filter == 'All' ? 'No scans yet' : 'No $_filter scans',
+                        message: _filter == 'All' ? 'Your scans will appear here.' : null,
+                        actionLabel: _filter != 'All' ? 'Show all scans'
+                            : (widget.onScan != null ? 'Scan a QR code' : null),
+                        onAction: _filter != 'All' ? () => setState(() => _filter = 'All') : widget.onScan,
+                        dense: true,
+                      ))],
                     )
                   : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xxs, AppSpace.md, AppSpace.xl),
                       itemCount: filtered.length,
                       itemBuilder: (_, i) => _logTile(filtered[i]),
-                    ),
+                    )),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _withRefresh(Widget child) =>
+      widget.onRefresh == null ? child : RefreshIndicator(onRefresh: _refresh, child: child);
 
   Widget _summaryChip(String emoji, String count, String label) => Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs - 2),

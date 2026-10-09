@@ -28,9 +28,21 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseService.getUserRank(widget.user.uid).then((r) {
+    _loadRank();
+  }
+
+  Future<void> _loadRank() async {
+    try {
+      final r = await FirebaseService.getUserRank(widget.user.uid).timeout(const Duration(seconds: 10));
       if (mounted) setState(() => _myRank = r);
-    });
+    } catch (_) {
+      // Rank is optional on this screen; the chip simply stays hidden.
+    }
+  }
+
+  Future<void> _refresh() async {
+    widget.onUpdated();
+    await _loadRank();
   }
 
   @override
@@ -115,7 +127,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        body: CustomScrollView(
+        body: RefreshIndicator(
+          onRefresh: _refresh,
+          child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
 
             // ── Top bar ──────────────────────────────────────────────────────
@@ -494,7 +509,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
           ],
-        ),
+        )),
       ),
     );
   }

@@ -28,6 +28,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   UserModel? _user;
   bool _scannerOpen = false;
   bool _loadError = false;
+  bool _offline = false;   // last refresh failed; showing the previous data
   List<WasteLog> _logs = [];
   List<Reward> _rewards = [];
   List<Redemption> _redemptions = [];
@@ -47,19 +48,28 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         if (mounted) setState(() => _loadError = true);
         return;
       }
-      final results = await Future.wait([
-        FirebaseService.getUserWasteLogs(uid),
-        FirebaseService.getRewards(),
-        FirebaseService.getUserRank(uid),
-        FirebaseService.getUserRedemptions(uid),
-      ]).timeout(const Duration(seconds: 10), onTimeout: () => [[], [], 0, []]);
+      // A slow or failed refresh keeps the last data and says so, instead of showing zeros as real.
+      List<Object>? results;
+      try {
+        results = await Future.wait<Object>([
+          FirebaseService.getUserWasteLogs(uid),
+          FirebaseService.getRewards(),
+          FirebaseService.getUserRank(uid),
+          FirebaseService.getUserRedemptions(uid),
+        ]).timeout(const Duration(seconds: 10));
+      } catch (_) {
+        results = null;
+      }
       if (mounted) {
         setState(() {
         _user = user;
-        _logs = results[0] as List<WasteLog>;
-        _rewards = results[1] as List<Reward>;
-        _myRank = results[2] as int;
-        _redemptions = results[3] as List<Redemption>;
+        _offline = results == null;
+        if (results != null) {
+          _logs = results[0] as List<WasteLog>;
+          _rewards = results[1] as List<Reward>;
+          _myRank = results[2] as int;
+          _redemptions = results[3] as List<Redemption>;
+        }
         _loadError = false;
       });
       }
@@ -87,18 +97,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       _HomeTab(
         user: _user!, logs: _logs, rewards: _rewards, myRank: _myRank,
         redemptions: _redemptions,
-        onScan: () async {
-          if (_scannerOpen) return;
-          _scannerOpen = true;
-          await Navigator.push(context, MaterialPageRoute(
-              builder: (_) => QRScannerScreen(userId: _user!.uid, username: _user!.username)));
-          _loadData();
-          _scannerOpen = false;
-        },
+        offline: _offline,
+        onScan: _openScanner,
         onRewards:     () => setState(() => _selectedIndex = 1),
         onImpact:      () => setState(() => _selectedIndex = 2),
         onHistory: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => ScanHistoryScreen(logs: _logs))).then((_) => _loadData()),
+            builder: (_) => ScanHistoryScreen(
+              logs: _logs,
+              onRefresh: () async { await _loadData(); return _logs; },
+              onScan: _openScanner,
+            ))).then((_) => _loadData()),
         onLeaderboard: () => Navigator.push(context, MaterialPageRoute(
             builder: (_) => LeaderboardScreen(currentUid: _user!.uid))),
         onBadges: () => Navigator.push(context, MaterialPageRoute(
@@ -106,7 +114,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         onRefresh: _loadData,
       ),
       RewardsScreen(user: _user!, rewards: _rewards, onRedeemed: _loadData),
-      ImpactScreen(logs: _logs),
+      ImpactScreen(logs: _logs, onRefresh: _loadData, onScan: _openScanner),
       CustomerProfileScreen(user: _user!, logs: _logs, onUpdated: _loadData),
     ];
 
@@ -116,16 +124,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       bottomNavigationBar: _FloatingNavBar(
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
-        onScan: () async {
-          if (_scannerOpen) return;
-          _scannerOpen = true;
-          await Navigator.push(context, MaterialPageRoute(
-              builder: (_) => QRScannerScreen(userId: _user!.uid, username: _user!.username)));
-          _loadData();
-          _scannerOpen = false;
-        },
+        onScan: _openScanner,
       ),
     );
+  }
+
+  Future<void> _openScanner() async {
+    if (_scannerOpen || _user == null) return;
+    _scannerOpen = true;
+    await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => QRScannerScreen(userId: _user!.uid, username: _user!.username)));
+    _loadData();
+    _scannerOpen = false;
   }
 }
 
@@ -136,6 +146,7 @@ class _HomeTab extends StatefulWidget {
   final List<Reward> rewards;
   final List<Redemption> redemptions;
   final int myRank;
+  final bool offline;
   final VoidCallback onScan;
   final VoidCallback onRewards;
   final VoidCallback onImpact;
@@ -148,6 +159,7 @@ class _HomeTab extends StatefulWidget {
     required this.user, required this.logs, required this.rewards,
     required this.redemptions,
     required this.myRank,
+    required this.offline,
     required this.onScan, required this.onRewards, required this.onImpact,
     required this.onHistory, required this.onLeaderboard, required this.onBadges,
     required this.onRefresh,
@@ -397,6 +409,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
       color: c.primary,
       onRefresh: widget.onRefresh,
       child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           // ── Hero Header (with points embedded) ───────────────────────────
           SliverToBoxAdapter(
@@ -412,6 +425,14 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               pendingRedemptions: widget.redemptions.where((r) => r.status == 'pending' && !DateTime.now().isAfter(r.expiresAt)).length,
             )),
           ),
+
+          if (widget.offline)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+                child: _OfflineBanner(onRetry: widget.onRefresh),
+              ),
+            ),
 
           // ── Progress bars + Buttons (no box, direct on bg) ───────────────
           SliverToBoxAdapter(

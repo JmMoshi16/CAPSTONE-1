@@ -6,7 +6,9 @@ import '../../widgets/ui.dart';
 
 class ImpactScreen extends StatefulWidget {
   final List<WasteLog> logs;
-  const ImpactScreen({super.key, required this.logs});
+  final Future<void> Function()? onRefresh;
+  final VoidCallback? onScan;
+  const ImpactScreen({super.key, required this.logs, this.onRefresh, this.onScan});
   @override
   State<ImpactScreen> createState() => _ImpactScreenState();
 }
@@ -38,8 +40,8 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     final res      = widget.logs.where((l) => l.wasteType == 'Residual').length;
     final totalPts = widget.logs.fold(0, (s, l) => s + l.pointsAwarded);
 
-    return Scaffold(
-      body: CustomScrollView(
+    final scroll = CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverAppBar(
             expandedHeight: 160,
@@ -94,11 +96,14 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
           ),
 
           if (widget.logs.isEmpty)
-            const SliverFillRemaining(
+            SliverFillRemaining(
+              hasScrollBody: false,
               child: EmptyState(
                 icon: Icons.recycling_rounded,
                 title: 'No disposal history yet',
                 message: 'Scan a bin QR code to start!',
+                actionLabel: widget.onScan != null ? 'Scan a QR code' : null,
+                onAction: widget.onScan,
                 dense: true,
               ),
             )
@@ -115,7 +120,11 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
 
           const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
         ],
-      ),
+    );
+    return Scaffold(
+      body: widget.onRefresh == null
+          ? scroll
+          : RefreshIndicator(onRefresh: widget.onRefresh!, edgeOffset: 160, child: scroll),
     );
   }
 

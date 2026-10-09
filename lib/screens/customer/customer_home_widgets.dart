@@ -347,6 +347,35 @@ class _FloatingNavBar extends StatelessWidget {
   }
 }
 
+// ── Offline banner ────────────────────────────────────────────────────────────
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner({required this.onRetry});
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xxs, AppSpace.xxs, AppSpace.xxs),
+        decoration: BoxDecoration(
+          color: c.warningContainer,
+          borderRadius: AppRadius.all(AppRadius.md),
+          border: Border.all(color: c.warning.withValues(alpha: 0.4)),
+        ),
+        child: Row(children: [
+          Icon(Icons.wifi_off_rounded, color: c.warning, size: 20),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(child: Text("Couldn't refresh. Showing your last saved data.",
+              style: context.text.bodySmall!.copyWith(color: c.textPrimary))),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ]),
+      ),
+    );
+  }
+}
+
 // ── Notification item data model ──────────────────────────────────────────────
 class _NotifItem {
   final IconData icon;
