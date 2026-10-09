@@ -186,6 +186,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
+    // 800 ms in total, but each section moves for at most 320 ms (overlapping 40 % intervals).
     _staggerCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
 
     // Build 6 staggered fade+slide animations with overlapping intervals

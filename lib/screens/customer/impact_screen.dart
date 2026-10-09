@@ -24,7 +24,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
     _headerCtrl = AnimationController(vsync: this, duration: AppMotion.countUp);
-    _bodyCtrl   = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _bodyCtrl   = AnimationController(vsync: this, duration: AppMotion.slow);
     _headerFade = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     if (!_animate) {
       _headerCtrl.value = 1;

@@ -497,33 +497,49 @@ class _AdminFloatingNav extends StatelessWidget {
           decoration: BoxDecoration(
             color: kCard, borderRadius: BorderRadius.circular(36),
             border: Border.all(color: kBorder),
-            boxShadow: [BoxShadow(color: AdminColors.onAccent.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(items.length, (i) {
-              final selected = selectedIndex == i;
-              return Tap(
-                label: items[i].$3,
-                selected: selected,
-                onTap: () => onTap(i),
-                child: AnimatedContainer(
-                  duration: AppMotion.medium,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpace.xs),
-                  decoration: BoxDecoration(
-                    color: selected ? kGreen.withValues(alpha: 0.12) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
+          child: Stack(children: [
+            // Indicator that slides between tabs.
+            Positioned.fill(
+              child: AnimatedAlign(
+                alignment: Alignment(-1 + selectedIndex * (2 / (items.length - 1)), 0),
+                duration: AppMotion.of(context, AppMotion.medium),
+                curve: AppMotion.emphasized,
+                child: FractionallySizedBox(
+                  widthFactor: 1 / items.length,
+                  child: Center(
+                    child: Container(
+                      width: 72, height: 52,
+                      decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.lg)),
+                    ),
                   ),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(selected ? items[i].$1 : items[i].$2, color: selected ? kGreen : AdminColors.textTertiary, size: 22),
-                    const SizedBox(height: 2),
-                    Text(items[i].$3, style: TextStyle(fontSize: 11, color: selected ? kGreen : AdminColors.textTertiary,
-                        fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
-                  ]),
                 ),
-              );
-            }),
-          ),
+              ),
+            ),
+            Row(
+              children: List.generate(items.length, (i) {
+                final selected = selectedIndex == i;
+                final fg = selected ? kGreen : AdminColors.textTertiary;
+                return Expanded(
+                  child: Tap(
+                    label: items[i].$3,
+                    selected: selected,
+                    onTap: () => onTap(i),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(selected ? items[i].$1 : items[i].$2, color: fg, size: 22),
+                      const SizedBox(height: 2),
+                      AnimatedDefaultTextStyle(
+                        duration: AppMotion.of(context, AppMotion.fast),
+                        style: TextStyle(fontSize: 11, color: fg, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+                        child: Text(items[i].$3, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                    ]),
+                  ),
+                );
+              }),
+            ),
+          ]),
         ),
       ),
     );

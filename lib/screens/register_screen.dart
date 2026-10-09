@@ -27,7 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _animCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard));

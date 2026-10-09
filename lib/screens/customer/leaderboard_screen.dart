@@ -24,7 +24,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   void initState() {
     super.initState();
     _headerCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
-    _listCtrl   = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _listCtrl   = AnimationController(vsync: this, duration: AppMotion.slow);
     _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard));

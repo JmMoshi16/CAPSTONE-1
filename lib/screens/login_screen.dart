@@ -35,10 +35,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _heroCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _heroCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
     _heroFade = CurvedAnimation(parent: _heroCtrl, curve: AppMotion.standard);
 
-    _formCtrl = AnimationController(vsync: this, duration: AppMotion.slow * 2);
+    _formCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
     _formFade  = CurvedAnimation(parent: _formCtrl, curve: AppMotion.standard);
     _formSlide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
         .animate(CurvedAnimation(parent: _formCtrl, curve: AppMotion.standard));
