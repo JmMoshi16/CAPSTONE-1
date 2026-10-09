@@ -70,17 +70,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       widget.onUpdated();
       if (mounted) {
         setState(() => _editing = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Profile updated!'),
-          backgroundColor: context.colors.success,
-        ));
+        AppSnackbar.success(context, 'Profile updated');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Could not update your profile. Check your connection and try again.'),
-          backgroundColor: context.colors.danger,
-        ));
+        AppSnackbar.error(context, 'Could not update your profile. Check your connection and try again.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);

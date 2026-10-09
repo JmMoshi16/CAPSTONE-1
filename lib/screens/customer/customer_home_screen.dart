@@ -93,7 +93,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       );
     }
     if (_user == null) {
-      return const Scaffold(body: Center(child: EcoLoader(size: 72)));
+      // The real layout in grey, with the brand loader in the header (first launch / cold start).
+      return const Scaffold(body: HomeSkeleton(center: EcoLoader(size: 72, semanticLabel: 'Loading')));
     }
 
     final screens = [
@@ -315,10 +316,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         onTap: (isPending && !isExpired)
             ? () {
                 Clipboard.setData(ClipboardData(text: r.redemptionCode));
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Code ${r.redemptionCode} copied!'),
-                  backgroundColor: c.success,
-                ));
+                AppSnackbar.success(context, 'Code ${r.redemptionCode} copied');
               }
             : widget.onMyCodes,
       ));
@@ -584,7 +582,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 const SizedBox(height: AppSpace.sm),
                 // Stat cards
                 Row(children: [
-                  Expanded(child: StatCard(emoji: '🔥', value: '${streak}d', label: 'streak',
+                  Expanded(child: StatCard(emoji: '🔥', value: '${streak}d', count: streak, suffix: 'd', label: 'streak',
                       accent: c.warning, valueColor: streak > 0 ? null : c.textTertiary,
                       onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan))),
                   const SizedBox(width: AppSpace.sm - 2),
@@ -592,11 +590,11 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                       label: 'rank', accent: c.gold, valueColor: widget.myRank > 0 ? null : c.textTertiary,
                       onTap: widget.onLeaderboard)),
                   const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: StatCard(emoji: '🏅', value: '${widget.user.badges.length}', label: 'badges',
+                  Expanded(child: StatCard(emoji: '🏅', value: '${widget.user.badges.length}', count: widget.user.badges.length, label: 'badges',
                       accent: c.gold, valueColor: widget.user.badges.isNotEmpty ? null : c.textTertiary,
                       onTap: widget.onBadges)),
                   const SizedBox(width: AppSpace.sm - 2),
-                  Expanded(child: StatCard(emoji: '♻️', value: '${widget.user.scanCount}', label: 'scans',
+                  Expanded(child: StatCard(emoji: '♻️', value: '${widget.user.scanCount}', count: widget.user.scanCount, label: 'scans',
                       accent: c.success, onTap: widget.onImpact)),
                 ]),
                 const SizedBox(height: AppSpace.sm),

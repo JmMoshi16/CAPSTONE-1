@@ -62,14 +62,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Row(children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: AppSpace.xs),
-            Expanded(child: Text(registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()))),
-          ]),
-          backgroundColor: context.colors.danger,
-        ));
+        AppSnackbar.error(context, registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()));
         setState(() => _loading = false);
       }
     }

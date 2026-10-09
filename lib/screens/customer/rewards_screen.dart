@@ -170,12 +170,10 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         final latest = _redemptions.isNotEmpty ? _redemptions.first : null;
         if (latest != null) _showRedemptionCode(latest);
       } else {
-        AppHaptics.error();
         _showSnack("This reward just sold out, or you no longer have enough points.", context.colors.danger);
       }
     } catch (_) {
       if (!mounted) return;
-      AppHaptics.error();
       _showSnack("We couldn't confirm the redemption. Check your connection, then look in My Codes before trying again.",
           context.colors.danger);
     } finally {
@@ -265,7 +263,9 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   }
 
   void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    final c = context.colors;
+    AppSnackbar.show(context, msg,
+        kind: color == c.danger ? SnackKind.error : color == c.success ? SnackKind.success : SnackKind.info);
   }
 
   @override
@@ -934,7 +934,7 @@ class StaffCodeScreen extends StatelessWidget {
               ),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: redemption.redemptionCode));
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+                AppSnackbar.success(context, 'Code copied');
               },
               icon: const Icon(Icons.copy_rounded),
               label: const Text('Copy code'),

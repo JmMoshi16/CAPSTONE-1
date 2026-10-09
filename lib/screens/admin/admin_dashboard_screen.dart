@@ -96,7 +96,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       backgroundColor: kDark,
       extendBody: true,
       body: _loading
-          ? const SafeArea(child: SkeletonList(count: 7))
+          ? const SafeArea(child: DashboardSkeleton())
           : _loadError != null
               ? ErrorState(
                   title: "Couldn't load the dashboard",

@@ -114,3 +114,130 @@ class SkeletonList extends StatelessWidget {
         ),
       );
 }
+
+/// Home while the first data loads: header block, two progress bars, the main button,
+/// four stat tiles and the quick-access grid, in the real layout.
+class HomeSkeleton extends StatelessWidget {
+  const HomeSkeleton({super.key, this.center});
+
+  /// Shown in the middle of the header block (e.g. the brand loader).
+  final Widget? center;
+
+  @override
+  Widget build(BuildContext context) => Stack(children: [
+        Skeleton(
+          label: 'Loading your home screen',
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            children: [
+              const SkeletonBox(height: 260, radius: 0),
+              Padding(
+                padding: const EdgeInsets.all(AppSpace.lg),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const SkeletonBox(width: 180, height: 12),
+                  const SizedBox(height: AppSpace.xs),
+                  const SkeletonBox(height: 8),
+                  const SizedBox(height: AppSpace.md),
+                  const SkeletonBox(width: 150, height: 12),
+                  const SizedBox(height: AppSpace.xs),
+                  const SkeletonBox(height: 8),
+                  const SizedBox(height: AppSpace.lg),
+                  const SkeletonBox(height: 56, radius: AppRadius.lg),
+                  const SizedBox(height: AppSpace.sm),
+                  const SkeletonBox(height: 52, radius: AppRadius.lg),
+                  const SizedBox(height: AppSpace.lg),
+                  Row(children: [
+                    for (var i = 0; i < 4; i++) ...[
+                      if (i > 0) const SizedBox(width: AppSpace.sm - 2),
+                      const Expanded(child: SkeletonBox(height: 92, radius: AppRadius.lg)),
+                    ],
+                  ]),
+                  const SizedBox(height: AppSpace.lg),
+                  const Row(children: [
+                    Expanded(child: SkeletonBox(height: 110, radius: AppRadius.xl)),
+                    SizedBox(width: AppSpace.sm),
+                    Expanded(child: SkeletonBox(height: 110, radius: AppRadius.xl)),
+                  ]),
+                ]),
+              ),
+            ],
+          ),
+        ),
+        if (center != null) Positioned(left: 0, right: 0, top: 0, height: 260, child: Center(child: center)),
+      ]);
+}
+
+/// Leaderboard while loading: a three-step podium, then rows.
+class LeaderboardSkeleton extends StatelessWidget {
+  const LeaderboardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) => Skeleton(
+        label: 'Loading the leaderboard',
+        child: ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.xl, AppSpace.xl, 0),
+          children: [
+            const Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Expanded(child: _PodiumStep(height: 80)),
+              SizedBox(width: AppSpace.sm),
+              Expanded(child: _PodiumStep(height: 110)),
+              SizedBox(width: AppSpace.sm),
+              Expanded(child: _PodiumStep(height: 60)),
+            ]),
+            const SizedBox(height: AppSpace.lg),
+            for (var i = 0; i < 5; i++) ...[
+              const SkeletonBox(height: 62, radius: AppRadius.lg),
+              const SizedBox(height: AppSpace.xs),
+            ],
+          ],
+        ),
+      );
+}
+
+class _PodiumStep extends StatelessWidget {
+  const _PodiumStep({required this.height});
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        const SkeletonBox(width: 52, height: 52, radius: 26),
+        const SizedBox(height: AppSpace.xs),
+        const SkeletonBox(width: 60, height: 10),
+        const SizedBox(height: AppSpace.xs),
+        SkeletonBox(height: height, radius: AppRadius.sm),
+      ]);
+}
+
+/// Admin dashboard while loading: three KPI tiles, the chart card, the analytics grid.
+class DashboardSkeleton extends StatelessWidget {
+  const DashboardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) => Skeleton(
+        label: 'Loading the dashboard',
+        child: ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpace.md),
+          children: const [
+            SizedBox(height: AppSpace.xl),
+            Row(children: [
+              Expanded(child: SkeletonBox(height: 72, radius: AppRadius.md)),
+              SizedBox(width: AppSpace.sm - 2),
+              Expanded(child: SkeletonBox(height: 72, radius: AppRadius.md)),
+              SizedBox(width: AppSpace.sm - 2),
+              Expanded(child: SkeletonBox(height: 72, radius: AppRadius.md)),
+            ]),
+            SizedBox(height: AppSpace.lg),
+            SkeletonBox(height: 280, radius: AppRadius.xl),
+            SizedBox(height: AppSpace.md),
+            Row(children: [
+              Expanded(child: SkeletonBox(height: 120, radius: AppRadius.xl)),
+              SizedBox(width: AppSpace.sm),
+              Expanded(child: SkeletonBox(height: 120, radius: AppRadius.xl)),
+            ]),
+          ],
+        ),
+      );
+}

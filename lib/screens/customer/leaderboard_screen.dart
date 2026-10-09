@@ -120,7 +120,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
             ),
             if (_loading)
               const SliverFillRemaining(
-                child: SkeletonList(count: 8, padding: EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xl, AppSpace.md, 0)),
+                child: LeaderboardSkeleton(),
               )
             else if (_error)
               SliverFillRemaining(

@@ -49,12 +49,8 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     }
   }
 
-  void _snack(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: TextStyle(color: error ? Colors.white : AdminColors.onAccent)),
-      backgroundColor: error ? AdminColors.dangerFill : kGreen,
-    ));
-  }
+  void _snack(String msg, {bool error = false}) =>
+      AppSnackbar.show(context, msg, kind: error ? SnackKind.error : SnackKind.success);
 
   void _showForm({Reward? reward}) {
     final titleCtrl = TextEditingController(text: reward?.title ?? '');
@@ -166,15 +162,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                           if (changes.isNotEmpty) await FirebaseService.updateReward(reward.id!, changes);
                         }
                         widget.onChanged();
-                        AppHaptics.success();
                         if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) _snack(reward == null ? '✓ "${r.title}" added' : '✓ Changes saved');
+                        if (mounted) _snack(reward == null ? '"${r.title}" added' : 'Changes saved');
                       } catch (_) {
-                        AppHaptics.error();
                         if (ctx.mounted) {
                           setS(() => saving = false);
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Could not save the reward. Check your connection and try again.')));
+                          AppSnackbar.error(ctx, 'Could not save the reward. Check your connection and try again.');
                         }
                       }
                     },
@@ -250,7 +243,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     try {
       await FirebaseService.claimRedemption(r.id!);
       await _loadRedemptions();
-      if (mounted) _snack('✓ "${r.rewardTitle}" marked as claimed');
+      if (mounted) _snack('"${r.rewardTitle}" marked as claimed');
     } catch (_) {
       if (mounted) _snack("Couldn't mark it as claimed. Check your connection and try again.", error: true);
     } finally {
@@ -442,7 +435,6 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     await FirebaseService.deleteReward(r.id!);
                     widget.onChanged();
                   } catch (_) {
-                    AppHaptics.error();
                     if (mounted) {
                       setState(() => _hidden.remove(r.id));
                       _snack("Couldn't delete the reward. Check your connection and try again.", error: true);

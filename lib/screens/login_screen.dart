@@ -112,16 +112,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     }
   }
 
+  /// Danger-coloured calls are errors, success-coloured ones successes, the rest info.
   void _snack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(children: [
-        const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-        const SizedBox(width: AppSpace.xs),
-        Expanded(child: Text(msg)),
-      ]),
-      backgroundColor: color,
-      margin: const EdgeInsets.all(AppSpace.md),
-    ));
+    final c = context.colors;
+    AppSnackbar.show(context, msg,
+        kind: color == c.danger ? SnackKind.error : color == c.success ? SnackKind.success : SnackKind.info);
   }
 
   // Audit M-17: there was no way to recover a forgotten password.

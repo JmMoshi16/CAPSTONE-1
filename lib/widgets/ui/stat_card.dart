@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 import 'press_scale.dart';
 import 'surfaces.dart';
+import 'motion.dart';
 
 /// Compact metric: emoji or icon, a value and a label. Tappable when [onTap] is set.
 class StatCard extends StatelessWidget {
@@ -14,7 +15,13 @@ class StatCard extends StatelessWidget {
     this.accent,
     this.valueColor,
     this.onTap,
+    this.count,
+    this.suffix = '',
   });
+
+  /// When set, the value counts up to [count] (and from the old value when it changes).
+  final int? count;
+  final String suffix;
 
   final String value;
   final String label;
@@ -47,7 +54,10 @@ class StatCard extends StatelessWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(value, style: context.text.titleLarge!.copyWith(color: valueColor ?? c.ink(a))),
+          child: count != null
+              ? AnimatedCount(count!, suffix: suffix,
+                  style: context.text.titleLarge!.copyWith(fontFamily: AppType.displayFamily, color: valueColor ?? c.ink(a)))
+              : Text(value, style: context.text.titleLarge!.copyWith(fontFamily: AppType.displayFamily, color: valueColor ?? c.ink(a))),
         ),
         Text(label, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
       ]),
