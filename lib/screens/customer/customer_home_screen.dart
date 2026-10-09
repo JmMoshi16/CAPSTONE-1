@@ -128,6 +128,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
         onScan: _openScanner,
+        onScanWithLight: () => _openScanner(torch: true),
       ),
     );
   }
@@ -157,13 +158,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         onScan: _openScanner,
       ))).then((_) => _loadData());
 
-  Future<void> _openScanner() async {
+  Future<void> _openScanner({bool torch = false}) async {
     if (_scannerOpen || _user == null) return;
     _scannerOpen = true;
     await Navigator.push(context, MaterialPageRoute(
         builder: (_) => QRScannerScreen(
             userId: _user!.uid, username: _user!.username, lifetimeBefore: _user!.lifetimePoints,
-            pointsBefore: _user!.points)));
+            pointsBefore: _user!.points, startWithTorch: torch)));
     _loadData();
     _scannerOpen = false;
   }
@@ -187,7 +188,7 @@ Widget homeTabPreview({
         onImpact: () {}, onHistory: () {}, onLeaderboard: () {}, onBadges: () {},
         onRefresh: () async {},
       ),
-      bottomNavigationBar: _FloatingNavBar(selectedIndex: 0, onTap: (_) {}, onScan: () {}),
+      bottomNavigationBar: _FloatingNavBar(selectedIndex: 0, onTap: (_) {}, onScan: () {}, onScanWithLight: () {}),
     );
 
 // ── Home Tab ──────────────────────────────────────────────────────────────────

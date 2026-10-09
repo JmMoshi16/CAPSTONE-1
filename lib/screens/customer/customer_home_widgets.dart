@@ -346,7 +346,9 @@ class _FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
   final VoidCallback onScan;
-  const _FloatingNavBar({required this.selectedIndex, required this.onTap, required this.onScan});
+  final VoidCallback onScanWithLight;
+  const _FloatingNavBar({required this.selectedIndex, required this.onTap, required this.onScan,
+      required this.onScanWithLight});
 
   static const _slotOfTab = [0, 1, 3, 4];   // slot 2 is the scan button
 
@@ -392,6 +394,8 @@ class _FloatingNavBar extends StatelessWidget {
                   heightFactor: 1,
                   child: Tap(label: 'Scan QR code', tooltip: true,
                     onTap: onScan,
+                    onLongPress: onScanWithLight,
+                    longPressHint: 'scan with the flashlight on',
                     child: Container(
                       width: 54, height: 54,
                       decoration: BoxDecoration(

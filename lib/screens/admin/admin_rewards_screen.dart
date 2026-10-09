@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
@@ -551,7 +552,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   Widget _redemptionCard(Redemption r, {required bool isPending, bool isExpired = false}) {
     final accent = isExpired ? AdminColors.danger : (isPending ? AdminColors.orange : kGreen);
     final busy = _claiming.contains(r.id);
-    return Container(
+    return _copyOnLongPress(r, Container(
       margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
       padding: const EdgeInsets.all(AppSpace.md - 2),
       decoration: BoxDecoration(
@@ -629,7 +630,20 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           ),
         ],
       ]),
-    );
+    ));
+  }
+
+  /// Long-press a redemption to copy its code (handy when typing it elsewhere).
+  Widget _copyOnLongPress(Redemption r, Widget child) => Semantics(
+        onLongPressHint: 'copy the code',
+        onLongPress: () => _copyCode(r),
+        child: GestureDetector(onLongPress: () => _copyCode(r), child: child),
+      );
+
+  void _copyCode(Redemption r) {
+    AppHaptics.primary();
+    Clipboard.setData(ClipboardData(text: r.redemptionCode));
+    AppSnackbar.success(context, 'Code ${r.redemptionCode} copied');
   }
 
   String _formatDate(DateTime dt) {

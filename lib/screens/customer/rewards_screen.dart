@@ -420,6 +420,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                     reward: _filteredRewards[i],
                     index: i,
                     onTap: () => _redeem(_filteredRewards[i]),
+                    onPeek: () => _peekReward(_filteredRewards[i]),
                     user: widget.user,
                     catIcon: _catIcon,
                     animate: _animateCards,
@@ -515,6 +516,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
     return Tap(label: '${r.rewardTitle}, ${isPending && !isExpired ? 'show redemption code, ${_timeLeft(left)}' : 'details'}',
       onTap: (isPending && !isExpired) ? () => _showRedemptionCode(r) : () => _showCodeDetails(r, expired: isExpired),
+      onLongPress: (isPending && !isExpired) ? () => _codeQuickActions(r) : null,
+      longPressHint: 'quick actions',
       child: AnimatedOpacity(
         duration: AppMotion.of(context, AppMotion.medium),
         opacity: isExpired ? 0.6 : 1.0,
@@ -620,6 +623,87 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
   String _rewardHeroTag(Reward r) => 'reward-${r.id ?? r.title}';
 
+  /// Long-press on a reward card: what it costs and whether you can redeem, without leaving.
+  void _peekReward(Reward reward) {
+    final c = context.colors;
+    final t = context.text;
+    final soldOut = reward.stock == 0;
+    final missing = reward.pointsCost - widget.user.points;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.md),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              IconBadge(icon: _catIcon(reward.category), color: _catColors[reward.category] ?? c.primary, size: 52, filled: true),
+              const SizedBox(width: AppSpace.md),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(reward.title, style: t.titleLarge),
+                Text('${reward.pointsCost} pts', style: t.titleSmall!.copyWith(color: c.primary)),
+              ])),
+            ]),
+            const SizedBox(height: AppSpace.sm),
+            Text(reward.description, style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+            const SizedBox(height: AppSpace.sm),
+            PointsPill(
+              soldOut ? 'Sold out' : missing <= 0 ? 'You can redeem this' : '$missing more points needed',
+              color: soldOut ? c.danger : missing <= 0 ? c.success : c.warning,
+            ),
+            const SizedBox(height: AppSpace.lg),
+            if (!soldOut)
+              AppButton(label: 'Open', trailingIcon: Icons.arrow_forward_rounded, onPressed: () {
+                Navigator.pop(ctx);
+                _redeem(reward);
+              }),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// Long-press on a ready code: the three things people do with it.
+  void _codeQuickActions(Redemption r) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.xs),
+            child: Text(r.rewardTitle, style: ctx.text.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy_rounded),
+            title: const Text('Copy code'),
+            subtitle: Text(spacedCode(r.redemptionCode)),
+            onTap: () {
+              Navigator.pop(ctx);
+              Clipboard.setData(ClipboardData(text: r.redemptionCode));
+              AppSnackbar.success(context, 'Code copied');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.fullscreen_rounded),
+            title: const Text('Show to staff'),
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.confirmation_number_outlined),
+            title: const Text('Open code'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showRedemptionCode(r);
+            },
+          ),
+          const SizedBox(height: AppSpace.sm),
+        ]),
+      ),
+    );
+  }
+
   /// Read-only details for a claimed or expired code (these cards used to do nothing).
   void _showCodeDetails(Redemption r, {required bool expired}) {
     final c = context.colors;
@@ -673,12 +757,14 @@ class _AnimatedRewardCard extends StatefulWidget {
   final Reward reward;
   final int index;
   final VoidCallback onTap;
+  /// Long-press: a quick peek without leaving the grid.
+  final VoidCallback onPeek;
   final UserModel user;
   final IconData Function(String) catIcon;
   final bool animate;
   final String heroTag;
   const _AnimatedRewardCard({required this.reward, required this.index, required this.onTap, required this.user,
-      required this.catIcon, required this.animate, required this.heroTag});
+      required this.catIcon, required this.animate, required this.heroTag, required this.onPeek});
   @override
   State<_AnimatedRewardCard> createState() => _AnimatedRewardCardState();
 }
@@ -733,6 +819,8 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
           label: '${widget.reward.title}, ${widget.reward.pointsCost} points${isSoldOut ? ', sold out' : ''}',
           // FIX 10: Disable tap for sold-out rewards
           onTap: isSoldOut ? null : widget.onTap,
+          onLongPress: widget.onPeek,
+          longPressHint: 'peek at this reward',
           scale: 0.97,
           child: Container(
             clipBehavior: Clip.antiAlias,

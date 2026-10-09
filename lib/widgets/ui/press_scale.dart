@@ -14,7 +14,13 @@ class PressScale extends StatefulWidget {
     this.selected,
     this.scale = 0.96,
     this.minSize = AppSpace.touch,
+    this.onLongPress,
+    this.longPressHint,
   });
+
+  /// Optional quick action (with a haptic); announced to screen readers via [longPressHint].
+  final VoidCallback? onLongPress;
+  final String? longPressHint;
 
   final VoidCallback? onTap;
   final Widget child;
@@ -35,6 +41,11 @@ class _PressScaleState extends State<PressScale> {
     widget.onTap!();
   }
 
+  void _longPress() {
+    AppHaptics.primary();
+    widget.onLongPress!();
+  }
+
   void _set(bool v) {
     if (widget.onTap != null && _down != v) setState(() => _down = v);
   }
@@ -47,10 +58,13 @@ class _PressScaleState extends State<PressScale> {
       selected: widget.selected,
       label: widget.label,
       onTap: widget.onTap == null ? null : _activate,
+      onLongPress: widget.onLongPress == null ? null : _longPress,
+      onLongPressHint: widget.longPressHint,
       excludeSemantics: widget.label != null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap == null ? null : _activate,
+        onLongPress: widget.onLongPress == null ? null : _longPress,
         onTapDown: (_) => _set(true),
         onTapUp: (_) => _set(false),
         onTapCancel: () => _set(false),

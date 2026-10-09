@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
@@ -314,6 +315,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return Tap(
       label: '${u.username}, ${u.points} points, open details',
       onTap: () => _showUserDetail(u),
+      onLongPress: () {
+        Clipboard.setData(ClipboardData(text: u.email));
+        AppSnackbar.success(context, 'Email copied');
+      },
+      longPressHint: 'copy the email address',
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),

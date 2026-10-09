@@ -12,9 +12,12 @@ class Tap extends StatefulWidget {
   final bool tooltip;
   final bool? selected;
   final Widget child;
+  /// Optional quick action; screen readers offer it as "long press to [longPressHint]".
+  final VoidCallback? onLongPress;
+  final String? longPressHint;
 
   const Tap({super.key, required this.onTap, required this.label, required this.child,
-      this.tooltip = false, this.selected});
+      this.tooltip = false, this.selected, this.onLongPress, this.longPressHint});
 
   @override
   State<Tap> createState() => _TapState();
@@ -32,6 +35,11 @@ class _TapState extends State<Tap> {
     widget.onTap!();
   }
 
+  void _longPress() {
+    AppHaptics.primary();
+    widget.onLongPress!();
+  }
+
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onTap != null;
@@ -41,9 +49,12 @@ class _TapState extends State<Tap> {
       selected: widget.selected,
       label: widget.label,
       onTap: enabled ? _activate : null,   // needed: excludeSemantics also hides the GestureDetector's tap action
+      onLongPress: widget.onLongPress == null ? null : _longPress,
+      onLongPressHint: widget.longPressHint,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: enabled ? _activate : null,
+        onLongPress: widget.onLongPress == null ? null : _longPress,
         onTapDown: (_) => _press(true),
         onTapUp: (_) => _press(false),
         onTapCancel: () => _press(false),
@@ -60,6 +71,6 @@ class _TapState extends State<Tap> {
         ),
       ),
     );
-    return widget.tooltip ? Tooltip(message: widget.label, child: tappable) : tappable;
+    return widget.tooltip && widget.onLongPress == null ? Tooltip(message: widget.label, child: tappable) : tappable;
   }
 }

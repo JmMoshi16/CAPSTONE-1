@@ -25,8 +25,10 @@ class QRScannerScreen extends StatefulWidget {
   final int lifetimeBefore;
   /// Spendable balance before this scan, for the success screen's counter (display only).
   final int pointsBefore;
+  /// Long-pressing the Scan button opens the scanner with the flashlight already on.
+  final bool startWithTorch;
   const QRScannerScreen({super.key, required this.userId, required this.username, this.lifetimeBefore = 0,
-      this.pointsBefore = 0});
+      this.pointsBefore = 0, this.startWithTorch = false});
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
@@ -34,12 +36,12 @@ class QRScannerScreen extends StatefulWidget {
 class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderStateMixin {
   /// 0 -> 1 when a code is detected: the brackets tighten, thicken and turn white ("lock on").
   late final AnimationController _lockCtrl = AnimationController(vsync: this, duration: AppMotion.medium);
-  final MobileScannerController _controller = MobileScannerController();
+  late final MobileScannerController _controller = MobileScannerController(torchEnabled: widget.startWithTorch);
   bool _scanned = false;
   bool _processing = false;
 
   // FIX 4: Torch state
-  bool _torchOn = false;
+  late bool _torchOn = widget.startWithTorch;
 
   // FIX 7: Permission denied state
   bool _permissionDenied = false;
