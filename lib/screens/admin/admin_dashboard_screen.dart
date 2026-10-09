@@ -103,7 +103,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   message: 'Check the connection, then try again. If it keeps failing, sign out and back in.',
                   onRetry: _loadData,
                 )
-              : FadeIndexedStack(index: _selectedIndex, children: screens),
+              : GestureDetector(
+                  onHorizontalDragEnd: (d) {
+                    final v = d.primaryVelocity ?? 0;
+                    if (v.abs() < 500) return;
+                    final next = (_selectedIndex + (v < 0 ? 1 : -1)).clamp(0, screens.length - 1);
+                    if (next == _selectedIndex) return;
+                    AppHaptics.tap();
+                    setState(() => _selectedIndex = next);
+                  },
+                  child: FadeIndexedStack(index: _selectedIndex, children: screens),
+                ),
       bottomNavigationBar: _AdminFloatingNav(
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),

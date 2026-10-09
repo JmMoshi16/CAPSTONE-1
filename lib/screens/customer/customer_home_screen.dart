@@ -123,7 +123,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: FadeIndexedStack(index: _selectedIndex, children: screens),
+      body: GestureDetector(
+        onHorizontalDragEnd: (d) => _swipeTab(d, screens.length),
+        child: FadeIndexedStack(index: _selectedIndex, children: screens),
+      ),
       bottomNavigationBar: _FloatingNavBar(
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
@@ -134,6 +137,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   final _rewardsKey = GlobalKey<RewardsScreenState>();
+
+  /// A quick horizontal flick moves to the next / previous tab.
+  void _swipeTab(DragEndDetails d, int count) {
+    final v = d.primaryVelocity ?? 0;
+    if (v.abs() < 500) return;
+    final next = (_selectedIndex + (v < 0 ? 1 : -1)).clamp(0, count - 1);
+    if (next == _selectedIndex) return;
+    AppHaptics.tap();
+    setState(() => _selectedIndex = next);
+  }
 
   /// Rewards tab, optionally pre-filtered to a category or showing My Codes.
   void _openRewards({String? category, bool myCodes = false}) {
