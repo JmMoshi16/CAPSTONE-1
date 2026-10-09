@@ -365,10 +365,10 @@ class FirebaseService {
     final claimCode = (1000 + Random.secure().nextInt(9000)).toString();
     await _db.collection('qr_tokens').doc(token).set({
       'wasteType': wasteType,
-      'expiresAt': expiresAt.toIso8601String(),
+      'expiresAt': Timestamp.fromDate(expiresAt.toUtc()),   // H-07
       'usedBy': [],
       'isUsed': false,
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdAt': FieldValue.serverTimestamp(),             // H-07
       'claimCode': claimCode,
     });
   }
@@ -383,8 +383,12 @@ class FirebaseService {
       if (!doc.exists) return QRValidationResult.invalid;
 
       final data = doc.data()!;
-      final expiresAt = DateTime.tryParse(data['expiresAt'] ?? '');
-      if (expiresAt == null || DateTime.now().isAfter(expiresAt)) return QRValidationResult.expired;
+      // H-07: tolerate both Firestore Timestamp and ISO string for expiresAt
+      final expiresRaw = data['expiresAt'];
+      final DateTime? expiresAt = expiresRaw is Timestamp
+          ? expiresRaw.toDate().toUtc()
+          : DateTime.tryParse(expiresRaw?.toString() ?? '')?.toUtc();
+      if (expiresAt == null || DateTime.now().toUtc().isAfter(expiresAt)) return QRValidationResult.expired;
 
       // H-02: token-level guard — reject any second claimer regardless of account
       if (data['isUsed'] == true) return QRValidationResult.alreadyUsed;
@@ -414,13 +418,13 @@ class FirebaseService {
         await _db.collection('qr_scan_history').add({
           'token': token,
           'wasteType': wasteType,
-          'scannedAt': scanTime.toIso8601String(),
+          'scannedAt': Timestamp.fromDate(scanTime.toUtc()),  // H-07
           'scannedByUid': userId,
           'scannedByName': username,
           'scannedByEmail': email,
           'pointsAwarded': points,
-          'tokenCreatedAt': data['createdAt'] ?? scanTime.toIso8601String(),
-          'expiresAt': data['expiresAt'] ?? scanTime.toIso8601String(),
+          'tokenCreatedAt': data['createdAt'] ?? Timestamp.fromDate(scanTime.toUtc()),
+          'expiresAt': data['expiresAt'] ?? Timestamp.fromDate(scanTime.toUtc()),
           'secondsAfterCreation': secondsAfterCreation,
         });
       } catch (_) {

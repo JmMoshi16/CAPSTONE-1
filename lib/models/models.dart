@@ -1,5 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// H-07: tolerant reader for timestamp fields — handles Firestore Timestamp and ISO string fallback
+DateTime _tsToDateTime(dynamic v) {
+  if (v is Timestamp) return v.toDate().toUtc();
+  if (v is String) return DateTime.tryParse(v)?.toUtc() ?? DateTime.now().toUtc();
+  return DateTime.now().toUtc();
+}
+
 class UserModel {
   final String uid;
   String username;
@@ -30,7 +37,7 @@ class UserModel {
         'email': email,
         'role': role,
         'points': points,
-        'createdAt': createdAt.toIso8601String(),
+        'createdAt': Timestamp.fromDate(createdAt.toUtc()),
         'scanCount': scanCount,
         'streak': streak,
         'lastScanDate': lastScanDate,
@@ -45,7 +52,7 @@ class UserModel {
       email: d['email'] ?? '',
       role: d['role'] ?? 'customer',
       points: d['points'] ?? 0,
-      createdAt: DateTime.tryParse(d['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: _tsToDateTime(d['createdAt']),
       scanCount: d['scanCount'] ?? 0,
       streak: d['streak'] ?? 0,
       lastScanDate: d['lastScanDate'],
@@ -75,7 +82,7 @@ class WasteLog {
         'userId': userId,
         'wasteType': wasteType,
         'pointsEarned': pointsEarned,
-        'timestamp': timestamp.toIso8601String(),
+        'timestamp': FieldValue.serverTimestamp(),
         'binId': binId,
       };
 
@@ -86,7 +93,7 @@ class WasteLog {
       userId: d['userId'] ?? '',
       wasteType: d['wasteType'] ?? '',
       pointsEarned: d['pointsEarned'] ?? 0,
-      timestamp: DateTime.tryParse(d['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: _tsToDateTime(d['timestamp']),
       binId: d['binId'] ?? '',
     );
   }
@@ -171,7 +178,7 @@ class Redemption {
         'rewardId': rewardId,
         'rewardTitle': rewardTitle,
         'pointsUsed': pointsUsed,
-        'redeemedAt': redeemedAt.toIso8601String(),
+        'redeemedAt': Timestamp.fromDate(redeemedAt.toUtc()),
         'status': status,
         'redemptionCode': redemptionCode,
       };
@@ -185,7 +192,7 @@ class Redemption {
       rewardId: d['rewardId'] ?? '',
       rewardTitle: d['rewardTitle'] ?? '',
       pointsUsed: d['pointsUsed'] ?? 0,
-      redeemedAt: DateTime.tryParse(d['redeemedAt'] ?? '') ?? DateTime.now(),
+      redeemedAt: _tsToDateTime(d['redeemedAt']),
       status: d['status'] ?? 'pending',
       redemptionCode: d['redemptionCode'] ?? '',
     );
