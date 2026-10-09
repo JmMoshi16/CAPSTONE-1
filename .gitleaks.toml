@@ -1,0 +1,7 @@
+# gitleaks configuration (audit roadmap 7.6): the default rules plus one documented exception.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Firebase Android config. Its API key identifies the project and is public by design (it ships inside every APK); it is protected by restricting the key to this app's package name + SHA-1 in Google Cloud and by Firestore rules / App Check, not by secrecy."
+paths = ['''android/app/google-services\.json''']
