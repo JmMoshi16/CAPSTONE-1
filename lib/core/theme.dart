@@ -1,25 +1,6 @@
 import 'package:flutter/material.dart';
 
-// ── Brand Colors ──────────────────────────────────────────────────────────────
-const kGreen      = Color(0xFF2E7D32);
-const kGreenLight = Color(0xFF4CAF50);
-const kGreenBg    = Color(0xFFE8F5E9);
-const kGold       = Color(0xFFB8860B);
-const kGoldLight  = Color(0xFFFFD700);
-const kBg         = Color(0xFFF8F9FA);
-
-// ── Waste Type Colors ─────────────────────────────────────────────────────────
-const kBioColor = Color(0xFF8BC34A);
-const kRecColor = Color(0xFF29B6F6);
-const kResColor = Color(0xFFEF5350);
-
-Color wasteColor(String type) {
-  switch (type) {
-    case 'Biodegradable': return kBioColor;
-    case 'Recyclable':    return kRecColor;
-    default:              return kResColor;
-  }
-}
+// Colours, spacing and type live in tokens.dart; this file keeps the rank and level rules.
 
 IconData wasteIcon(String type) {
   switch (type) {
@@ -56,26 +37,6 @@ double rankProgress(int points) {
   if (points >= 50)  return (points - 50)  / (200 - 50);
   return points / 50;
 }
-
-// ── Shared Decorations ────────────────────────────────────────────────────────
-BoxDecoration legacyCardDecoration({Color? color, double radius = 20, bool border = false}) => BoxDecoration(
-  color: color ?? Colors.white,
-  borderRadius: BorderRadius.circular(radius),
-  border: border ? Border.all(color: const Color(0xFFE0E0E0)) : null,
-  boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 4))],
-);
-
-const gradientHeader = BoxDecoration(
-  gradient: LinearGradient(
-    colors: [Color(0xFF43A047), Color(0xFF1B5E20)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  ),
-  borderRadius: BorderRadius.only(
-    bottomLeft: Radius.circular(32),
-    bottomRight: Radius.circular(32),
-  ),
-);
 
 // ── Level System ──────────────────────────────────────────────────────────────
 class LevelInfo {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../core/gamification.dart';
+import '../../widgets/ui.dart';
 import '../login_screen.dart';
 import 'leaderboard_screen.dart';
 import 'badges_screen.dart';
@@ -53,18 +55,14 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         setState(() => _editing = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('Profile updated!'),
-          backgroundColor: kGreen,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: context.colors.success,
         ));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('Could not update your profile. Check your connection and try again.'),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: context.colors.danger,
         ));
       }
     } finally {
@@ -75,18 +73,14 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-        content: const Text('Are you sure you want to logout?', style: TextStyle(color: Colors.grey)),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, elevation: 0),
-            child: const Text('Logout'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: TextStyle(color: ctx.colors.textSecondary))),
+          AppButton(label: 'Logout', kind: AppButtonKind.danger, expand: false, height: 48,
+              onPressed: () => Navigator.pop(ctx, true)),
         ],
       ),
     );
@@ -98,8 +92,13 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     }
   }
 
+  void _openLeaderboard() => Navigator.push(context, MaterialPageRoute(
+      builder: (_) => LeaderboardScreen(currentUid: widget.user.uid)));
+
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
     final bio = widget.logs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final res = widget.logs.where((l) => l.wasteType == 'Residual').length;
@@ -112,477 +111,425 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     final winRate    = widget.logs.isEmpty ? 0 : ((rec + bio) / widget.logs.length * 100).round();
     final daysSince  = DateTime.now().difference(widget.user.createdAt).inDays;
 
-    return Scaffold(
-      backgroundColor: kBg,
-      body: CustomScrollView(
-        slivers: [
+    // This screen has no coloured header, so the status-bar icons follow the theme.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        body: CustomScrollView(
+          slivers: [
 
-          // ── Top bar ──────────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Points chip — taps to leaderboard
-                    GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => LeaderboardScreen(currentUid: widget.user.uid))),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: kGreenLight.withValues(alpha: 0.3)),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Container(
-                            width: 20, height: 20,
-                            decoration: const BoxDecoration(color: kGreenLight, shape: BoxShape.circle),
-                            child: const Icon(Icons.stars_rounded, size: 13, color: Colors.white),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${widget.user.points} pts',
-                            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                        ]),
-                      ),
-                    ),
-                    _iconBtn(Icons.logout_rounded, _logout, color: Colors.redAccent),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ── Avatar + name ─────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-              child: Column(children: [
-                _DashedAvatar(
-                  initial: widget.user.username.isNotEmpty ? widget.user.username[0].toUpperCase() : 'U',
-                  rankIcon: rank['icon'] as String,
-                  rankColor: rankColor,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  widget.user.username,
-                  style: const TextStyle(color: Colors.black87, fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                // FIX 3: spaces become underscores
-                Text(
-                  '@${widget.user.username.toLowerCase().replaceAll(' ', '_')}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-                if (_myRank > 0) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => LeaderboardScreen(currentUid: widget.user.uid))),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: kGreenLight.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kGreenLight.withValues(alpha: 0.3)),
-                      ),
-                      child: Text('🏆  Rank #$_myRank',
-                          style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                // ── Edit profile button ──
-                GestureDetector(
-                  onTap: () => setState(() {
-                    _editing = !_editing;
-                    if (!_editing) _userCtrl.text = widget.user.username;
-                  }),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _editing ? Colors.red.withValues(alpha: 0.08) : kGreen.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _editing ? Colors.red.withValues(alpha: 0.3) : kGreenLight.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(
-                        _editing ? Icons.close_rounded : Icons.edit_rounded,
-                        color: _editing ? Colors.redAccent : kGreen,
-                        size: 15,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _editing ? 'Cancel' : 'Edit Profile',
-                        style: TextStyle(
-                          color: _editing ? Colors.redAccent : kGreen,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ]),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-
-          // ── 3-stat row (Eco Rate · Rank · Days) ──────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                decoration: legacyCardDecoration(),
-                child: Row(children: [
-                  Expanded(child: _statPill('$winRate%',  'Eco Rate', Icons.recycling_rounded,   kGreenLight)),
-                  _divider(),
-                  // FIX 8: Show rank (icon + label) with rank color
-                  Expanded(child: _statPill(
-                    '${rankInfo.icon} ${rankInfo.label}',
-                    'Rank',
-                    Icons.military_tech_rounded,
-                    rankInfo.color,
-                  )),
-                  _divider(),
-                  Expanded(child: _statPill('$daysSince', 'Days', Icons.calendar_today_rounded, const Color(0xFF64B5F6))),
-                ]),
-              ),
-            ),
-          ),
-
-          // ── "Keep it up!" streak banner ───────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: legacyCardDecoration(),
-                child: Row(children: [
-                  SizedBox(
-                    width: 56,
-                    height: 40,
-                    child: Stack(
-                      children: List.generate(3, (i) => Positioned(
-                        left: i * 16.0,
+            // ── Top bar ──────────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Points chip — taps to leaderboard
+                      PressScale(
+                        label: '${widget.user.points} points, open leaderboard',
+                        onTap: _openLeaderboard,
                         child: Container(
-                          width: 32, height: 32,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: [kGreenLight, Colors.amber, const Color(0xFF64B5F6)][i].withValues(alpha: 0.2),
-                            border: Border.all(color: kBg, width: 2),
-                          ),
-                          child: Center(child: Text(['♻', '🌿', '🔥'][i], style: const TextStyle(fontSize: 13))),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
+                          decoration: cardDecoration(context, radius: AppRadius.pill,
+                              borderColor: c.primary.withValues(alpha: 0.3)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              width: 20, height: 20,
+                              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                              child: Icon(Icons.stars_rounded, size: 13, color: c.onPrimary),
+                            ),
+                            const SizedBox(width: AppSpace.xs),
+                            Text('${widget.user.points} pts', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                          ]),
                         ),
-                      )),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      streak > 0 ? 'Keep it up!' : 'Start your streak!',
-                      style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      streak > 0
-                          ? '$streak day${streak > 1 ? 's' : ''} in a row — you\'re here!'
-                          : 'Scan waste today to begin your streak',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(children: List.generate(7, (i) => Container(
-                      width: 10, height: 10,
-                      margin: const EdgeInsets.only(right: 5),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i < streak ? kGreenLight : Colors.grey.shade200,
                       ),
-                    ))),
-                  ])),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 52, height: 52,
-                    decoration: BoxDecoration(
-                      color: kGreen.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(14),
+                      PressScale(
+                        label: 'Logout',
+                        onTap: _logout,
+                        child: Tooltip(
+                          message: 'Logout',
+                          child: Container(
+                            width: 44, height: 44,
+                            decoration: cardDecoration(context, radius: AppRadius.md),
+                            child: Icon(Icons.logout_rounded, color: c.danger, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Avatar + name ─────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, 0),
+                child: Column(children: [
+                  _DashedAvatar(
+                    initial: widget.user.username.isNotEmpty ? widget.user.username[0].toUpperCase() : 'U',
+                    rankIcon: rank['icon'] as String,
+                    rankColor: rankColor,
+                  ),
+                  const SizedBox(height: AppSpace.md - 2),
+                  Text(widget.user.username, style: t.headlineSmall, textAlign: TextAlign.center),
+                  const SizedBox(height: AppSpace.xxs),
+                  // FIX 3: spaces become underscores
+                  Text(
+                    '@${widget.user.username.toLowerCase().replaceAll(' ', '_')}',
+                    style: t.bodyMedium!.copyWith(color: c.textSecondary),
+                  ),
+                  if (_myRank > 0)
+                    TextButton(
+                      onPressed: _openLeaderboard,
+                      child: Text('🏆  Rank #$_myRank'),
                     ),
-                    child: const Center(child: Text('🏆', style: TextStyle(fontSize: 26))),
+                  const SizedBox(height: AppSpace.xs),
+                  // ── Edit profile button ──
+                  PressScale(
+                    onTap: () => setState(() {
+                      _editing = !_editing;
+                      if (!_editing) _userCtrl.text = widget.user.username;
+                    }),
+                    child: AnimatedContainer(
+                      duration: AppMotion.of(context, AppMotion.medium),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm - 2),
+                      decoration: BoxDecoration(
+                        color: _editing ? c.dangerContainer : c.primaryContainer,
+                        borderRadius: AppRadius.all(AppRadius.pill),
+                        border: Border.all(
+                          color: (_editing ? c.danger : c.primary).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(_editing ? Icons.close_rounded : Icons.edit_rounded,
+                            color: _editing ? c.danger : c.primary, size: 16),
+                        const SizedBox(width: AppSpace.xs - 2),
+                        Text(_editing ? 'Cancel' : 'Edit Profile',
+                            style: t.labelMedium!.copyWith(
+                                color: _editing ? c.danger : c.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ]),
+                    ),
                   ),
                 ]),
               ),
             ),
-          ),
 
-          // ── "Complete new tasks" badges banner ────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => BadgesScreen(user: widget.user))),
+            // ── 3-stat row (Eco Rate · Rank · Days) ──────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, 0),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: kGreen.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kGreenLight.withValues(alpha: 0.25)),
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpace.md + 2),
+                  decoration: cardDecoration(context),
                   child: Row(children: [
-                    SizedBox(
-                      width: 56, height: 40,
-                      child: Stack(
-                        children: List.generate(2, (i) => Positioned(
-                          left: i * 20.0,
-                          child: Container(
-                            width: 36, height: 36,
-                            decoration: BoxDecoration(
-                              color: kGreenLight.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: kBg, width: 2),
+                    Expanded(child: _statPill('$winRate%', 'Eco Rate', Icons.recycling_rounded, c.success)),
+                    _divider(),
+                    // FIX 8: Show rank (icon + label) with rank color
+                    Expanded(child: _statPill('${rankInfo.icon} ${rankInfo.label}', 'Rank',
+                        Icons.military_tech_rounded, c.ink(rankInfo.color))),
+                    _divider(),
+                    Expanded(child: _statPill('$daysSince', 'Days', Icons.calendar_today_rounded, c.info)),
+                  ]),
+                ),
+              ),
+            ),
+
+            // ── "Keep it up!" streak banner ───────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: cardDecoration(context),
+                  child: Row(children: [
+                    ExcludeSemantics(
+                      child: SizedBox(
+                        width: 56,
+                        height: 40,
+                        child: Stack(
+                          children: List.generate(3, (i) => Positioned(
+                            left: i * 16.0,
+                            child: Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: [c.success, c.gold, c.info][i].withValues(alpha: 0.2),
+                                border: Border.all(color: c.surface, width: 2),
+                              ),
+                              child: Center(child: Text(['♻', '🌿', '🔥'][i], style: const TextStyle(fontSize: 13))),
                             ),
-                            child: Center(child: Text(['🌱', '♻️'][i], style: const TextStyle(fontSize: 16))),
-                          ),
-                        )),
+                          )),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpace.sm),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Complete new tasks',
-                          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(streak > 0 ? 'Keep it up!' : 'Start your streak!', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(
-                        widget.user.badges.isEmpty
-                            ? 'Earn badges by scanning waste!'
-                            : '${widget.user.badges.length} badge${widget.user.badges.length > 1 ? 's' : ''} earned — tap to see all',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        streak > 0
+                            ? '$streak day${streak > 1 ? 's' : ''} in a row — you\'re here!'
+                            : 'Scan waste today to begin your streak',
+                        style: t.bodySmall,
                       ),
-                    ])),
-                    const Icon(Icons.chevron_right_rounded, color: kGreen),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Divider label ─────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
-              child: Row(children: [
-                Container(width: 4, height: 16, decoration: BoxDecoration(color: kGreen, borderRadius: BorderRadius.circular(2))),
-                const SizedBox(width: 10),
-                const Text('Your Stats', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)),
-              ]),
-            ),
-          ),
-
-          // ── Progress to next rank ─────────────────────────────────────────
-          if (rank['next'] != null)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: legacyCardDecoration(),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Icon(Icons.military_tech_rounded, color: rankColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text('Progress to ${rank['next']}',
-                          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const Spacer(),
-                      Text('${widget.user.lifetimePoints} / ${rank['nextPts']} lifetime pts',
-                          style: TextStyle(color: rankColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                    ]),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: _rankProgress,
-                        backgroundColor: Colors.grey.shade100,
-                        valueColor: AlwaysStoppedAnimation(rankColor),
-                        minHeight: 8,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text('${(rank['nextPts'] as int) - widget.user.lifetimePoints} more points to reach ${rank['next']}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                  ]),
-                ),
-              ),
-            ),
-
-          // ── Waste breakdown ───────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: legacyCardDecoration(),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Row(children: [
-                    Icon(Icons.pie_chart_rounded, color: kGreen, size: 18),
-                    SizedBox(width: 8),
-                    Text('Waste Breakdown', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
-                  ]),
-                  const SizedBox(height: 14),
-                  if (widget.logs.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Center(
-                        child: Text('No scans yet — start recycling to see your breakdown!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      ),
-                    )
-                  else ...[
-                    _wasteBar('Biodegradable', bio, widget.logs.length, kBioColor, Icons.compost_rounded),
-                    const SizedBox(height: 10),
-                    _wasteBar('Recyclable',    rec, widget.logs.length, kRecColor, Icons.recycling_rounded),
-                    const SizedBox(height: 10),
-                    _wasteBar('Residual',      res, widget.logs.length, kResColor, Icons.delete_outline_rounded),
-                  ],
-                ]),
-              ),
-            ),
-          ),
-
-          // ── Account info / edit form ──────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              child: Container(
-                decoration: legacyCardDecoration(),
-                child: Form(
-                  key: _formKey,
-                  child: Column(children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Row(children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
-                          child: const Icon(Icons.person_outline_rounded, color: kGreen, size: 18),
+                      const SizedBox(height: AppSpace.xs),
+                      Row(children: List.generate(7, (i) => Container(
+                        width: 10, height: 10,
+                        margin: const EdgeInsets.only(right: AppSpace.xxs + 1),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i < streak ? c.primary : c.surfaceAlt,
+                          border: i < streak ? null : Border.all(color: c.border),
                         ),
-                        const SizedBox(width: 10),
-                        const Text('Account Info', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 15)),
-                      ]),
-                    ),
-                    Divider(height: 1, color: Colors.grey.shade100),
-                    TextFormField(
-                      controller: _userCtrl,
-                      enabled: _editing,
-                      style: const TextStyle(color: Colors.black87),
-                      decoration: InputDecoration(
-                        labelText: 'Username',
-                        labelStyle: const TextStyle(color: Colors.grey),
-                        prefixIcon: Icon(Icons.person_outline_rounded,
-                            color: _editing ? kGreen : Colors.grey, size: 20),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        filled: _editing,
-                        fillColor: _editing ? kGreen.withValues(alpha: 0.04) : null,
-                      ),
-                      validator: (v) => v!.trim().length < 3 ? 'Min 3 characters' : null,
-                    ),
-                    Divider(height: 1, color: Colors.grey.shade100),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(children: [
-                        const Icon(Icons.email_outlined, color: Colors.grey, size: 20),
-                        const SizedBox(width: 12),
-                        Text(widget.user.email, style: const TextStyle(color: Colors.grey)),
-                      ]),
+                      ))),
+                    ])),
+                    const SizedBox(width: AppSpace.sm),
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.lg - 2)),
+                      child: const Center(child: ExcludeSemantics(child: Text('🏆', style: TextStyle(fontSize: 26)))),
                     ),
                   ]),
                 ),
               ),
             ),
-          ),
 
-          if (_editing)
+            // ── "Complete new tasks" badges banner ────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                child: SizedBox(
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kGreen,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, 0),
+                child: PressScale(
+                  scale: 0.98,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => BadgesScreen(user: widget.user))),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpace.md),
+                    decoration: BoxDecoration(
+                      color: c.primaryContainer,
+                      borderRadius: AppRadius.all(AppRadius.xl),
+                      border: Border.all(color: c.primary.withValues(alpha: 0.25)),
                     ),
-                    child: _saving
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    child: Row(children: [
+                      ExcludeSemantics(
+                        child: SizedBox(
+                          width: 56, height: 40,
+                          child: Stack(
+                            children: List.generate(2, (i) => Positioned(
+                              left: i * 20.0,
+                              child: Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  color: c.surface,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: c.primaryContainer, width: 2),
+                                ),
+                                child: Center(child: Text(['🌱', '♻️'][i], style: const TextStyle(fontSize: 16))),
+                              ),
+                            )),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpace.sm),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Complete new tasks', style: t.titleSmall!.copyWith(
+                            color: c.onPrimaryContainer, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.user.badges.isEmpty
+                              ? 'Earn badges by scanning waste!'
+                              : '${widget.user.badges.length} badge${widget.user.badges.length > 1 ? 's' : ''} earned — tap to see all',
+                          style: t.bodySmall!.copyWith(color: c.onPrimaryContainer),
+                        ),
+                      ])),
+                      Icon(Icons.chevron_right_rounded, color: c.onPrimaryContainer),
+                    ]),
                   ),
                 ),
               ),
             ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 110)),
-        ],
+            // ── Divider label ─────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl + 4, AppSpace.lg, AppSpace.sm),
+                child: Row(children: [
+                  Container(width: 4, height: 16, decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(2))),
+                  const SizedBox(width: AppSpace.sm - 2),
+                  Text('Your Stats', style: t.titleMedium),
+                ]),
+              ),
+            ),
+
+            // ── Progress to next rank ─────────────────────────────────────────
+            if (rank['next'] != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpace.md),
+                    decoration: cardDecoration(context),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: AppSpace.xs, runSpacing: AppSpace.xxs, children: [
+                        Icon(Icons.military_tech_rounded, color: c.ink(rankColor), size: 20),
+                        Text('Progress to ${rank['next']}', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                        Text('${widget.user.lifetimePoints} / ${rank['nextPts']} lifetime pts',
+                            style: t.labelMedium!.copyWith(color: c.ink(rankColor), fontWeight: FontWeight.w700)),
+                      ]),
+                      const SizedBox(height: AppSpace.sm),
+                      ClipRRect(
+                        borderRadius: AppRadius.all(6),
+                        child: LinearProgressIndicator(
+                          value: _rankProgress,
+                          backgroundColor: c.surfaceAlt,
+                          valueColor: AlwaysStoppedAnimation(rankColor),
+                          minHeight: 8,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.xs - 2),
+                      Text('${(rank['nextPts'] as int) - widget.user.lifetimePoints} more points to reach ${rank['next']}',
+                          style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
+                    ]),
+                  ),
+                ),
+              ),
+
+            // ── Waste breakdown ───────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: cardDecoration(context),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Icon(Icons.pie_chart_rounded, color: c.primary, size: 18),
+                      const SizedBox(width: AppSpace.xs),
+                      Text('Waste Breakdown', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                    ]),
+                    const SizedBox(height: AppSpace.md - 2),
+                    if (widget.logs.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+                        child: Center(
+                          child: Text('No scans yet — start recycling to see your breakdown!',
+                              textAlign: TextAlign.center, style: t.bodySmall),
+                        ),
+                      )
+                    else ...[
+                      _wasteBar('Biodegradable', bio, widget.logs.length, c.bio, wasteIcon('Biodegradable')),
+                      const SizedBox(height: AppSpace.sm - 2),
+                      _wasteBar('Recyclable',    rec, widget.logs.length, c.rec, wasteIcon('Recyclable')),
+                      const SizedBox(height: AppSpace.sm - 2),
+                      _wasteBar('Residual',      res, widget.logs.length, c.res, wasteIcon('Residual')),
+                    ],
+                  ]),
+                ),
+              ),
+            ),
+
+            // ── Account info / edit form ──────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: cardDecoration(context),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, AppSpace.xs),
+                        child: Row(children: [
+                          IconBadge(icon: Icons.person_outline_rounded, color: c.primary, size: 34),
+                          const SizedBox(width: AppSpace.sm - 2),
+                          Text('Account Info', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
+                        ]),
+                      ),
+                      const Divider(height: 1),
+                      TextFormField(
+                        controller: _userCtrl,
+                        enabled: _editing,
+                        style: t.bodyLarge,
+                        decoration: InputDecoration(
+                          labelText: 'Username',
+                          prefixIcon: Icon(Icons.person_outline_rounded,
+                              color: _editing ? c.primary : c.textTertiary, size: 20),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
+                          filled: _editing,
+                          fillColor: _editing ? c.primaryContainer.withValues(alpha: 0.4) : null,
+                        ),
+                        validator: (v) => v!.trim().length < 3 ? 'Min 3 characters' : null,
+                      ),
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
+                        child: Row(children: [
+                          Icon(Icons.email_outlined, color: c.textTertiary, size: 20),
+                          const SizedBox(width: AppSpace.sm),
+                          Expanded(child: Text(widget.user.email,
+                              style: t.bodyMedium!.copyWith(color: c.textSecondary), overflow: TextOverflow.ellipsis)),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+
+            if (_editing)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md - 2, AppSpace.lg, 0),
+                  child: AppButton(label: 'Save Changes', height: 54, loading: _saving, onPressed: _save),
+                ),
+              ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
+          ],
+        ),
       ),
     );
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  Widget _iconBtn(IconData icon, VoidCallback onTap, {Color color = Colors.grey}) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 38, height: 38,
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2))],
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-      );
-
   Widget _statPill(String value, String label, IconData icon, Color color) =>
       Column(children: [
         Icon(icon, color: color, size: 20),
-        const SizedBox(height: 6),
-        Text(value, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 15),
+        const SizedBox(height: AppSpace.xs - 2),
+        Text(value, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
             maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+        Text(label, style: context.text.labelSmall),
       ]);
 
-  Widget _divider() => Container(width: 1, height: 40, color: Colors.grey.shade100);
+  Widget _divider() => Container(width: 1, height: 40, color: context.colors.border);
 
   Widget _wasteBar(String label, int count, int total, Color color, IconData icon) {
+    final c = context.colors;
     final pct = total == 0 ? 0.0 : count / total;
     return Row(children: [
-      Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: color, size: 14),
-      ),
-      const SizedBox(width: 10),
+      IconBadge(icon: icon, color: color, size: 28),
+      const SizedBox(width: AppSpace.sm - 2),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
-          Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(label, style: context.text.labelMedium!.copyWith(fontWeight: FontWeight.w500)),
+          Text('$count', style: context.text.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700)),
         ]),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpace.xxs),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppRadius.all(4),
           child: LinearProgressIndicator(
             value: pct,
-            backgroundColor: Colors.grey.shade100,
+            backgroundColor: c.surfaceAlt,
             valueColor: AlwaysStoppedAnimation(color),
             minHeight: 6,
           ),
@@ -601,32 +548,29 @@ class _DashedAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Stack(
       alignment: Alignment.bottomRight,
       children: [
         CustomPaint(
-          painter: const _DashedCirclePainter(color: kGreenLight),
+          painter: _DashedCirclePainter(color: c.primary),
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(AppSpace.xs - 2),
             child: Container(
               width: 88, height: 88,
-              decoration: BoxDecoration(
-                color: kGreen.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
               child: Center(
-                child: Text(initial,
-                    style: const TextStyle(color: kGreen, fontSize: 36, fontWeight: FontWeight.bold)),
+                child: Text(initial, style: AppType.numeral.copyWith(color: c.onPrimaryContainer, fontSize: 36)),
               ),
             ),
           ),
         ),
         Container(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(AppSpace.xxs),
           decoration: BoxDecoration(
             color: rankColor,
             shape: BoxShape.circle,
-            border: Border.all(color: kBg, width: 2),
+            border: Border.all(color: c.background, width: 2),
           ),
           child: Text(rankIcon, style: const TextStyle(fontSize: 12)),
         ),
