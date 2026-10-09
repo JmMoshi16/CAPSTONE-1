@@ -12,6 +12,7 @@ import '../../widgets/eco_animations.dart';
 import '../../widgets/ui.dart';
 import '../../core/theme.dart' show wasteIcon, getRank;
 import '../../widgets/notification_prompt.dart';
+import 'scan_errors.dart';
 
 /// Scanner accents sit on the camera image, so they use the bright brand mint in both themes.
 const _kScanAccent = AppPalette.mint;
@@ -97,40 +98,19 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
     _lockCtrl.forward();
     await _controller.stop();
 
-    // Limit to 3 parts so colons inside the UUID token are preserved
-    final parts = raw.split(':').take(3).toList();
-    if (parts.length < 3 || parts[0] != 'ECOBIN') {
-      _showError('Not an ECOReward code',
-          "This QR code isn't from an ECOReward bin. Scan the code shown on the bin's screen.");
+    final code = parseBinCode(raw);
+    if (code.error != null) {
+      _showError(code.error!);
       return;
     }
-
-    final wasteType = parts[1];
-    final token = parts[2];
-    final validTypes = ['Biodegradable', 'Recyclable', 'Residual'];
-    if (!validTypes.contains(wasteType)) {
-      _showError('Code not recognised',
-          "We couldn't read the waste type from this code. Scan the bin's code again, or ask staff for a new one.");
-      return;
-    }
+    final wasteType = code.wasteType;
+    final token = code.token;
 
     try {
       final result = await FirebaseService.validateAndUseQRToken(token, widget.userId);
-      if (result == QRValidationResult.expired) {
-        _showError('Code expired',
-            'Bin codes work for 20 minutes. Your next disposal at the bin gives you a new code, or staff can make one for you.',
-            kind: _ErrorKind.warning, icon: Icons.timer_off_rounded);
-        return;
-      }
-      if (result == QRValidationResult.alreadyUsed) {
-        _showError('Already claimed',
-            'Each bin code can be claimed once, and this one has been. Your next disposal will give you a new code.',
-            kind: _ErrorKind.warning, icon: Icons.check_circle_outline_rounded);
-        return;
-      }
-      if (result == QRValidationResult.invalid) {
-        _showError('Code not found',
-            "We couldn't find this code. Make sure you're scanning the code on the bin's screen right now.");
+      final error = scanErrorFor(result);
+      if (error != null) {
+        _showError(error);
         return;
       }
 
@@ -181,60 +161,18 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
       }
     } catch (_) {
       // Never show raw exception text to customers (audit M-17).
-      _showError("Couldn't reach ECOReward",
-          'We could not finish this scan. Check your internet connection and scan the code again.',
-          icon: Icons.wifi_off_rounded);
+      _showError(ScanError.offline);
     }
   }
 
-  void _showError(String title, String message,
-      {_ErrorKind kind = _ErrorKind.error, IconData icon = Icons.error_rounded}) {
+  void _showError(ScanError e) {
     if (!mounted) return;
     setState(() => _processing = false);
     _lockCtrl.reverse();
     AppHaptics.error();
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final c = ctx.colors;
-        final warn = kind == _ErrorKind.warning;
-        return AlertDialog(
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 64, height: 64,
-              decoration: BoxDecoration(color: warn ? c.warningContainer : c.dangerContainer, shape: BoxShape.circle),
-              child: Icon(icon, color: warn ? c.warning : c.danger, size: 36),
-            ),
-            const SizedBox(height: AppSpace.md - 2),
-            Text(title, style: ctx.text.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpace.xs - 2),
-            Text(message, style: ctx.text.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
-          ]),
-          actions: [
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              AppButton(
-                label: 'Scan again',
-                icon: Icons.qr_code_scanner_rounded,
-                height: 48,
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _controller.start();
-                },
-              ),
-              const SizedBox(height: AppSpace.xs),
-              AppButton.secondary(
-                label: 'Back to Home',
-                height: 48,
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-              ),
-            ]),
-          ],
-        );
-      },
-    );
+    showScanErrorDialog(context, e,
+        onScanAgain: () => _controller.start(),
+        onBack: () => Navigator.pop(context));
   }
 
   @override
@@ -740,7 +678,6 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
 
 String _fmtMultiplier(double m) => m == m.roundToDouble() ? m.toStringAsFixed(0) : m.toString();
 
-enum _ErrorKind { error, warning }
 
 // ── Scan Overlay ──────────────────────────────────────────────────────────────
 // FIX 5: Accepts scanProgress (0.0–1.0) to animate the scan line
