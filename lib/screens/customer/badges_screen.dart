@@ -3,6 +3,7 @@ import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 import 'info_sheets.dart';
+import '../../core/gamification.dart';
 
 class BadgesScreen extends StatefulWidget {
   final UserModel user;
@@ -113,7 +114,12 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                   (_, i) => Tap(
                     label: '${earnedDefs[i]['label']}, earned, details',
                     onTap: () => showBadgeSheet(context, def: earnedDefs[i], user: widget.user),
-                    child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i),
+                    // Earned badges catch the light now and then (staggered so they don't flash together).
+                    child: ShineSweep(
+                      delay: Duration(milliseconds: 600 + 450 * i),
+                      every: const Duration(seconds: 6),
+                      child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i),
+                    ),
                   ),
                   childCount: earnedDefs.length,
                 ),
@@ -140,7 +146,8 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                   (_, i) => Tap(
                     label: '${lockedDefs[i]['label']}, locked, how to unlock',
                     onTap: () => showBadgeSheet(context, def: lockedDefs[i], user: widget.user),
-                    child: _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length),
+                    child: _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length,
+                        progress: _progress(lockedDefs[i])),
                   ),
                   childCount: lockedDefs.length,
                 ),
@@ -158,11 +165,30 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   ]);
 }
 
+
+extension on _BadgesScreenState {
+  /// Progress towards a locked badge, from the same counters the badge sheet uses.
+  double _progress(Map<String, dynamic> def) {
+    final target = (def['value'] as num).toDouble();
+    if (target <= 0) return 0;
+    final u = widget.user;
+    final current = switch (def['req'] as String) {
+      'scans' => u.scanCount,
+      'points' => u.lifetimePoints,
+      'streak' => effectiveStreak(u.streak, u.lastScanDate, DateTime.now()),
+      _ => 0,
+    };
+    return (current / target).clamp(0.0, 1.0);
+  }
+}
+
 class _AnimatedBadgeCard extends StatefulWidget {
   final Map<String, dynamic> def;
+  /// Locked badges: how close the customer is (0-1), shown as a thin bar.
+  final double? progress;
   final bool earned;
   final int index;
-  const _AnimatedBadgeCard({required this.def, required this.earned, required this.index});
+  const _AnimatedBadgeCard({required this.def, required this.earned, required this.index, this.progress});
   @override
   State<_AnimatedBadgeCard> createState() => _AnimatedBadgeCardState();
 }
@@ -235,6 +261,10 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
               Text(widget.def['desc'] as String,
                   style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400),
                   textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+              if (!widget.earned && widget.progress != null) ...[
+                const SizedBox(height: AppSpace.xs),
+                AnimatedBar(progress: widget.progress!, color: c.primary, height: 4),
+              ],
               if (widget.earned) ...[
                 const SizedBox(height: AppSpace.xs - 2),
                 Container(

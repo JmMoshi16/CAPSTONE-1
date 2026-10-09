@@ -241,13 +241,13 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   padding: const EdgeInsets.symmetric(vertical: AppSpace.md + 2),
                   decoration: cardDecoration(context),
                   child: Row(children: [
-                    Expanded(child: _statPill('$winRate%', 'Eco Rate', Icons.recycling_rounded, c.success)),
+                    Expanded(child: _statPill('$winRate%', 'Eco Rate', Icons.recycling_rounded, c.success, count: winRate, suffix: '%')),
                     _divider(),
                     // FIX 8: Show rank (icon + label) with rank color
                     Expanded(child: _statPill('${rankInfo.icon} ${rankInfo.label}', 'Rank',
                         Icons.military_tech_rounded, c.ink(rankInfo.color))),
                     _divider(),
-                    Expanded(child: _statPill('$daysSince', 'Days', Icons.calendar_today_rounded, c.info)),
+                    Expanded(child: _statPill('$daysSince', 'Days', Icons.calendar_today_rounded, c.info, count: daysSince)),
                   ]),
                 ),
               ),
@@ -460,6 +460,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       TextFormField(
                         controller: _userCtrl,
                         enabled: _editing,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        onChanged: (_) => setState(() {}),
                         style: t.bodyLarge,
                         decoration: InputDecoration(
                           labelText: 'Username',
@@ -472,6 +474,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
                           filled: _editing,
                           fillColor: _editing ? c.primaryContainer.withValues(alpha: 0.4) : null,
+                          // Live feedback while editing (the 3-character rule is unchanged).
+                          helperText: _editing ? '${_userCtrl.text.trim().length} characters · at least 3' : null,
+                          suffixIcon: _editing && _userCtrl.text.trim().length >= 3
+                              ? Icon(Icons.check_circle_rounded, color: c.success)
+                              : null,
                         ),
                         validator: (v) => v!.trim().length < 3 ? 'Min 3 characters' : null,
                       ),
@@ -513,12 +520,16 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  Widget _statPill(String value, String label, IconData icon, Color color) =>
+  Widget _statPill(String value, String label, IconData icon, Color color, {int? count, String suffix = ''}) =>
       Column(children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: AppSpace.xs - 2),
-        Text(value, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+        if (count != null)
+          AnimatedCount(count, suffix: suffix, fromZero: true,
+              style: context.text.titleSmall!.copyWith(fontFamily: AppType.displayFamily, fontWeight: FontWeight.w700, fontSize: 16))
+        else
+          Text(value, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 2),
         Text(label, style: context.text.labelSmall),
       ]);
@@ -557,8 +568,8 @@ class _DashedAvatar extends StatelessWidget {
     return Stack(
       alignment: Alignment.bottomRight,
       children: [
-        CustomPaint(
-          painter: _DashedCirclePainter(color: c.primary),
+        _TurningRing(
+          color: rankColor,
           child: Padding(
             padding: const EdgeInsets.all(AppSpace.xs - 2),
             child: _hero(Container(
@@ -589,6 +600,49 @@ extension on _DashedAvatar {
       heroTag == null ? child : Hero(tag: heroTag!, flightShuttleBuilder: heroMaterialFlight, child: child);
 }
 
+/// The dashed ring around the avatar, in the rank's colour, turning slowly (one turn every
+/// 12 s; still with reduced motion). Only the ring repaints, on its own layer.
+class _TurningRing extends StatefulWidget {
+  const _TurningRing({required this.color, required this.child});
+  final Color color;
+  final Widget child;
+  @override
+  State<_TurningRing> createState() => _TurningRingState();
+}
+
+class _TurningRingState extends State<_TurningRing> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 12));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(alignment: Alignment.center, children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: RotationTransition(
+              turns: _c,
+              child: CustomPaint(painter: _DashedCirclePainter(color: widget.color)),
+            ),
+          ),
+        ),
+        widget.child,
+      ]);
+}
+
 class _DashedCirclePainter extends CustomPainter {
   final Color color;
   const _DashedCirclePainter({required this.color});
@@ -596,8 +650,8 @@ class _DashedCirclePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
     final center = Offset(size.width / 2, size.height / 2);
@@ -607,6 +661,8 @@ class _DashedCirclePainter extends CustomPainter {
     const gapFraction = 0.4;
 
     for (int i = 0; i < dashCount; i++) {
+      // Fading tail, so the turning reads like a comet around the avatar.
+      paint.color = color.withValues(alpha: 0.2 + 0.8 * i / dashCount);
       final startAngle = i * dashAngle;
       const sweepAngle = dashAngle * (1 - gapFraction);
       canvas.drawArc(
