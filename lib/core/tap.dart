@@ -21,7 +21,15 @@ class Tap extends StatelessWidget {
       label: label,
       onTap: onTap,            // needed: excludeSemantics also hides the GestureDetector's tap action
       excludeSemantics: true,
-      child: GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque, child: child),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        // At least 48x48 dp to touch, even when the visible child is smaller.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
+          child: Align(widthFactor: 1, heightFactor: 1, child: child),
+        ),
+      ),
     );
     return tooltip ? Tooltip(message: label, child: tappable) : tappable;
   }
