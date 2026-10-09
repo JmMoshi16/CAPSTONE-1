@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
+import '../../services/sound_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../core/gamification.dart';
@@ -435,6 +436,39 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     ],
                   ]),
                 ),
+              ),
+            ),
+
+            // ── Preferences ──────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
+                // Material (not a coloured Container) so the switch row's ripple stays visible.
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: AppRadius.all(AppRadius.xl),
+                    boxShadow: AppShadows.of(context, AppShadows.e1),
+                  ),
+                  child: Material(
+                  color: c.surface,
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.all(AppRadius.xl),
+                    side: c.isDark ? BorderSide(color: c.border) : BorderSide.none,
+                  ),
+                  child: SwitchListTile(
+                    secondary: IconBadge(icon: Icons.music_note_rounded, color: c.primary, size: 34),
+                    title: Text('Sound effects', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Soft sounds when you scan, earn points or unlock a badge', style: t.bodySmall),
+                    value: AppSounds.enabled,
+                    onChanged: (v) async {
+                      AppHaptics.tap();
+                      await AppSounds.setEnabled(v);
+                      if (mounted) setState(() {});
+                      if (v) AppSounds.play(AppSound.success);   // a preview, so the user hears what they turned on
+                    },
+                  ),
+                )),
               ),
             ),
 

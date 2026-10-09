@@ -6,6 +6,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/firebase_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/sound_service.dart';
 import '../../models/models.dart';
 import '../../widgets/eco_animations.dart';
 import '../../widgets/ui.dart';
@@ -86,7 +87,12 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
     if (_scanned || _processing) return;
     // Immediate feedback that the code was seen, before the network round trip.
     AppHaptics.primary();
-    SystemSound.play(SystemSoundType.click);
+    // Our soft blip when sounds are on; otherwise the system click (follows touch-sound settings).
+    if (AppSounds.active) {
+      AppSounds.play(AppSound.scan);
+    } else {
+      SystemSound.play(SystemSoundType.click);
+    }
     setState(() => _processing = true);
     _lockCtrl.forward();
     await _controller.stop();
@@ -511,6 +517,10 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _animCtrl.forward();
     if (_rankedUp) HapticFeedback.heavyImpact();
+    AppSounds.play(AppSound.success);
+    if (_rankedUp || widget.newBadges.isNotEmpty) {
+      Future.delayed(const Duration(milliseconds: 700), () => AppSounds.play(AppSound.badge));
+    }
     // Let the screen settle (fade-in, Lottie) before the points take off.
     Future.delayed(const Duration(milliseconds: 650), _startFlight);
     // Once per device, after the celebration: explain notifications, then ask (Android 13+).

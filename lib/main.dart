@@ -5,6 +5,7 @@ import 'core/app_theme.dart';
 import 'widgets/ui.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
+import 'services/sound_service.dart';
 import 'models/models.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
@@ -27,6 +28,7 @@ void main() async {
   // Run non-critical tasks in the background AFTER the app is visible
   FirebaseService.seedRewardsIfEmpty();
   NotificationService.init();
+  AppSounds.load().ignore();          // reads the Profile sound switch
   EcoAnimations.precache().ignore();   // first loader/success animation shows instantly; failure is harmless
 }
 
