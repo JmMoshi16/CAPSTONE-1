@@ -14,7 +14,8 @@ const kBorder = kAdminBorder;
 class AdminUsersScreen extends StatefulWidget {
   final List<UserModel> customers;
   final List<WasteLog> logs;
-  const AdminUsersScreen({super.key, required this.customers, required this.logs});
+  final Future<void> Function()? onRefresh;
+  const AdminUsersScreen({super.key, required this.customers, required this.logs, this.onRefresh});
   @override
   State<AdminUsersScreen> createState() => _AdminUsersScreenState();
 }
@@ -174,7 +175,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
     return Scaffold(
       backgroundColor: kDark,
-      body: CustomScrollView(
+      body: _withRefresh(CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           // Header
           SliverToBoxAdapter(
@@ -213,7 +215,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         const SizedBox(width: 10),
                         Expanded(child: _headerStat('${widget.logs.length}', 'Disposals', Icons.recycling_rounded, kGreen)),
                         const SizedBox(width: 10),
-                        Expanded(child: _headerStat('$totalPts', 'Pts Given', Icons.stars_rounded, AdminColors.gold)),
+                        Expanded(child: _headerStat('$totalPts', 'Pts Balance', Icons.stars_rounded, AdminColors.gold)),
                       ]),
                       const SizedBox(height: AppSpace.md),
 
@@ -257,12 +259,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           // User list
           filtered.isEmpty
               ? SliverFillRemaining(
-                  child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.person_search_rounded, color: AdminColors.textTertiary, size: 56),
-                    const SizedBox(height: AppSpace.sm),
-                    Text(_search.isEmpty ? 'No customers yet' : 'No results for "$_search"',
-                        style: const TextStyle(color: AdminColors.textTertiary, fontSize: 14)),
-                  ])),
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: Icons.person_search_rounded,
+                    title: _search.isEmpty ? 'No customers yet' : 'No results for "$_search"',
+                    message: _search.isEmpty
+                        ? 'Customers appear here after they register in the app.'
+                        : 'Try part of the name or email.',
+                    dense: true,
+                  ),
                 )
               : SliverPadding(
                   padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, 110),
@@ -278,9 +283,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                 ),
         ],
-      ),
+      )),
     );
   }
+
+  Widget _withRefresh(Widget child) =>
+      widget.onRefresh == null ? child : RefreshIndicator(onRefresh: widget.onRefresh!, child: child);
 
   Widget _userCard(UserModel u, int rank) {
     final userLogs = _logCount(u.uid);

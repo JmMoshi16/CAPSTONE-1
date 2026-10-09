@@ -38,14 +38,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
-    if (mounted) setState(() { _loading = true; _loadError = null; });
+    // Full-screen skeleton only on the first load; pull-to-refresh keeps the current data visible.
+    final firstLoad = _logs.isEmpty && _customers.isEmpty && _rewards.isEmpty;
+    if (mounted) setState(() { _loading = firstLoad; _loadError = null; });
     try {
       final logs = await FirebaseService.getAllWasteLogs();
       final customers = await FirebaseService.getAllCustomers();
       final rewards = await FirebaseService.getAllRewards();
       if (mounted) setState(() { _logs = logs; _customers = customers; _rewards = rewards; _loading = false; });
-    } catch (e) {
-      if (mounted) setState(() { _loading = false; _loadError = e.toString(); });
+    } catch (_) {
+      // Never show raw exception text; the error state explains what to do.
+      if (mounted) setState(() { _loading = false; _loadError = 'failed'; });
     }
   }
 
@@ -81,7 +84,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final screens = [
       _DashboardTab(logs: _logs, customers: _customers, onRefresh: _loadData, onLogout: _logout),
       AdminRewardsScreen(rewards: _rewards, onChanged: _loadData),
-      AdminUsersScreen(customers: _customers, logs: _logs),
+      AdminUsersScreen(customers: _customers, logs: _logs, onRefresh: _loadData),
       const AdminQRScreen(),
     ];
 
@@ -92,17 +95,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       backgroundColor: kDark,
       extendBody: true,
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: kGreen))
+          ? const SafeArea(child: SkeletonList(count: 7))
           : _loadError != null
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.error_outline, color: AdminColors.danger, size: 48),
-                  const SizedBox(height: AppSpace.sm),
-                  const Text('Failed to load data', style: TextStyle(color: AdminColors.textPrimary, fontSize: 16)),
-                  const SizedBox(height: AppSpace.xxs),
-                  Text(_loadError!, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 12), textAlign: TextAlign.center),
-                  const SizedBox(height: AppSpace.md),
-                  ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
-                ]))
+              ? ErrorState(
+                  title: "Couldn't load the dashboard",
+                  message: 'Check the connection, then try again. If it keeps failing, sign out and back in.',
+                  onRetry: _loadData,
+                )
               : screens[_selectedIndex],
       bottomNavigationBar: _AdminFloatingNav(
         selectedIndex: _selectedIndex,
@@ -210,7 +209,7 @@ class _DashboardTab extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(child: _statCard('${customers.length}', 'Customers', Icons.people_rounded, kBlue)),
                     const SizedBox(width: 10),
-                    Expanded(child: _statCard('$totalPoints', 'Pts Given', Icons.stars_rounded, kOrange)),
+                    Expanded(child: _statCard('$totalPoints', 'Pts Balance', Icons.stars_rounded, kOrange)),
                   ]),
                 ]),
               )),
@@ -234,7 +233,7 @@ class _DashboardTab extends StatelessWidget {
                     ]),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: AppSpace.xxs),
                         decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                        child: const Text('Live', style: TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600))),
+                        child: const Text('Last 7 days', style: TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600))),
                   ]),
                   const SizedBox(height: AppSpace.sm),
                   Row(children: [
@@ -311,7 +310,7 @@ class _DashboardTab extends StatelessWidget {
                   icon: Icons.category_rounded, color: kPurple,
                   title: 'Most Common Waste',
                   value: _mostCommonWaste(),
-                  sub: 'Top category today',
+                  sub: 'Across all logged disposals',
                 )),
               ]),
             ),
@@ -343,9 +342,9 @@ class _DashboardTab extends StatelessWidget {
                     ),
                     _biTile(
                       icon: Icons.delete_rounded, color: binColor,
-                      title: 'Bin Status',
+                      title: 'Bin Status (demo)',
                       value: '$binPct%',
-                      sub: 'capacity used',
+                      sub: 'simulated, no fill sensor',
                       chart: _binLevelBar(binLevel, binColor),
                     ),
                     _biTile(
