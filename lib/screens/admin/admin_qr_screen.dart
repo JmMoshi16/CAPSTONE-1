@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../services/firebase_service.dart';
 import '../../core/admin_theme.dart';
 import '../../widgets/ui.dart';
+import 'package:printing/printing.dart';
+import 'receipt_pdf.dart';
 
 const kGreen = kAdminGreen;
 const kDark = kAdminDark;
@@ -34,6 +36,30 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
   String _mode = 'qr'; // 'qr' or 'receipt'
   bool _generating = false;
   bool _generateFailed = false;
+  bool _printing = false;
+
+  /// Opens Android's print dialog (print, or save as PDF) with the receipt.
+  Future<void> _printReceipt(int points) async {
+    final expires = _expiresAt;
+    if (expires == null || _printing) return;
+    setState(() => _printing = true);
+    try {
+      await Printing.layoutPdf(
+        name: 'ECOReward receipt',
+        onLayout: (_) => buildReceiptPdf(
+          qrData: _qrData,
+          wasteType: _selectedType,
+          points: points,
+          createdAt: expires.subtract(_validFor),
+          expiresAt: expires,
+        ),
+      );
+    } catch (_) {
+      if (mounted) AppSnackbar.error(context, "Couldn't open printing. Show the code on screen instead, or try again.");
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
 
   static const _validFor = Duration(minutes: 20);
 
@@ -285,6 +311,15 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
             ),
           ]),
         ),
+        if (!_isExpired) ...[
+          const SizedBox(height: AppSpace.sm),
+          // A new code for the next customer; the current one stays valid until it expires.
+          TextButton.icon(
+            onPressed: _generating ? null : _generate,
+            icon: const Icon(Icons.refresh_rounded, color: kGreen),
+            label: const Text('New code', style: TextStyle(color: kGreen, fontWeight: FontWeight.bold)),
+          ),
+        ],
         if (_isExpired) ...[
           const SizedBox(height: AppSpace.md),
           TextButton.icon(
@@ -303,7 +338,8 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
     final pointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
     final points = pointsMap[_selectedType]!;
 
-    return Container(
+    return Column(children: [
+      Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -337,7 +373,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
           child: Column(children: [
             _receiptRow('Waste Type', _selectedType),
             const SizedBox(height: 10),
-            _receiptRow('Points to Earn', '+$points pts'),
+            _receiptRow('Points to Earn', '+$points pts (base)'),
             const SizedBox(height: 10),
             _receiptRow('Status', 'Pending Claim'),
             const SizedBox(height: 10),
@@ -405,7 +441,25 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
               style: TextStyle(color: _kReceiptInk, fontSize: 11), textAlign: TextAlign.center),
         ),
       ]),
-    );
+    ),
+      const SizedBox(height: AppSpace.md),
+      SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: OutlinedButton.icon(
+          onPressed: _printing ? null : () => _printReceipt(points),
+          icon: _printing
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.5, color: kGreen))
+              : const Icon(Icons.print_rounded),
+          label: Text(_printing ? 'Preparing…' : 'Print or save receipt'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: kGreen,
+            side: BorderSide(color: kGreen.withValues(alpha: 0.6), width: 1.5),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+          ),
+        ),
+      ),
+    ]);
   }
 
   Widget _receiptRow(String label, String value) => Row(
