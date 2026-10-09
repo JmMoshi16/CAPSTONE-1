@@ -417,7 +417,8 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
     final t = context.text;
     final fill = c.wasteFill(widget.wasteType);
     return Scaffold(
-      body: SafeArea(
+      body: Stack(children: [
+      SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.lg),
           child: FadeTransition(
@@ -448,9 +449,13 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                           Text('Badge Unlocked!', style: t.titleSmall!.copyWith(color: c.gold, fontWeight: FontWeight.w700)),
                         ]),
                         const SizedBox(height: AppSpace.sm - 2),
-                        ...widget.newBadges.map((id) {
+                        ...widget.newBadges.indexed.map((e) {
+                          final (i, id) = e;
                           final info = FirebaseService.getBadgeInfo(id);
-                          return Padding(
+                          // Each new badge flips into view, one after another.
+                          return FlipReveal(
+                            delay: const Duration(milliseconds: 500) + AppMotion.slow * i,
+                            child: Padding(
                             padding: const EdgeInsets.only(bottom: AppSpace.xs - 2),
                             child: Row(children: [
                               Text(info['icon'] as String, style: const TextStyle(fontSize: 22)),
@@ -460,7 +465,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                                 Text(info['desc'] as String, style: t.bodySmall),
                               ])),
                             ]),
-                          );
+                          ));
                         }),
                       ],
                     ),
@@ -488,7 +493,8 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                       Text('Category: ${widget.wasteType}',
                           style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500)),
                       const SizedBox(height: 2),
-                      Text('+${widget.points} Points Earned',
+                      AnimatedCount(widget.points, fromZero: true, prefix: '+', suffix: ' Points Earned',
+                          duration: const Duration(milliseconds: 700),   // part of the celebration
                           style: t.titleLarge!.copyWith(color: Colors.white, fontSize: 20)),
                       if (widget.multiplier > 1.0)
                         // Display only: what was credited, broken down (+15 × 1.5 streak bonus = +23).
@@ -516,6 +522,9 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
           ),
         ),
       ),
+      // Celebration: a confetti burst, stronger (gold, side cannons) when a badge unlocked.
+      Positioned.fill(child: ConfettiBurst(strong: widget.newBadges.isNotEmpty)),
+    ]),
     );
   }
 } // end _SuccessScreenState
