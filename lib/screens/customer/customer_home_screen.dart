@@ -122,7 +122,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: FadeThroughSwitcher(child: KeyedSubtree(key: ValueKey(_selectedIndex), child: screens[_selectedIndex])),
+      body: FadeIndexedStack(index: _selectedIndex, children: screens),
       bottomNavigationBar: _FloatingNavBar(
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),

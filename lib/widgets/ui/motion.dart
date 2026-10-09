@@ -1,4 +1,4 @@
-import 'package:animations/animations.dart';
+import 'package:animations/animations.dart' show SharedAxisPageTransitionsBuilder, SharedAxisTransitionType;
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 
@@ -16,28 +16,69 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-/// Tab content: fade-through when [child]'s key changes. With reduced motion: a short fade.
-class FadeThroughSwitcher extends StatelessWidget {
-  const FadeThroughSwitcher({super.key, required this.child});
+/// Tabs that keep their state: each tab is built the first time it is shown and then kept
+/// (offstage, with its animations paused) while another tab is visible. The incoming tab
+/// fades and grows in (fade-through style, 300 ms); with reduced motion it simply fades.
+class FadeIndexedStack extends StatefulWidget {
+  const FadeIndexedStack({super.key, required this.index, required this.children});
 
-  /// Must carry a key that changes with the tab (e.g. ValueKey(index)).
-  final Widget child;
+  final int index;
+  final List<Widget> children;
+
+  @override
+  State<FadeIndexedStack> createState() => _FadeIndexedStackState();
+}
+
+class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 300), value: 1);
+  late final Animation<double> _fade = CurvedAnimation(parent: _c, curve: const Interval(0.2, 1, curve: Curves.easeOut));
+  late final Animation<double> _scale =
+      Tween<double>(begin: 0.96, end: 1).animate(CurvedAnimation(parent: _c, curve: AppMotion.standard));
+  final Set<int> _built = {};
+
+  @override
+  void didUpdateWidget(FadeIndexedStack old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) {
+      _c.duration = AppMotion.reduced(context) ? AppMotion.fast : const Duration(milliseconds: 300);
+      _c.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    _built.add(widget.index);
     final reduced = AppMotion.reduced(context);
-    return PageTransitionSwitcher(
-      duration: reduced ? AppMotion.fast : const Duration(milliseconds: 300),
-      transitionBuilder: (child, primary, secondary) => reduced
-          ? FadeTransition(opacity: primary, child: child)
-          : FadeThroughTransition(
-              animation: primary,
-              secondaryAnimation: secondary,
-              fillColor: Colors.transparent,
-              child: child,
-            ),
-      child: child,
-    );
+    const still = AlwaysStoppedAnimation<double>(1);
+    return Stack(fit: StackFit.expand, children: [
+      for (var i = 0; i < widget.children.length; i++)
+        KeyedSubtree(
+          key: ValueKey(i),
+          child: !_built.contains(i)
+              ? const SizedBox.shrink()
+              : Offstage(
+                  offstage: i != widget.index,
+                  child: TickerMode(
+                    enabled: i == widget.index,
+                    // The wrappers stay the same type for every tab, so a tab's state survives switching.
+                    child: FadeTransition(
+                      opacity: i == widget.index ? _fade : still,
+                      child: ScaleTransition(
+                        scale: i == widget.index && !reduced ? _scale : still,
+                        child: widget.children[i],
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+    ]);
   }
 }
 
