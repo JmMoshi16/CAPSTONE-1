@@ -45,7 +45,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     // Taller cards when the user enlarges text, so descriptions are not clipped.
     final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
     final gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2, crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
+      crossAxisCount: AppLayout.columns(context, minTile: 160, max: 6), crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
       childAspectRatio: 1.05 / textScale,
     );
 

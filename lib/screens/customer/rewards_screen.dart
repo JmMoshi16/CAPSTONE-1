@@ -46,7 +46,8 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
       final r = await FirebaseService.getRewards().timeout(const Duration(seconds: 10));
       if (mounted) setState(() { _rewards = r; _loadingRewards = false; _rewardsError = false; });
     } catch (_) {
-      if (mounted) setState(() { _loadingRewards = false; _rewardsError = true; });
+      // A failed background refresh keeps the rewards already on screen.
+      if (mounted) setState(() { _loadingRewards = false; _rewardsError = _rewards.isEmpty; });
     }
   }
 
@@ -64,12 +65,9 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
   void dispose() { _tabController.dispose(); super.dispose(); }
 
   Future<void> _loadHistory() async {
-    final uid = FirebaseService.currentUid;
-    if (uid == null) {
-      if (mounted) setState(() { _loadingHistory = false; _historyError = true; });
-      return;
-    }
     try {
+      final uid = FirebaseService.currentUid;
+      if (uid == null) throw StateError('signed out');
       final r = await FirebaseService.getUserRedemptions(uid).timeout(const Duration(seconds: 10));
       if (mounted) setState(() { _redemptions = r; _loadingHistory = false; _historyError = false; });
     } catch (_) {
@@ -255,7 +253,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
-            expandedHeight: 170,
+            expandedHeight: AppLayout.headerHeight(context, 170),
             pinned: true,
             backgroundColor: c.hero[1],
             automaticallyImplyLeading: false,
@@ -385,7 +383,7 @@ class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProvider
             padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xxs, AppSpace.md, AppSpace.navClearance),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
+                crossAxisCount: AppLayout.columns(context), crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
                 childAspectRatio: 0.74 / textScale,
               ),
               delegate: SliverChildBuilderDelegate(
@@ -775,7 +773,7 @@ class _RewardsGridSkeleton extends StatelessWidget {
             const SizedBox(height: AppSpace.md),
             Expanded(
               child: GridView.count(
-                crossAxisCount: 2,
+                crossAxisCount: AppLayout.columns(context),
                 crossAxisSpacing: AppSpace.sm,
                 mainAxisSpacing: AppSpace.sm,
                 childAspectRatio: 0.74,

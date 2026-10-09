@@ -53,7 +53,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverAppBar(
-            expandedHeight: 160,
+            expandedHeight: AppLayout.headerHeight(context, 160),
             pinned: true,
             backgroundColor: c.hero[1],
             automaticallyImplyLeading: false,

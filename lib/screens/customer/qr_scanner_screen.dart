@@ -382,6 +382,21 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
   }
 }
 
+/// The success screen, for layout tests.
+@visibleForTesting
+Widget successScreenPreview({
+  String wasteType = 'Recyclable',
+  int points = 15,
+  int basePoints = 10,
+  double multiplier = 1.5,
+  List<String> newBadges = const [],
+  int lifetimeBefore = 0,
+}) =>
+    _SuccessScreen(
+      wasteType: wasteType, points: points, basePoints: basePoints, multiplier: multiplier,
+      token: 'test-token', username: 'tester', newBadges: newBadges, lifetimeBefore: lifetimeBefore,
+    );
+
 // ── Full-screen Success Screen ────────────────────────────────────────────────
 class _SuccessScreen extends StatefulWidget {
   final String wasteType;

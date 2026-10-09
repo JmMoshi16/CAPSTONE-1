@@ -364,11 +364,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
               Text(r.description, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: AppSpace.xxs),
-              Row(children: [
-                const Icon(Icons.stars_rounded, color: AdminColors.gold, size: 12),
-                const SizedBox(width: 3),
-                Text('${r.pointsCost} pts', style: const TextStyle(color: AdminColors.gold, fontSize: 11, fontWeight: FontWeight.w600)),
-                const SizedBox(width: AppSpace.xs),
+              Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xxs, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.stars_rounded, color: AdminColors.gold, size: 12),
+                  const SizedBox(width: 3),
+                  Text('${r.pointsCost} pts', style: const TextStyle(color: AdminColors.gold, fontSize: 11, fontWeight: FontWeight.w600)),
+                ]),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(6)),

@@ -35,6 +35,21 @@ class AppSpace {
   static const double touch = 48;
 }
 
+// ── Responsive helpers ───────────────────────────────────────────────────────
+class AppLayout {
+  /// Current text scale (1.0 = default; users can raise it in system settings).
+  static double textScale(BuildContext context) => MediaQuery.textScalerOf(context).scale(1);
+
+  /// A header height that grows with the text inside it, so large text never runs
+  /// under the tabs or off the header ([perScale] extra px per +1.0 of text scale).
+  static double headerHeight(BuildContext context, double base, {double perScale = 100}) =>
+      base + perScale * (textScale(context).clamp(1.0, 2.0) - 1);
+
+  /// Grid columns for card grids: 2 on phones, more on tablets ([minTile] = narrowest card).
+  static int columns(BuildContext context, {double minTile = 180, int max = 5}) =>
+      (MediaQuery.sizeOf(context).width / minTile).floor().clamp(2, max);
+}
+
 // ── Radii ────────────────────────────────────────────────────────────────────
 class AppRadius {
   static const double sm = 8;

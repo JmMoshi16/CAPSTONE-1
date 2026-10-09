@@ -319,7 +319,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           const SizedBox(width: AppSpace.sm),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text(u.username, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+              Flexible(child: Text(u.username, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14))),
               const SizedBox(width: 6),
               _rankBadge(u.points, small: true),
             ]),

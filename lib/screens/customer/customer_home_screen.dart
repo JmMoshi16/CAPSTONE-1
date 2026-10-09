@@ -142,6 +142,26 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 }
 
+/// Home tab and nav bar without Firebase, for layout tests.
+@visibleForTesting
+Widget homeTabPreview({
+  required UserModel user,
+  List<WasteLog> logs = const [],
+  List<Reward> rewards = const [],
+  List<Redemption> redemptions = const [],
+  int myRank = 0,
+  bool offline = false,
+}) =>
+    Scaffold(
+      extendBody: true,
+      body: _HomeTab(
+        user: user, logs: logs, rewards: rewards, redemptions: redemptions, myRank: myRank, offline: offline,
+        onScan: () {}, onRewards: () {}, onImpact: () {}, onHistory: () {}, onLeaderboard: () {}, onBadges: () {},
+        onRefresh: () async {},
+      ),
+      bottomNavigationBar: _FloatingNavBar(selectedIndex: 0, onTap: (_) {}, onScan: () {}),
+    );
+
 // ── Home Tab ──────────────────────────────────────────────────────────────────
 class _HomeTab extends StatefulWidget {
   final UserModel user;

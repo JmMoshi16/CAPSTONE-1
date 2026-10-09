@@ -180,177 +180,185 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           ),
         ),
 
-        // Hero text
-        FadeTransition(
-          opacity: _heroFade,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.xxl, AppSpace.xl, AppSpace.xxl, 0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Logo pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: AppRadius.all(AppRadius.pill),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                      child: Icon(Icons.recycling_rounded, color: c.onHero, size: 16),
-                    ),
-                    const SizedBox(width: AppSpace.xs),
-                    Text('ECOReward', style: t.titleSmall!.copyWith(color: c.onHero, fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-                const SizedBox(height: AppSpace.xxl),
-
-                Text('Welcome\nback! 👋', style: t.displayLarge!.copyWith(color: c.onHero)),
-                const SizedBox(height: AppSpace.sm),
-                Text('Sign in and keep making\na difference for our planet 🌍',
-                    style: t.bodyLarge!.copyWith(color: c.onHeroMuted)),
-                const SizedBox(height: AppSpace.xl),
-
-                // Stat badges
-                Row(children: [
-                  _statBadge('♻️', 'Recycle'),
-                  const SizedBox(width: AppSpace.xs),
-                  _statBadge('⭐', 'Earn'),
-                  const SizedBox(width: AppSpace.xs),
-                  _statBadge('🎁', 'Redeem'),
-                ]),
-              ]),
-            ),
-          ),
-        ),
-
-        // Form card
-        Positioned(
-          top: size.height * 0.46,
-          left: 0, right: 0, bottom: 0,
-          child: FadeTransition(
-            opacity: _formFade,
-            child: SlideTransition(
-              position: _formSlide,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: c.background,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 8)),
-                ),
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xxl, AppSpace.xl + 4, AppSpace.xxl),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      // Handle
-                      Center(child: Container(width: 40, height: 4,
-                          decoration: BoxDecoration(color: c.border, borderRadius: AppRadius.all(2)))),
-                      const SizedBox(height: AppSpace.xl),
-
-                      // Title
-                      Row(children: [
-                        Container(width: 4, height: 22,
-                            decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(2))),
-                        const SizedBox(width: AppSpace.sm),
-                        Text('Sign In', style: t.headlineSmall),
-                      ]),
-                      const SizedBox(height: AppSpace.xl),
-
-                      // Email
-                      FadeTransition(opacity: _field1Fade,
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _label('Email address'),
-                          const SizedBox(height: AppSpace.xs),
-                          TextFormField(
-                            controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            style: t.bodyLarge,
-                            decoration: const InputDecoration(
-                              hintText: 'you@example.com',
-                              prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
-                            ),
-                            validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
-                          ),
-                        ])),
-                      const SizedBox(height: AppSpace.md),
-
-                      // Password
-                      FadeTransition(opacity: _field2Fade,
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _label('Password'),
-                          const SizedBox(height: AppSpace.xs),
-                          TextFormField(
-                            controller: _passCtrl,
-                            obscureText: _obscure,
-                            style: t.bodyLarge,
-                            decoration: InputDecoration(
-                              hintText: '••••••••',
-                              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                              suffixIcon: IconButton(
-                                tooltip: _obscure ? 'Show password' : 'Hide password',
-                                onPressed: () => setState(() => _obscure = !_obscure),
-                                icon: AnimatedSwitcher(duration: AppMotion.medium,
-                                  child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                      key: ValueKey(_obscure), size: 20)),
+        // Header and form scroll together; on tall screens the form card fills the rest.
+        // (The form used to start at a fixed 46 % of the height, hiding the header on
+        // small phones and clipping with large text.) Centred at 560 dp on tablets.
+        LayoutBuilder(builder: (context, box) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: box.maxHeight),
+            child: IntrinsicHeight(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    FadeTransition(
+                      opacity: _heroFade,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(AppSpace.xxl, AppSpace.xl, AppSpace.xxl, AppSpace.xxl),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            // Logo pill
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: AppRadius.all(AppRadius.pill),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                               ),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                Container(
+                                  width: 28, height: 28,
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                                  child: Icon(Icons.recycling_rounded, color: c.onHero, size: 16),
+                                ),
+                                const SizedBox(width: AppSpace.xs),
+                                Text('ECOReward', style: t.titleSmall!.copyWith(color: c.onHero, fontWeight: FontWeight.w700)),
+                              ]),
                             ),
-                            validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null,
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _loading ? null : _forgotPassword,
-                              child: const Text('Forgot password?'),
-                            ),
-                          ),
-                        ])),
-                      const SizedBox(height: AppSpace.sm),
+                            const SizedBox(height: AppSpace.xxl),
 
-                      // Sign in button
-                      FadeTransition(opacity: _btnFade,
-                        child: ScaleTransition(
-                          scale: _loading ? const AlwaysStoppedAnimation(1.0) : _btnScale,
-                          child: AppButton(
-                            label: 'Sign In',
-                            icon: Icons.eco_rounded,
-                            trailingIcon: Icons.arrow_forward_rounded,
-                            height: 56,
-                            loading: _loading,
-                            onPressed: _login,
-                          ),
-                        )),
-                      const SizedBox(height: AppSpace.lg),
+                            Text('Welcome\nback! 👋', style: t.displayLarge!.copyWith(color: c.onHero)),
+                            const SizedBox(height: AppSpace.sm),
+                            Text('Sign in and keep making\na difference for our planet 🌍',
+                                style: t.bodyLarge!.copyWith(color: c.onHeroMuted)),
+                            const SizedBox(height: AppSpace.xl),
 
-                      // Divider
-                      Row(children: [
-                        const Expanded(child: Divider()),
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2),
-                          child: Text('or', style: t.bodyMedium!.copyWith(color: c.textTertiary))),
-                        const Expanded(child: Divider()),
-                      ]),
-                      const SizedBox(height: AppSpace.lg),
-
-                      // Register
-                      AppButton.secondary(
-                        label: 'Create new account',
-                        icon: Icons.person_add_alt_1_rounded,
-                        height: 56,
-                        onPressed: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                            // Stat badges
+                            Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
+                              _statBadge('♻️', 'Recycle'),
+                              _statBadge('⭐', 'Earn'),
+                              _statBadge('🎁', 'Redeem'),
+                            ]),
+                          ]),
+                        ),
                       ),
-                      const SizedBox(height: AppSpace.xl),
+                    ),
+                    Expanded(
+                      child: FadeTransition(
+                        opacity: _formFade,
+                        child: SlideTransition(
+                          position: _formSlide,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: c.background,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 8)),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xxl, AppSpace.xl + 4, AppSpace.xxl),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              // Handle
+                              Center(child: Container(width: 40, height: 4,
+                                  decoration: BoxDecoration(color: c.border, borderRadius: AppRadius.all(2)))),
+                              const SizedBox(height: AppSpace.xl),
 
-                      Center(child: Text('ECOReward Bin  ·  Smart Waste Recycling', style: t.labelSmall)),
-                    ]),
-                  ),
+                              // Title
+                              Row(children: [
+                                Container(width: 4, height: 22,
+                                    decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(2))),
+                                const SizedBox(width: AppSpace.sm),
+                                Text('Sign In', style: t.headlineSmall),
+                              ]),
+                              const SizedBox(height: AppSpace.xl),
+
+                              // Email
+                              FadeTransition(opacity: _field1Fade,
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  _label('Email address'),
+                                  const SizedBox(height: AppSpace.xs),
+                                  TextFormField(
+                                    controller: _emailCtrl,
+                                    keyboardType: TextInputType.emailAddress,
+                                    style: t.bodyLarge,
+                                    decoration: const InputDecoration(
+                                      hintText: 'you@example.com',
+                                      prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
+                                    ),
+                                    validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
+                                  ),
+                                ])),
+                              const SizedBox(height: AppSpace.md),
+
+                              // Password
+                              FadeTransition(opacity: _field2Fade,
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  _label('Password'),
+                                  const SizedBox(height: AppSpace.xs),
+                                  TextFormField(
+                                    controller: _passCtrl,
+                                    obscureText: _obscure,
+                                    style: t.bodyLarge,
+                                    decoration: InputDecoration(
+                                      hintText: '••••••••',
+                                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                                      suffixIcon: IconButton(
+                                        tooltip: _obscure ? 'Show password' : 'Hide password',
+                                        onPressed: () => setState(() => _obscure = !_obscure),
+                                        icon: AnimatedSwitcher(duration: AppMotion.medium,
+                                          child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                              key: ValueKey(_obscure), size: 20)),
+                                      ),
+                                    ),
+                                    validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null,
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: _loading ? null : _forgotPassword,
+                                      child: const Text('Forgot password?'),
+                                    ),
+                                  ),
+                                ])),
+                              const SizedBox(height: AppSpace.sm),
+
+                              // Sign in button
+                              FadeTransition(opacity: _btnFade,
+                                child: ScaleTransition(
+                                  scale: _loading ? const AlwaysStoppedAnimation(1.0) : _btnScale,
+                                  child: AppButton(
+                                    label: 'Sign In',
+                                    icon: Icons.eco_rounded,
+                                    trailingIcon: Icons.arrow_forward_rounded,
+                                    height: 56,
+                                    loading: _loading,
+                                    onPressed: _login,
+                                  ),
+                                )),
+                              const SizedBox(height: AppSpace.lg),
+
+                              // Divider
+                              Row(children: [
+                                const Expanded(child: Divider()),
+                                Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2),
+                                  child: Text('or', style: t.bodyMedium!.copyWith(color: c.textTertiary))),
+                                const Expanded(child: Divider()),
+                              ]),
+                              const SizedBox(height: AppSpace.lg),
+
+                              // Register
+                              AppButton.secondary(
+                                label: 'Create new account',
+                                icon: Icons.person_add_alt_1_rounded,
+                                height: 56,
+                                onPressed: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                              ),
+                              const SizedBox(height: AppSpace.xl),
+
+                              Center(child: Text('ECOReward Bin  ·  Smart Waste Recycling', style: t.labelSmall)),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
                 ),
               ),
             ),
           ),
-        ),
+        )),
       ]),
     );
   }

@@ -42,7 +42,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: AppLayout.headerHeight(context, 180),
             pinned: true,
             backgroundColor: c.hero[1],
             leading: IconButton(

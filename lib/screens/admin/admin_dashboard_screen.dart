@@ -111,6 +111,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 }
 
+/// The dashboard tab without Firebase, for layout tests.
+@visibleForTesting
+Widget dashboardTabPreview({required List<WasteLog> logs, required List<UserModel> customers}) =>
+    Scaffold(body: _DashboardTab(logs: logs, customers: customers, onRefresh: () {}, onLogout: () {}));
+
 class _DashboardTab extends StatelessWidget {
   final List<WasteLog> logs;
   final List<UserModel> customers;
@@ -227,10 +232,11 @@ class _DashboardTab extends StatelessWidget {
                 decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(24), border: Border.all(color: kBorder)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('Daily Waste Volume', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
                       Text('7-day trend + Linear Regression forecast', style: TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
-                    ]),
+                    ])),
+                    const SizedBox(width: AppSpace.xs),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: AppSpace.xxs),
                         decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                         child: const Text('Last 7 days', style: TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600))),
@@ -333,12 +339,13 @@ class _DashboardTab extends StatelessWidget {
                 const Text('Analytics Overview', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: AppSpace.sm),
                 GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: MediaQuery.sizeOf(context).width >= 700 ? 4 : 2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.05,
+                  // Taller tiles when text is enlarged, so nothing is clipped.
+                  childAspectRatio: 1.05 / AppLayout.textScale(context).clamp(1.0, 1.6),
                   children: [
                     _biTile(
                       icon: Icons.show_chart_rounded, color: kGreen,
