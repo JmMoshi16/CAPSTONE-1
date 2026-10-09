@@ -126,7 +126,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        body: RefreshIndicator(
+        body: EcoRefresh(
           onRefresh: _refresh,
           child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),

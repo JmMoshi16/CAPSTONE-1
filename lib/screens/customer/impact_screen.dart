@@ -141,7 +141,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     return Scaffold(
       body: widget.onRefresh == null
           ? scroll
-          : RefreshIndicator(onRefresh: widget.onRefresh!, edgeOffset: 160, child: scroll),
+          : EcoRefresh(onRefresh: widget.onRefresh!, edgeOffset: 160, child: scroll),
     );
   }
 

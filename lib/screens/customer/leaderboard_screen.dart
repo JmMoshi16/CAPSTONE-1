@@ -100,8 +100,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
     return Scaffold(
       // Outside the loaded top 20? Keep your own row visible at the bottom.
       bottomNavigationBar: pinMe ? _PinnedMe(me: me, rank: _myRank, delta: _rankDelta) : null,
-      body: RefreshIndicator(
-        color: c.primary,
+      body: EcoRefresh(
         onRefresh: _load,
         child: CustomScrollView(
           slivers: [

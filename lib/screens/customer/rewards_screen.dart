@@ -355,7 +355,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
     return GestureDetector(
       onHorizontalDragEnd: _swipeCategory,
-      child: RefreshIndicator(
+      child: EcoRefresh(
       onRefresh: _loadRewards,
       child: CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -436,7 +436,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   }
 
   /// Makes a centred state (empty / error) pull-to-refresh-able.
-  Widget _refreshable(Future<void> Function() onRefresh, Widget child) => RefreshIndicator(
+  Widget _refreshable(Future<void> Function() onRefresh, Widget child) => EcoRefresh(
         onRefresh: onRefresh,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -469,7 +469,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     final pending = _redemptions.where((r) => r.status == 'pending').toList();
     final claimed = _redemptions.where((r) => r.status == 'claimed').toList();
 
-    return RefreshIndicator(
+    return EcoRefresh(
       onRefresh: _loadHistory,
       child: ListView(
       physics: const AlwaysScrollableScrollPhysics(),

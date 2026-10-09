@@ -305,7 +305,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _withRefresh(Widget child) =>
-      widget.onRefresh == null ? child : RefreshIndicator(onRefresh: widget.onRefresh!, child: child);
+      widget.onRefresh == null ? child : EcoRefresh(onRefresh: widget.onRefresh!, child: child);
 
   Widget _userCard(UserModel u, int rank) {
     final userLogs = _logCount(u.uid);

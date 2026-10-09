@@ -203,8 +203,7 @@ class _DashboardTab extends StatelessWidget {
     final today = actual.isNotEmpty ? actual.last.round() : 0;
     final diff = nextDay - today;
 
-    return RefreshIndicator(
-      color: kGreen, backgroundColor: kCard,
+    return EcoRefresh(
       onRefresh: () async => onRefresh(),
       child: CustomScrollView(
         slivers: [

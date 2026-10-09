@@ -158,7 +158,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   }
 
   Widget _withRefresh(Widget child) =>
-      widget.onRefresh == null ? child : RefreshIndicator(onRefresh: _refresh, child: child);
+      widget.onRefresh == null ? child : EcoRefresh(onRefresh: _refresh, child: child);
 
   Widget _summaryChip(String emoji, String count, String label) => Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs - 2),

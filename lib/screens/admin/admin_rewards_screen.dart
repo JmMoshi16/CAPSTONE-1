@@ -334,7 +334,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       );
     }
 
-    return RefreshIndicator(
+    return EcoRefresh(
       onRefresh: () async => widget.onChanged(),
       child: ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -469,7 +469,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       );
     }
     if (_redemptions.isEmpty) {
-      return RefreshIndicator(
+      return EcoRefresh(
         onRefresh: _loadRedemptions,
         child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
           SliverFillRemaining(hasScrollBody: false, child: EmptyState(
@@ -489,7 +489,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     final expired = shown.where((r) => r.status == 'pending' && now.isAfter(r.expiresAt)).toList();
     final claimed = shown.where((r) => r.status == 'claimed').toList();
 
-    return RefreshIndicator(
+    return EcoRefresh(
       onRefresh: _loadRedemptions,
       child: ListView(
       physics: const AlwaysScrollableScrollPhysics(),

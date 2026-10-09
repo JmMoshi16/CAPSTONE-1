@@ -546,8 +546,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         .where((l) => now.difference(l.timestamp).inDays < 7)
         .fold(0, (s, l) => s + l.pointsAwarded);
 
-    return RefreshIndicator(
-      color: c.primary,
+    return EcoRefresh(
       onRefresh: widget.onRefresh,
       child: CustomScrollView(
         controller: _scroll,
