@@ -33,7 +33,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     final bio      = widget.logs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec      = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final res      = widget.logs.where((l) => l.wasteType == 'Residual').length;
-    final totalPts = widget.logs.fold(0, (s, l) => s + l.pointsEarned);
+    final totalPts = widget.logs.fold(0, (s, l) => s + l.pointsAwarded);
 
     return Scaffold(
       backgroundColor: kBg,
@@ -173,7 +173,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(color: kGreenLight.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-          child: Text('+${log.pointsEarned} pts',
+          child: Text('+${log.pointsAwarded} pts',
               style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
         ),
       ),

@@ -67,8 +67,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
     if (confirm == true) {
       await FirebaseService.logout();
-      if (mounted) Navigator.pushAndRemoveUntil(context,
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(context,
           MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+      }
     }
   }
 
@@ -90,7 +92,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
                   const SizedBox(height: 12),
-                  Text('Failed to load data', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  const Text('Failed to load data', style: TextStyle(color: Colors.white, fontSize: 16)),
                   const SizedBox(height: 4),
                   Text(_loadError!, style: const TextStyle(color: Colors.white54, fontSize: 12), textAlign: TextAlign.center),
                   const SizedBox(height: 16),
@@ -175,9 +177,9 @@ class _DashboardTab extends StatelessWidget {
           // ── Header ──
           SliverToBoxAdapter(
             child: Container(
-              decoration: BoxDecoration(color: kCard,
-                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28)),
-                  border: const Border(bottom: BorderSide(color: kBorder))),
+              decoration: const BoxDecoration(color: kCard,
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28)),
+                  border: Border(bottom: BorderSide(color: kBorder))),
               child: SafeArea(bottom: false, child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 child: Column(children: [

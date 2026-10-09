@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/models.dart';
-import '../core/theme.dart';
+import '../core/gamification.dart';
 
 // ── Badge definitions ──────────────────────────────────────────────────────────
 const _badgeDefs = [
@@ -18,18 +18,33 @@ const _badgeDefs = [
   {'id': 'streak_7',      'label': 'Week Warrior',  'desc': '7-day scan streak',                  'icon': '🌟', 'req': 'streak', 'value': 7},
 ];
 
-List<String> _computeNewBadges(UserModel user) {
+/// Badge ids [user] qualifies for but does not have yet. "Points" badges are about points
+/// ever earned, so they use lifetimePoints (a redemption must not block them).
+List<String> computeNewBadges(UserModel user) {
   final earned = <String>[];
   for (final b in _badgeDefs) {
     final id = b['id'] as String;
     if (user.badges.contains(id)) continue;
     final req = b['req'] as String;
     final val = b['value'] as int;
-    if (req == 'scans'  && user.scanCount >= val) earned.add(id);
-    if (req == 'points' && user.points    >= val) earned.add(id);
-    if (req == 'streak' && user.streak    >= val) earned.add(id);
+    if (req == 'scans'  && user.scanCount      >= val) earned.add(id);
+    if (req == 'points' && user.lifetimePoints >= val) earned.add(id);
+    if (req == 'streak' && user.streak         >= val) earned.add(id);
   }
   return earned;
+}
+
+/// The public `profiles/{uid}` document is an exact copy of these four `users` fields;
+/// the security rules reject any profile write that does not match the user document.
+Map<String, dynamic> _profileMirror({
+  required String username, required int points, required int lifetimePoints, required List<String> badges,
+}) => {'username': username, 'points': points, 'lifetimePoints': lifetimePoints, 'badges': badges};
+
+class ScanCredit {
+  final int pointsAwarded;
+  final double multiplier;
+  final List<String> newBadges;
+  const ScanCredit(this.pointsAwarded, this.multiplier, this.newBadges);
 }
 
 Map<String, dynamic> _badgeInfo(String id) =>
@@ -64,14 +79,16 @@ class FirebaseService {
       streak: 0,
       badges: [],
     );
-    await _db.collection('users').doc(user.uid).set(user.toMap());
-    // H-13: mirror public stats to profiles so leaderboard never touches users
-    await _db.collection('profiles').doc(user.uid).set({
-      'username': username,
-      'points': 0,
-      'badges': <String>[],
-    });
+    await _createUserAndProfile(user);
     return user;
+  }
+
+  static Future<void> _createUserAndProfile(UserModel user) async {
+    final batch = _db.batch()
+      ..set(_db.collection('users').doc(user.uid), user.toMap())
+      ..set(_db.collection('profiles').doc(user.uid), _profileMirror(
+          username: user.username, points: 0, lifetimePoints: 0, badges: const []));
+    await batch.commit();
   }
 
   static Future<UserModel> login(String email, String password) async {
@@ -96,13 +113,7 @@ class FirebaseService {
           streak: 0,
           badges: [],
         );
-        await _db.collection('users').doc(uid).set(fallback.toMap());
-        // H-13: create corresponding profile doc
-        await _db.collection('profiles').doc(uid).set({
-          'username': fallback.username,
-          'points': 0,
-          'badges': <String>[],
-        });
+        await _createUserAndProfile(fallback);
         return fallback;
       } catch (_) {
         await Future.delayed(const Duration(seconds: 1));
@@ -113,6 +124,8 @@ class FirebaseService {
   }
 
   static Future<void> logout() => _auth.signOut();
+
+  static Future<void> sendPasswordReset(String email) => _auth.sendPasswordResetEmail(email: email);
 
   static Future<UserModel?> getCurrentUser() async {
     final uid = currentUid;
@@ -125,82 +138,60 @@ class FirebaseService {
   /// client-side snapshot: that overwrites points/streak/badges earned since it was loaded
   /// and re-sends `role` (audit H-01).
   static Future<void> updateUsername(String uid, String username) async {
-    await _db.collection('users').doc(uid).update({'username': username});
-    // H-13: keep profiles in sync
-    await _db.collection('profiles').doc(uid).set(
-      {'username': username}, SetOptions(merge: true));
+    final userRef = _db.collection('users').doc(uid);
+    await _db.runTransaction((tx) async {
+      final u = UserModel.fromDoc(await tx.get(userRef));
+      tx.update(userRef, {'username': username});
+      tx.set(_db.collection('profiles').doc(uid), _profileMirror(
+          username: username, points: u.points, lifetimePoints: u.lifetimePoints, badges: u.badges));
+    });
   }
 
   // ── Waste Logs ──────────────────────────────────────────────────────────────
-  /// Logs waste, credits points, updates streak, awards badges.
-  /// Returns list of newly earned badge IDs (empty if none).
-  static Future<List<String>> logWaste(WasteLog log) async {
-    await _db.collection('waste_logs').add(log.toMap());
-
+  /// Credits one scan: writes the waste log, points (base × streak multiplier), lifetime
+  /// points, streak and badges in ONE transaction, so the log always records what was credited.
+  static Future<ScanCredit> logWaste(WasteLog log) async {
     final userRef = _db.collection('users').doc(log.userId);
+    final profileRef = _db.collection('profiles').doc(log.userId);
+    final logRef = _db.collection('waste_logs').doc();
     final today = DateTime.now();
-    final todayStr = '${today.year}-${today.month.toString().padLeft(2,'0')}-${today.day.toString().padLeft(2,'0')}';
+    final todayStr = dayKey(today);
 
-    List<String> newBadges = [];
-
-    final profileRef = _db.collection('profiles').doc(log.userId);  // H-13
-
-    await _db.runTransaction((tx) async {
+    return _db.runTransaction<ScanCredit>((tx) async {
       final userDoc = await tx.get(userRef);
-      if (!userDoc.exists) return;
+      if (!userDoc.exists) throw StateError('User profile not found');
+      final user = UserModel.fromDoc(userDoc);
 
-      final snapshot = UserModel.fromDoc(userDoc);
-      final user = snapshot;
-
-      // streak logic
-      int newStreak = user.streak;
-      if (user.lastScanDate == null) {
-        newStreak = 1;
-      } else {
-        final last = DateTime.tryParse(user.lastScanDate!);
-        if (last != null) {
-          final diff = DateTime(today.year, today.month, today.day)
-              .difference(DateTime(last.year, last.month, last.day))
-              .inDays;
-          if (diff == 0)      newStreak = user.streak;
-          else if (diff == 1) newStreak = user.streak + 1;
-          else                newStreak = 1;
-        }
-      }
-
-      // ── Streak multiplier: applied AFTER streak is updated ────────────────
-      final multiplier = streakMultiplier(newStreak);
-      final earnedPts  = (log.pointsEarned * multiplier).round();
-
-      final currentPoints = snapshot.points + earnedPts;
-      final currentScans  = snapshot.scanCount + 1;
+      final streak     = nextStreak(user.streak, user.lastScanDate, today);
+      final multiplier = streakMultiplier(streak);
+      final awarded    = creditedPoints(log.pointsEarned, streak);
 
       final projected = UserModel(
-        uid: user.uid, username: user.username, email: user.email,
-        role: user.role, points: currentPoints, createdAt: user.createdAt,
-        scanCount: currentScans, streak: newStreak,
+        uid: user.uid, username: user.username, email: user.email, role: user.role,
+        points: user.points + awarded, lifetimePoints: user.lifetimePoints + awarded,
+        createdAt: user.createdAt, scanCount: user.scanCount + 1, streak: streak,
         lastScanDate: todayStr, badges: List<String>.from(user.badges),
       );
-
-      newBadges = _computeNewBadges(projected);
+      final newBadges = computeNewBadges(projected);
       final allBadges = [...user.badges, ...newBadges];
 
+      tx.set(logRef, WasteLog(
+        userId: log.userId, wasteType: log.wasteType, pointsEarned: log.pointsEarned,
+        pointsAwarded: awarded, timestamp: today, binId: log.binId,
+      ).toMap());
       tx.update(userRef, {
-        'points':       FieldValue.increment(earnedPts),
-        'scanCount':    FieldValue.increment(1),
-        'streak':       newStreak,
-        'lastScanDate': todayStr,
-        'badges':       allBadges,
+        'points':         projected.points,
+        'lifetimePoints': projected.lifetimePoints,
+        'scanCount':      projected.scanCount,
+        'streak':         streak,
+        'lastScanDate':   todayStr,
+        'badges':         allBadges,
       });
-      // H-13: mirror public stats to profiles
-      tx.set(profileRef, {
-        'username': snapshot.username,
-        'points':   FieldValue.increment(earnedPts),
-        'badges':   allBadges,
-      }, SetOptions(merge: true));
+      tx.set(profileRef, _profileMirror(
+          username: user.username, points: projected.points,
+          lifetimePoints: projected.lifetimePoints, badges: allBadges));
+      return ScanCredit(awarded, multiplier, newBadges);
     });
-
-    return newBadges;
   }
 
   static Future<List<WasteLog>> getUserWasteLogs(String userId) async {
@@ -225,8 +216,9 @@ class FirebaseService {
     await _db.collection('rewards').add(reward.toMap());
   }
 
-  static Future<void> updateReward(Reward reward) async {
-    await _db.collection('rewards').doc(reward.id).update(reward.toMap());
+  /// Partial update: pass only the fields that changed (audit M-12).
+  static Future<void> updateReward(String id, Map<String, dynamic> changes) async {
+    await _db.collection('rewards').doc(id).update(changes);
   }
 
   static Future<void> deleteReward(String id) async {
@@ -260,8 +252,8 @@ class FirebaseService {
       final rewardDoc = await tx.get(rewardRef);
       if (!userDoc.exists) return;
 
-      final currentPoints = (userDoc.data()?['points'] ?? 0) as int;
-      if (currentPoints < reward.pointsCost) return;
+      final live = UserModel.fromDoc(userDoc);
+      if (live.points < reward.pointsCost) return;
 
       // FIX 10: Stock check — read live from Firestore to avoid races
       if (rewardDoc.exists) {
@@ -281,11 +273,14 @@ class FirebaseService {
         redemptionCode: code,
       );
       tx.set(redemptionRef, redemption.toMap());
-      tx.update(userRef, {'points': FieldValue.increment(-reward.pointsCost)});
-      // H-13: mirror deduction to profiles
-      tx.set(profileRef,
-        {'points': FieldValue.increment(-reward.pointsCost)},
-        SetOptions(merge: true));
+      // Spending lowers the balance only; lifetimePoints (rank/level) is untouched (audit M-11).
+      final newBalance = live.points - reward.pointsCost;
+      // lifetimePoints is written explicitly: on older documents it is missing and would otherwise
+      // be read as the (now lower) balance.
+      tx.update(userRef, {'points': newBalance, 'lifetimePoints': live.lifetimePoints});
+      tx.set(profileRef, _profileMirror(
+          username: live.username, points: newBalance,
+          lifetimePoints: live.lifetimePoints, badges: live.badges));
 
       // FIX 10: Decrement stock only if limited
       if (reward.stock != -1 && rewardDoc.exists) {
@@ -328,11 +323,12 @@ class FirebaseService {
 
   static Map<String, dynamic> getBadgeInfo(String id) => _badgeInfo(id);
 
-  // H-13: query public profiles instead of users (no email exposure)
+  // Ranked by lifetimePoints so redeeming a reward never costs a leaderboard place (audit M-11).
+  // Profiles without lifetimePoints are not returned until tools/backfill_profiles.py has run.
   static Future<List<UserModel>> getLeaderboard({int limit = 20}) async {
     final snap = await _db
         .collection('profiles')
-        .orderBy('points', descending: true)
+        .orderBy('lifetimePoints', descending: true)
         .limit(limit)
         .get();
     return snap.docs.map((d) {
@@ -343,25 +339,28 @@ class FirebaseService {
         email: '',
         role: 'customer',
         points: (data['points'] ?? 0) as int,
+        lifetimePoints: data['lifetimePoints'] as int?,
         createdAt: DateTime.now(),
         badges: List<String>.from(data['badges'] ?? []),
       );
     }).toList();
   }
 
-  // H-13: rank from profiles so no role filter / cross-user read of users required
+  /// 1 + number of customers with more lifetime points; 0 if unknown.
+  /// Uses a server-side count() instead of downloading every higher-ranked profile (audit M-16).
   static Future<int> getUserRank(String uid) async {
     try {
       final profileDoc = await _db.collection('profiles').doc(uid).get()
           .timeout(const Duration(seconds: 5));
       if (!profileDoc.exists) return 0;
-      final pts = (profileDoc.data()?['points'] ?? 0) as int;
-      final snap = await _db
+      final p = ProfileModel.fromDoc(profileDoc);
+      final agg = await _db
           .collection('profiles')
-          .where('points', isGreaterThan: pts)
+          .where('lifetimePoints', isGreaterThan: p.lifetimePoints)
+          .count()
           .get()
           .timeout(const Duration(seconds: 5));
-      return snap.docs.length + 1;
+      return (agg.count ?? 0) + 1;
     } catch (_) {
       return 0;
     }

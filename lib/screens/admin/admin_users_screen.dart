@@ -46,7 +46,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final bio = userLogs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec = userLogs.where((l) => l.wasteType == 'Recyclable').length;
     final res = userLogs.where((l) => l.wasteType == 'Residual').length;
-    final totalPts = userLogs.fold(0, (s, l) => s + l.pointsEarned);
+    final totalPts = userLogs.fold(0, (s, l) => s + l.pointsAwarded);
 
     showModalBottomSheet(
       context: context,
@@ -126,7 +126,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       Icon(icons[log.wasteType] ?? Icons.recycling_rounded, color: c, size: 18),
                       const SizedBox(width: 10),
                       Expanded(child: Text(log.wasteType, style: const TextStyle(color: Colors.white70, fontSize: 13))),
-                      Text('+${log.pointsEarned} pts', style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('+${log.pointsAwarded} pts', style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 12)),
                     ]),
                   );
                 }),
@@ -178,9 +178,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           // Header
           SliverToBoxAdapter(
             child: Container(
-              decoration: BoxDecoration(color: kCard,
-                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28)),
-                  border: const Border(bottom: BorderSide(color: kBorder))),
+              decoration: const BoxDecoration(color: kCard,
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28)),
+                  border: Border(bottom: BorderSide(color: kBorder))),
               child: SafeArea(
                 bottom: false,
                 child: Padding(

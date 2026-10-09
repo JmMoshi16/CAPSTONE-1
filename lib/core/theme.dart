@@ -123,18 +123,4 @@ int ptsToNextLevel(int points) {
   return lv.maxPts + 1 - points;
 }
 
-// ── Streak Multiplier ─────────────────────────────────────────────────────────
-/// 1-2 days → 1.0×  |  3-6 days → 1.5×  |  7+ days → 2.0×
-double streakMultiplier(int streak) {
-  if (streak >= 7) return 2.0;
-  if (streak >= 3) return 1.5;
-  return 1.0;
-}
-
-/// Human-readable multiplier label, e.g. "🔥 2× Streak Bonus!"
-String streakMultiplierLabel(int streak) {
-  if (streak >= 7) return '🔥 2× Streak Bonus!';
-  if (streak >= 3) return '🔥 1.5× Streak Bonus!';
-  return '';
-}
 

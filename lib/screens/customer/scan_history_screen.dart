@@ -33,7 +33,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   List<WasteLog> get _filtered =>
       _filter == 'All' ? widget.logs : widget.logs.where((l) => l.wasteType == _filter).toList();
 
-  int get _totalPoints => widget.logs.fold(0, (s, l) => s + l.pointsEarned);
+  int get _totalPoints => widget.logs.fold(0, (s, l) => s + l.pointsAwarded);
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +196,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
             color: _kGreenLight.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text('+${log.pointsEarned} pts',
+          child: Text('+${log.pointsAwarded} pts',
               style: const TextStyle(color: _kGreen, fontWeight: FontWeight.bold, fontSize: 13)),
         ),
       ]),

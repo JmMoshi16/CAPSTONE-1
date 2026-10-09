@@ -184,7 +184,12 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
+  void dispose() {
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +247,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
               const SizedBox(height: 6),
               Text(user.username, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text('${user.points} pts', style: TextStyle(color: colors[i], fontWeight: FontWeight.bold, fontSize: 11)),
+              Text('${user.lifetimePoints} pts', style: TextStyle(color: colors[i], fontWeight: FontWeight.bold, fontSize: 11)),
               const SizedBox(height: 6),
               Container(
                 height: heights[i],
@@ -328,12 +333,12 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
                 ),
               ],
             ]),
-            Text('${widget.user.scanCount} scans  •  🔥 ${widget.user.streak} streak',
+            Text('${widget.user.badges.length} badge${widget.user.badges.length == 1 ? '' : 's'}',
                 style: const TextStyle(color: Colors.grey, fontSize: 11)),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('${widget.user.points}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFB8860B))),
-            const Text('pts', style: TextStyle(color: Colors.grey, fontSize: 10)),
+            Text('${widget.user.lifetimePoints}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFB8860B))),
+            const Text('lifetime pts', style: TextStyle(color: Colors.grey, fontSize: 10)),
           ]),
         ]),
       ),

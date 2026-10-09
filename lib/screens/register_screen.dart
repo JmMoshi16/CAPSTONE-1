@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../core/auth_messages.dart';
 import '../services/firebase_service.dart';
 import 'customer/customer_home_screen.dart';
 
@@ -50,12 +51,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     try {
-      final user = await FirebaseService.register(
+      await FirebaseService.register(
         _userCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text.trim(), 'customer',
       );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', user.username);
-      await prefs.setString('role', user.role);
       if (mounted) {
         Navigator.pushAndRemoveUntil(context,
             MaterialPageRoute(builder: (_) => const CustomerHomeScreen()), (_) => false);
@@ -66,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           content: Row(children: [
             const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            Expanded(child: Text(e.toString().replaceAll('Exception: ', ''),
+            Expanded(child: Text(registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()),
                 style: const TextStyle(fontWeight: FontWeight.w500))),
           ]),
           backgroundColor: Colors.red.shade600,

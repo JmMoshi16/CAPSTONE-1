@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
+import '../../core/gamification.dart';
 import '../login_screen.dart';
 import 'leaderboard_screen.dart';
 import 'badges_screen.dart';
@@ -35,11 +35,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   void dispose() { _userCtrl.dispose(); super.dispose(); }
 
   Map<String, dynamic> get _rank {
-    final r = getRank(widget.user.points);
+    final r = getRank(widget.user.lifetimePoints);
     return {'label': r.label, 'color': r.color, 'icon': r.icon, 'next': r.next, 'nextPts': r.nextPts};
   }
 
-  double get _rankProgress => rankProgress(widget.user.points);
+  double get _rankProgress => rankProgress(widget.user.lifetimePoints);
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -48,8 +48,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     try {
       await FirebaseService.updateUsername(widget.user.uid, newUsername);
       widget.user.username = newUsername; // only after the write succeeded
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', newUsername);
       widget.onUpdated();
       if (mounted) {
         setState(() => _editing = false);
@@ -93,8 +91,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       ),
     );
     if (confirm == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
       await FirebaseService.logout();
       if (mounted) {
         Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
@@ -111,7 +107,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     final rankColor = rank['color'] as Color;
 
     // FIX 8: Use actual rank info instead of computed level
-    final rankInfo   = getRank(widget.user.points);
+    final rankInfo   = getRank(widget.user.lifetimePoints);
+    final streak     = effectiveStreak(widget.user.streak, widget.user.lastScanDate, DateTime.now());
     final winRate    = widget.logs.isEmpty ? 0 : ((rec + bio) / widget.logs.length * 100).round();
     final daysSince  = DateTime.now().difference(widget.user.createdAt).inDays;
 
@@ -292,13 +289,13 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(
-                      widget.user.streak > 0 ? 'Keep it up!' : 'Start your streak!',
+                      streak > 0 ? 'Keep it up!' : 'Start your streak!',
                       style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      widget.user.streak > 0
-                          ? '${widget.user.streak} day${widget.user.streak > 1 ? 's' : ''} in a row — you\'re here!'
+                      streak > 0
+                          ? '$streak day${streak > 1 ? 's' : ''} in a row — you\'re here!'
                           : 'Scan waste today to begin your streak',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
@@ -308,7 +305,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       margin: const EdgeInsets.only(right: 5),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: i < widget.user.streak ? kGreenLight : Colors.grey.shade200,
+                        color: i < streak ? kGreenLight : Colors.grey.shade200,
                       ),
                     ))),
                   ])),
@@ -404,7 +401,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       Text('Progress to ${rank['next']}',
                           style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
                       const Spacer(),
-                      Text('${widget.user.points} / ${rank['nextPts']} pts',
+                      Text('${widget.user.lifetimePoints} / ${rank['nextPts']} lifetime pts',
                           style: TextStyle(color: rankColor, fontWeight: FontWeight.bold, fontSize: 12)),
                     ]),
                     const SizedBox(height: 12),
@@ -418,7 +415,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text('${(rank['nextPts'] as int) - widget.user.points} more points to reach ${rank['next']}',
+                    Text('${(rank['nextPts'] as int) - widget.user.lifetimePoints} more points to reach ${rank['next']}',
                         style: const TextStyle(color: Colors.grey, fontSize: 11)),
                   ]),
                 ),
@@ -608,7 +605,7 @@ class _DashedAvatar extends StatelessWidget {
       alignment: Alignment.bottomRight,
       children: [
         CustomPaint(
-          painter: _DashedCirclePainter(color: kGreenLight),
+          painter: const _DashedCirclePainter(color: kGreenLight),
           child: Padding(
             padding: const EdgeInsets.all(6),
             child: Container(
@@ -657,7 +654,7 @@ class _DashedCirclePainter extends CustomPainter {
 
     for (int i = 0; i < dashCount; i++) {
       final startAngle = i * dashAngle;
-      final sweepAngle = dashAngle * (1 - gapFraction);
+      const sweepAngle = dashAngle * (1 - gapFraction);
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         startAngle, sweepAngle, false, paint,

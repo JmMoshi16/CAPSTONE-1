@@ -91,15 +91,17 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
         return;
       }
 
-      final points = _kPointsMap[wasteType] ?? 5;
+      final basePoints = _kPointsMap[wasteType] ?? 5;
       final log = WasteLog(
         userId: widget.userId,
         wasteType: wasteType,
-        pointsEarned: points,
+        pointsEarned: basePoints,
         timestamp: DateTime.now(),
         binId: token.substring(0, 8),
       );
-      final newBadges = await FirebaseService.logWaste(log);
+      final credit = await FirebaseService.logWaste(log);
+      final points = credit.pointsAwarded;   // what was credited, incl. streak bonus (audit M-11)
+      final newBadges = credit.newBadges;
       setState(() => _scanned = true);
 
       // Fire local notifications
@@ -122,6 +124,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
             builder: (_) => _SuccessScreen(
               wasteType: wasteType,
               points: points,
+              multiplier: credit.multiplier,
               token: token,
               username: widget.username,
               newBadges: newBadges,
@@ -129,8 +132,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
           ),
         );
       }
-    } catch (e) {
-      _showError('Error', 'Failed to process QR: $e');
+    } catch (_) {
+      // Never show raw exception text to customers (audit M-17).
+      _showError('Something went wrong',
+          'We could not process this QR code. Check your connection and try again.');
     }
   }
 
@@ -307,12 +312,14 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
 class _SuccessScreen extends StatefulWidget {
   final String wasteType;
   final int points;
+  final double multiplier;
   final String token;
   final String username;
   final List<String> newBadges;
   const _SuccessScreen({
     required this.wasteType,
     required this.points,
+    this.multiplier = 1.0,
     required this.token,
     required this.username,
     this.newBadges = const [],
@@ -450,6 +457,9 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                       const SizedBox(height: 2),
                       Text('+${widget.points} Points Earned',
                           style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      if (widget.multiplier > 1.0)
+                        Text('Includes ${widget.multiplier == 2.0 ? '2' : '1.5'}× streak bonus 🔥',
+                            style: const TextStyle(color: Colors.white70, fontSize: 11)),
                     ])),
                     Container(
                       padding: const EdgeInsets.all(10),

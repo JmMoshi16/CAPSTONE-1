@@ -12,7 +12,8 @@ class UserModel {
   String username;
   String email;
   final String role;
-  int points;
+  int points;          // spendable balance (goes down on redemption)
+  int lifetimePoints;  // everything ever credited; drives rank, level and leaderboard (audit M-11)
   final DateTime createdAt;
   int scanCount;
   int streak;
@@ -25,18 +26,20 @@ class UserModel {
     required this.email,
     required this.role,
     this.points = 0,
+    int? lifetimePoints,
     required this.createdAt,
     this.scanCount = 0,
     this.streak = 0,
     this.lastScanDate,
     this.badges = const [],
-  });
+  }) : lifetimePoints = lifetimePoints ?? points;
 
   Map<String, dynamic> toMap() => {
         'username': username,
         'email': email,
         'role': role,
         'points': points,
+        'lifetimePoints': lifetimePoints,
         'createdAt': Timestamp.fromDate(createdAt.toUtc()),
         'scanCount': scanCount,
         'streak': streak,
@@ -52,6 +55,7 @@ class UserModel {
       email: d['email'] ?? '',
       role: d['role'] ?? 'customer',
       points: d['points'] ?? 0,
+      lifetimePoints: d['lifetimePoints'] as int?,   // older docs: falls back to points
       createdAt: _tsToDateTime(d['createdAt']),
       scanCount: d['scanCount'] ?? 0,
       streak: d['streak'] ?? 0,
@@ -65,7 +69,8 @@ class WasteLog {
   final String? id;
   final String userId;
   final String wasteType; // 'Biodegradable', 'Recyclable', 'Residual'
-  final int pointsEarned;
+  final int pointsEarned;  // base points for the category
+  final int pointsAwarded; // what was actually credited (base × streak multiplier) — show this (audit M-11)
   final DateTime timestamp;
   final String binId;
 
@@ -74,14 +79,16 @@ class WasteLog {
     required this.userId,
     required this.wasteType,
     required this.pointsEarned,
+    int? pointsAwarded,
     required this.timestamp,
     required this.binId,
-  });
+  }) : pointsAwarded = pointsAwarded ?? pointsEarned;
 
   Map<String, dynamic> toMap() => {
         'userId': userId,
         'wasteType': wasteType,
         'pointsEarned': pointsEarned,
+        'pointsAwarded': pointsAwarded,
         'timestamp': FieldValue.serverTimestamp(),
         'binId': binId,
       };
@@ -93,6 +100,7 @@ class WasteLog {
       userId: d['userId'] ?? '',
       wasteType: d['wasteType'] ?? '',
       pointsEarned: d['pointsEarned'] ?? 0,
+      pointsAwarded: d['pointsAwarded'] as int?,   // older logs: falls back to base
       timestamp: _tsToDateTime(d['timestamp']),
       binId: d['binId'] ?? '',
     );
@@ -204,18 +212,21 @@ class ProfileModel {
   final String uid;
   final String username;
   final int points;
+  final int lifetimePoints;
   final List<String> badges;
 
   ProfileModel({
     required this.uid,
     required this.username,
     this.points = 0,
+    int? lifetimePoints,
     this.badges = const [],
-  });
+  }) : lifetimePoints = lifetimePoints ?? points;
 
   Map<String, dynamic> toMap() => {
         'username': username,
         'points': points,
+        'lifetimePoints': lifetimePoints,
         'badges': badges,
       };
 
@@ -225,6 +236,7 @@ class ProfileModel {
       uid: doc.id,
       username: d['username'] ?? '',
       points: d['points'] ?? 0,
+      lifetimePoints: d['lifetimePoints'] as int?,
       badges: List<String>.from(d['badges'] ?? []),
     );
   }
@@ -233,6 +245,7 @@ class ProfileModel {
         uid: user.uid,
         username: user.username,
         points: user.points,
+        lifetimePoints: user.lifetimePoints,
         badges: user.badges,
       );
 }

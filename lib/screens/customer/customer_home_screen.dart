@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
+import '../../core/gamification.dart';
 import 'qr_scanner_screen.dart';
 import 'rewards_screen.dart';
 import 'impact_screen.dart';
@@ -48,7 +49,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         FirebaseService.getUserRank(uid),
         FirebaseService.getUserRedemptions(uid),
       ]).timeout(const Duration(seconds: 10), onTimeout: () => [[], [], 0, []]);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _user = user;
         _logs = results[0] as List<WasteLog>;
         _rewards = results[1] as List<Reward>;
@@ -56,6 +58,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         _redemptions = results[3] as List<Redemption>;
         _loadError = false;
       });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadError = true);
     }
@@ -233,13 +236,6 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  String _greeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
   void _showNotificationsSheet(BuildContext context) {
     // Build flat notification list
     final items = <_NotifItem>[];
@@ -302,16 +298,17 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         time: 'Today', isUnread: false, onTap: null,
       ));
     }
-    if (widget.user.streak > 2) {
+    final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, DateTime.now());
+    if (streak > 2) {
       items.add(_NotifItem(
         icon: Icons.local_fire_department_rounded, iconColor: Colors.deepOrange,
-        title: '${widget.user.streak}-Day Streak',
+        title: '$streak-Day Streak',
         subtitle: 'Amazing! Keep recycling every day.',
         time: 'Today', isUnread: false, onTap: null,
       ));
     }
     if (items.isEmpty) {
-      items.add(_NotifItem(
+      items.add(const _NotifItem(
         icon: Icons.eco_rounded, iconColor: kGreen,
         title: 'Welcome to ECOReward!',
         subtitle: 'Start scanning waste QR codes to earn points and rewards.',
@@ -436,8 +433,12 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final co2 = (rec * 0.5 + bio * 0.3).toStringAsFixed(1);
     final recent = widget.logs.take(3).toList();
-    final rank = getRank(widget.user.points);
-    final progress = rankProgress(widget.user.points);
+    final now = DateTime.now();
+    final lifetime = widget.user.lifetimePoints;
+    final rank = getRank(lifetime);
+    final level = getLevel(lifetime);
+    final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, now);
+    final scansThisWeek = scansInLastDays(widget.logs.map((l) => l.timestamp), now);
 
     return RefreshIndicator(
       color: kGreenLight,
@@ -449,9 +450,9 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
             child: _fadeSlide(0, _HeroHeaderCard(
               user: widget.user,
               myRank: widget.myRank,
-              points: widget.user.points,
+              lifetimePoints: lifetime,
               pointsAnim: _pointsAnim,
-              streak: widget.user.streak,
+              streak: streak,
               onBell: () => _showNotificationsSheet(context),
               onProfile: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => CustomerProfileScreen(user: widget.user, logs: widget.logs, onUpdated: widget.onRefresh))),
@@ -466,24 +467,24 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Rank bar
                 _ProgressBarRow(
-                  leftLabel: '${getRank(widget.user.points).icon}  ${getRank(widget.user.points).label}',
-                  rightLabel: getRank(widget.user.points).next != null
-                      ? '${getRank(widget.user.points).nextPts - widget.user.points} pts to ${getRank(widget.user.points).next}'
+                  leftLabel: '${rank.icon}  ${rank.label}',
+                  rightLabel: rank.next != null
+                      ? '${rank.nextPts - lifetime} pts to ${rank.next}'
                       : 'Max Rank',
-                  progress: rankProgress(widget.user.points),
-                  color: getRank(widget.user.points).color,
-                  labelColor: getRank(widget.user.points).color,
+                  progress: rankProgress(lifetime),
+                  color: rank.color,
+                  labelColor: rank.color,
                 ),
                 const SizedBox(height: 10),
                 // Level bar
                 _ProgressBarRow(
-                  leftLabel: '${getLevel(widget.user.points).emoji}  ${getLevel(widget.user.points).title}  Lv ${getLevel(widget.user.points).level}',
-                  rightLabel: ptsToNextLevel(widget.user.points) == 0
+                  leftLabel: '${level.emoji}  ${level.title}  Lv ${level.level}',
+                  rightLabel: ptsToNextLevel(lifetime) == 0
                       ? '🎉 Max Level'
-                      : '${ptsToNextLevel(widget.user.points)} pts to next',
-                  progress: levelProgress(widget.user.points),
-                  color: getLevel(widget.user.points).color,
-                  labelColor: getLevel(widget.user.points).color,
+                      : '${ptsToNextLevel(lifetime)} pts to next',
+                  progress: levelProgress(lifetime),
+                  color: level.color,
+                  labelColor: level.color,
                 ),
                 const SizedBox(height: 20),
                 // Scan button
@@ -545,9 +546,9 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Section header
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Your Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
-                    const Text('Tap a card for details', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Your Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                    Text('Tap a card for details', style: TextStyle(fontSize: 10, color: Colors.grey)),
                   ]),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -559,7 +560,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                       const Icon(Icons.local_fire_department_rounded, color: kGreen, size: 13),
                       const SizedBox(width: 4),
                       Text(
-                        widget.user.streak > 0 ? '${widget.user.streak}-day streak!' : 'Start your streak',
+                        streak > 0 ? '$streak-day streak!' : 'Start your streak',
                         style: const TextStyle(fontSize: 11, color: kGreen, fontWeight: FontWeight.w600),
                       ),
                     ]),
@@ -568,14 +569,14 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 const SizedBox(height: 12),
                 // Stat cards
                 Row(children: [
-                  _StatCard(emoji: '🔥', value: widget.user.streak > 0 ? '${widget.user.streak}d' : '0d',
-                      label: 'streak', valueColor: widget.user.streak > 0 ? Colors.deepOrange : Colors.grey,
+                  _StatCard(emoji: '🔥', value: '${streak}d',
+                      label: 'streak', valueColor: streak > 0 ? Colors.deepOrange : Colors.grey,
                       accentColor: Colors.deepOrange,
                       delay: 0, ctrl: _staggerCtrl, onTap: widget.onLeaderboard),
                   const SizedBox(width: 10),
                   _StatCard(emoji: '🏆', value: widget.myRank > 0 ? '#${widget.myRank}' : '--',
                       label: 'rank', valueColor: widget.myRank > 0 ? const Color(0xFFB8860B) : Colors.grey,
-                      accentColor: Color(0xFFB8860B),
+                      accentColor: const Color(0xFFB8860B),
                       delay: 80, ctrl: _staggerCtrl, onTap: widget.onLeaderboard),
                   const SizedBox(width: 10),
                   _StatCard(emoji: '🏅', value: '${widget.user.badges.length}',
@@ -585,12 +586,12 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                   const SizedBox(width: 10),
                   _StatCard(emoji: '♻️', value: '${widget.user.scanCount}',
                       label: 'scans', valueColor: const Color(0xFF2E7D32),
-                      accentColor: Color(0xFF2E7D32),
+                      accentColor: const Color(0xFF2E7D32),
                       delay: 240, ctrl: _staggerCtrl, onTap: widget.onImpact),
                 ]),
                 const SizedBox(height: 12),
                 // Weekly scan goal bar
-                _WeeklyGoalBar(scanCount: widget.user.scanCount, weeklyGoal: 10),
+                _WeeklyGoalBar(scanCount: scansThisWeek, weeklyGoal: 10),
                 if (widget.user.scanCount == 0) ...[
                   const SizedBox(height: 10),
                   Container(
@@ -753,7 +754,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               gradient: LinearGradient(colors: [kGreen.withValues(alpha: 0.15), kGreenLight.withValues(alpha: 0.08)]),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text('+${log.pointsEarned} pts',
+            child: Text('+${log.pointsAwarded} pts',
                 style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ),
@@ -765,12 +766,12 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
 // ── Hero Header Card ──────────────────────────────────────────────────────────
 class _HeroHeaderCard extends StatelessWidget {
   final UserModel user;
-  final int myRank, pendingRedemptions, points, streak;
-  final Animation<double> pointsAnim;
+  final int myRank, pendingRedemptions, lifetimePoints, streak;
+  final Animation<double> pointsAnim;   // animates the spendable balance
   final VoidCallback onBell, onProfile;
   const _HeroHeaderCard({
     required this.user, required this.myRank, required this.pendingRedemptions,
-    required this.points, required this.pointsAnim, required this.streak,
+    required this.lifetimePoints, required this.pointsAnim, required this.streak,
     required this.onBell, required this.onProfile,
   });
 
@@ -783,8 +784,8 @@ class _HeroHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lv = getLevel(points);
-    final rk = getRank(points);
+    final lv = getLevel(lifetimePoints);
+    final rk = getRank(lifetimePoints);
     final multiplier = streakMultiplier(streak);
     return Container(
       decoration: const BoxDecoration(
@@ -959,43 +960,6 @@ class _ProgressBarRow extends StatelessWidget {
   }
 }
 
-// ── Animated Avatar ───────────────────────────────────────────────────────────
-
-class _AnimatedAvatar extends StatefulWidget {
-  final String initial;
-  const _AnimatedAvatar({required this.initial});
-  @override
-  State<_AnimatedAvatar> createState() => _AnimatedAvatarState();
-}
-
-
-class _AnimatedAvatarState extends State<_AnimatedAvatar> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => ScaleTransition(
-    scale: _scale,
-    child: Container(
-      width: 42, height: 42,
-      decoration: BoxDecoration(color: kGreen, borderRadius: BorderRadius.circular(14)),
-      child: Center(child: Text(widget.initial,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
-    ),
-  );
-}
-
 // ── Animated Progress Bar ─────────────────────────────────────────────────────
 class _AnimatedProgressBar extends StatefulWidget {
   final double progress;
@@ -1128,10 +1092,10 @@ class _WeeklyGoalBar extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [
-            const Text('🎯', style: TextStyle(fontSize: 13)),
-            const SizedBox(width: 6),
-            const Text('Weekly Goal', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.black87)),
+          const Row(children: [
+            Text('🎯', style: TextStyle(fontSize: 13)),
+            SizedBox(width: 6),
+            Text('Weekly Goal · last 7 days', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.black87)),
           ]),
           Text(
             done ? '✅ Goal reached!' : '$scanCount / $weeklyGoal scans',
@@ -1155,34 +1119,6 @@ class _WeeklyGoalBar extends StatelessWidget {
       ]),
     );
   }
-}
-
-// ── Pulse Scan Button ─────────────────────────────────────────────────────────
-class _PulseButton extends StatelessWidget {
-  final Animation<double> pulse;
-  final VoidCallback onTap;
-  const _PulseButton({required this.pulse, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => ScaleTransition(
-    scale: pulse,
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: kGreen,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 5))],
-        ),
-        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 22),
-          SizedBox(width: 8),
-          Text('Scan QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-        ]),
-      ),
-    ),
-  );
 }
 
 // ── Scale-on-tap wrapper ──────────────────────────────────────────────────────

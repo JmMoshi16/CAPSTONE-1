@@ -9,6 +9,10 @@ class NotificationService {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(const InitializationSettings(android: android, iOS: ios));
+    // Android 13+ silently drops notifications unless the user grants this at runtime (audit M-13).
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
     _initialized = true;
   }
 
@@ -35,20 +39,11 @@ class NotificationService {
     );
   }
 
-  static Future<void> showRankUp(int newRank) async {
-    await _plugin.show(
-      3, // one rank-up notification at a time
-      '🏆 Rank Up!',
-      'You\'re now ranked #$newRank on the leaderboard!',
-      _details(),
-    );
-  }
-
   static NotificationDetails _details() => const NotificationDetails(
         android: AndroidNotificationDetails(
           'ecoreward_channel',
           'ECOReward Notifications',
-          channelDescription: 'Points, badges, and rank updates',
+          channelDescription: 'Points and badge updates',
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',

@@ -42,6 +42,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     final titleCtrl = TextEditingController(text: reward?.title ?? '');
     final descCtrl = TextEditingController(text: reward?.description ?? '');
     final pointsCtrl = TextEditingController(text: reward?.pointsCost.toString() ?? '');
+    // Blank = unlimited (-1). Audit M-12: stock could not be set from any admin UI.
+    final stockCtrl = TextEditingController(
+        text: (reward == null || reward.stock == -1) ? '' : reward.stock.toString());
     String category = reward?.category ?? 'Coffee';
     bool isActive = reward?.isActive ?? true;
     final formKey = GlobalKey<FormState>();
@@ -72,11 +75,17 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 const SizedBox(height: 10),
                 _field(descCtrl, 'Description', Icons.description_rounded),
                 const SizedBox(height: 10),
-                _field(pointsCtrl, 'Points Cost', Icons.stars_rounded, keyboardType: TextInputType.number),
+                _field(pointsCtrl, 'Points Cost', Icons.stars_rounded, keyboardType: TextInputType.number,
+                    validator: (v) => (int.tryParse(v!.trim()) ?? 0) > 0 ? null : 'Enter a whole number above 0'),
+                const SizedBox(height: 10),
+                _field(stockCtrl, 'Stock (leave blank for unlimited)', Icons.inventory_2_rounded,
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v!.trim().isEmpty || (int.tryParse(v.trim()) ?? -1) >= 0
+                        ? null : 'Enter 0 or more, or leave blank'),
                 const SizedBox(height: 10),
                 // Category dropdown
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   dropdownColor: kCard,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
@@ -105,7 +114,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     const SizedBox(width: 10),
                     const Expanded(child: Text('Active (visible to customers)', style: TextStyle(color: Colors.white70, fontSize: 13))),
                     Switch(value: isActive, onChanged: (v) => setS(() => isActive = v),
-                        activeColor: kGreen, activeTrackColor: kGreen.withValues(alpha: 0.3)),
+                        activeThumbColor: kGreen, activeTrackColor: kGreen.withValues(alpha: 0.3)),
                   ]),
                 ),
                 const SizedBox(height: 20),
@@ -118,17 +127,29 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                         id: reward?.id,
                         title: titleCtrl.text.trim(),
                         description: descCtrl.text.trim(),
-                        pointsCost: int.tryParse(pointsCtrl.text.trim()) ?? 0,
+                        pointsCost: int.parse(pointsCtrl.text.trim()),
                         category: category,
                         isActive: isActive,
+                        stock: int.tryParse(stockCtrl.text.trim()) ?? -1,
                       );
-                      if (reward == null) {
-                        await FirebaseService.addReward(r);
-                      } else {
-                        await FirebaseService.updateReward(r);
+                      try {
+                        if (reward == null) {
+                          await FirebaseService.addReward(r);
+                        } else {
+                          // Only the fields the admin changed: a redemption may have lowered the
+                          // stock while this form was open (audit M-12).
+                          final changes = r.toMap()
+                            ..removeWhere((k, v) => reward.toMap()[k] == v);
+                          if (changes.isNotEmpty) await FirebaseService.updateReward(reward.id!, changes);
+                        }
+                        widget.onChanged();
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (_) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                              content: Text('Could not save the reward. Check your connection and try again.')));
+                        }
                       }
-                      widget.onChanged();
-                      if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: kGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
@@ -407,7 +428,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           child: Row(children: [
             const Icon(Icons.confirmation_number_rounded, color: Colors.white38, size: 14),
             const SizedBox(width: 8),
-            Text('Code: ', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            const Text('Code: ', style: TextStyle(color: Colors.white38, fontSize: 12)),
             Text(r.redemptionCode,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 2)),
             const Spacer(),
@@ -445,7 +466,8 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     }
   }
 
-  Widget _field(TextEditingController ctrl, String label, IconData icon, {TextInputType keyboardType = TextInputType.text}) =>
+  Widget _field(TextEditingController ctrl, String label, IconData icon,
+          {TextInputType keyboardType = TextInputType.text, FormFieldValidator<String>? validator}) =>
       TextFormField(
         controller: ctrl,
         keyboardType: keyboardType,
@@ -458,6 +480,6 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           fillColor: Colors.white.withValues(alpha: 0.07),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         ),
-        validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+        validator: validator ?? (v) => v!.trim().isEmpty ? 'Required' : null,
       );
 }

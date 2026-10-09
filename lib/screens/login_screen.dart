@@ -1,6 +1,7 @@
 ﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../core/auth_messages.dart';
 import '../services/firebase_service.dart';
 import 'customer/customer_home_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
@@ -82,10 +83,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     try {
-      final user = await FirebaseService.login(_emailCtrl.text.trim(), _passCtrl.text);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', user.username);
-      await prefs.setString('role', user.role);
+      // Password trimmed exactly as at registration (audit M-17).
+      final user = await FirebaseService.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
       if (mounted) {
         Navigator.pushReplacement(context, PageRouteBuilder(
           pageBuilder: (_, a, __) =>
@@ -96,29 +95,46 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
     } catch (e) {
       if (mounted) {
-        String msg = 'Invalid email or password';
-        final err = e.toString();
-        if (err.contains('user-not-found') || err.contains('invalid-credential'))
-          msg = 'No account found with this email';
-        else if (err.contains('wrong-password'))
-          msg = 'Wrong password. Try again';
-        else if (err.contains('network') || err.contains('Could not reach Firestore'))
-          msg = 'No internet connection. Please try again.';
-        else if (err.contains('too-many-requests'))
-          msg = 'Too many attempts. Try later';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Row(children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(msg, style: const TextStyle(fontWeight: FontWeight.w500))),
-          ]),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ));
+        _snack(loginErrorMessage(e is FirebaseAuthException ? e.code : e.toString()), Colors.red.shade700);
         setState(() => _loading = false);
       }
+    }
+  }
+
+  void _snack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: const TextStyle(fontWeight: FontWeight.w500))),
+      ]),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ));
+  }
+
+  // Audit M-17: there was no way to recover a forgotten password.
+  Future<void> _forgotPassword() async {
+    final email = _emailCtrl.text.trim();
+    if (!email.contains('@')) {
+      _snack('Enter your email above first, then tap "Forgot password?"', Colors.orange.shade800);
+      return;
+    }
+    try {
+      await FirebaseService.sendPasswordReset(email);
+      if (mounted) _snack(passwordResetSentMessage, const Color(0xFF2E7D32));
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      // Same message for unknown addresses: do not reveal which e-mails have accounts.
+      if (isNetworkError(e.code) || e.code == 'too-many-requests') {
+        _snack(loginErrorMessage(e.code), Colors.red.shade700);
+      } else {
+        _snack(passwordResetSentMessage, const Color(0xFF2E7D32));
+      }
+    } catch (_) {
+      if (mounted) _snack('No internet connection. Please try again.', Colors.red.shade700);
     }
   }
 
@@ -276,15 +292,24 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           const SizedBox(height: 8),
                           _buildField(controller: _passCtrl, hint: '••••••••',
                             icon: Icons.lock_outline_rounded, obscure: _obscure,
-                            suffixIcon: GestureDetector(
-                              onTap: () => setState(() => _obscure = !_obscure),
-                              child: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
+                            suffixIcon: IconButton(
+                              tooltip: _obscure ? 'Show password' : 'Hide password',
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                              icon: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
                                 child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                                     key: ValueKey(_obscure), color: Colors.grey.shade400, size: 20)),
                             ),
-                            validator: (v) => v!.isEmpty ? 'Enter your password' : null),
+                            validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _loading ? null : _forgotPassword,
+                              child: const Text('Forgot password?',
+                                  style: TextStyle(color: _midGreen, fontWeight: FontWeight.w600, fontSize: 13)),
+                            ),
+                          ),
                         ])),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 14),
 
                       // Sign in button
                       FadeTransition(opacity: _btnFade,

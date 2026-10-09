@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
+import 'models/models.dart';
 import 'screens/login_screen.dart';
+import 'screens/customer/customer_home_screen.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +39,37 @@ class ECORewardApp extends StatelessWidget {
           primary: const Color(0xFF4CAF50),
         ),
       ),
-      home: const LoginScreen(),
+      home: const _AuthGate(),
     );
   }
+}
+
+/// Reuses Firebase's persisted session instead of asking for a login on every launch (audit M-13).
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
+
+  Future<UserModel?> _restore() async {
+    if (FirebaseService.currentUid == null) return null;
+    try {
+      return await FirebaseService.getCurrentUser().timeout(const Duration(seconds: 8));
+    } catch (_) {
+      return null;   // unreachable / no profile: fall back to the login screen
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<UserModel?>(
+        future: _restore(),
+        builder: (_, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              backgroundColor: Color(0xFF0A2E0C),
+              body: Center(child: CircularProgressIndicator(color: Color(0xFF66BB6A))),
+            );
+          }
+          final user = snap.data;
+          if (user == null) return const LoginScreen();
+          return user.role == 'admin' ? const AdminDashboardScreen() : const CustomerHomeScreen();
+        },
+      );
 }
