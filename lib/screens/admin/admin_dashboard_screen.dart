@@ -278,46 +278,7 @@ class _DashboardTab extends StatelessWidget {
                     excludeSemantics: true,
                     child: SizedBox(
                     height: 200,
-                    child: LineChart(LineChartData(
-                      minY: 0,
-                      maxY: ([...actual, ...predicted].reduce((a, b) => a > b ? a : b) + 2).clamp(5.0, double.infinity),
-                      clipData: const FlClipData.all(),
-                      gridData: FlGridData(show: true, drawVerticalLine: false,
-                          getDrawingHorizontalLine: (_) => FlLine(color: Colors.white.withValues(alpha: 0.05), strokeWidth: 1)),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28,
-                            getTitlesWidget: (v, _) => Text('${v.toInt()}', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)))),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 1,
-                            getTitlesWidget: (val, _) {
-                              final i = val.toInt();
-                              if (i < 0 || i >= allDays.length) return const SizedBox.shrink();
-                              return Padding(padding: const EdgeInsets.only(top: AppSpace.xxs),
-                                  child: Text(DateFormat('E').format(allDays[i]),
-                                      style: TextStyle(color: i >= 7 ? kBlue.withValues(alpha: 0.7) : AdminColors.textTertiary, fontSize: 11)));
-                            })),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: List.generate(actual.length, (i) => FlSpot(i.toDouble(), actual[i])),
-                          isCurved: true, color: kGreen, barWidth: 2.5,
-                          dotData: FlDotData(show: true, getDotPainter: (_, __, ___, ____) =>
-                              FlDotCirclePainter(radius: 3, color: kGreen, strokeWidth: 0)),
-                          belowBarData: BarAreaData(show: true,
-                              gradient: LinearGradient(colors: [kGreen.withValues(alpha: 0.25), Colors.transparent],
-                                  begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-                        ),
-                        LineChartBarData(
-                          spots: List.generate(predicted.length, (i) => FlSpot(i.toDouble(), predicted[i])),
-                          isCurved: true, color: kBlue, barWidth: 2, dashArray: [6, 4],
-                          dotData: FlDotData(show: true, getDotPainter: (_, __, ___, i) =>
-                              FlDotCirclePainter(radius: i >= 7 ? 4 : 0, color: kBlue, strokeWidth: 0)),
-                          belowBarData: BarAreaData(show: false),
-                        ),
-                      ],
-                    )),
+                    child: _TrendChart(actual: actual, predicted: predicted, allDays: allDays),
                   )),
                 ]),
               ),
@@ -449,7 +410,11 @@ class _DashboardTab extends StatelessWidget {
         child: Column(children: [
           Icon(icon, color: c, size: 18),
           const SizedBox(height: AppSpace.xxs),
-          Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          if (int.tryParse(v) != null)
+            AnimatedCount(int.parse(v), fromZero: true, duration: const Duration(milliseconds: 600),
+                style: const TextStyle(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold))
+          else
+            Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11), textAlign: TextAlign.center),
         ]),
       );
@@ -548,6 +513,108 @@ class _DashboardTab extends StatelessWidget {
 
   Widget _legendDot(Color c) => Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle));
   Widget _legendDash(Color c) => Container(width: 16, height: 2, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(1)));
+}
+
+/// Daily volume chart: the lines rise from the baseline on first show, then the forecast
+/// (the last 3 days, dashed) pulses gently so it reads as a projection, not data.
+/// Reduced motion: drawn at once, no pulse.
+class _TrendChart extends StatefulWidget {
+  const _TrendChart({required this.actual, required this.predicted, required this.allDays});
+  final List<double> actual, predicted;
+  final List<DateTime> allDays;
+  @override
+  State<_TrendChart> createState() => _TrendChartState();
+}
+
+class _TrendChartState extends State<_TrendChart> with SingleTickerProviderStateMixin {
+  bool _drawn = false;
+  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _drawn = true);
+      if (!AppMotion.reduced(context)) {
+        Future.delayed(const Duration(milliseconds: 950), () { if (mounted) _pulse.repeat(reverse: true); });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final actual = widget.actual, predicted = widget.predicted, allDays = widget.allDays;
+    final maxY = ([...actual, ...predicted].reduce((a, b) => a > b ? a : b) + 2).clamp(5.0, double.infinity);
+    final reduced = AppMotion.reduced(context);
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (_, __) {
+          final p = Curves.easeInOut.transform(_pulse.value);
+          double y(double v) => _drawn || reduced ? v : 0;
+          return LineChart(
+            // The draw-in uses fl_chart's own tween; the pulse then redraws without tweening.
+            duration: _pulse.isAnimating || reduced ? Duration.zero : const Duration(milliseconds: 900),
+            curve: AppMotion.emphasized,
+            LineChartData(
+              minY: 0,
+              maxY: maxY,
+              clipData: const FlClipData.all(),
+              lineTouchData: const LineTouchData(enabled: false),
+              gridData: FlGridData(show: true, drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(color: Colors.white.withValues(alpha: 0.05), strokeWidth: 1)),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28,
+                    getTitlesWidget: (v, _) => Text('${v.toInt()}', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)))),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 1,
+                    getTitlesWidget: (val, _) {
+                      final i = val.toInt();
+                      if (i < 0 || i >= allDays.length) return const SizedBox.shrink();
+                      return Padding(padding: const EdgeInsets.only(top: AppSpace.xxs),
+                          child: Text(DateFormat('E').format(allDays[i]),
+                              style: TextStyle(color: i >= 7 ? kBlue : AdminColors.textTertiary, fontSize: 11)));
+                    })),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: List.generate(actual.length, (i) => FlSpot(i.toDouble(), y(actual[i]))),
+                  isCurved: true, color: kGreen, barWidth: 2.5,
+                  dotData: FlDotData(show: true, getDotPainter: (_, __, ___, ____) =>
+                      FlDotCirclePainter(radius: 3, color: kGreen, strokeWidth: 0)),
+                  belowBarData: BarAreaData(show: true,
+                      gradient: LinearGradient(colors: [kGreen.withValues(alpha: 0.25), Colors.transparent],
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+                ),
+                // Trend over the past week: faint.
+                LineChartBarData(
+                  spots: List.generate(7, (i) => FlSpot(i.toDouble(), y(predicted[i]))),
+                  isCurved: true, color: kBlue.withValues(alpha: 0.35), barWidth: 1.5, dashArray: [4, 4],
+                  dotData: const FlDotData(show: false),
+                ),
+                // Forecast (today -> +3 days): brighter, pulsing.
+                LineChartBarData(
+                  spots: List.generate(predicted.length - 6, (k) => FlSpot((6 + k).toDouble(), y(predicted[6 + k]))),
+                  isCurved: true, color: kBlue.withValues(alpha: 0.55 + 0.45 * p), barWidth: 2 + p, dashArray: [6, 4],
+                  dotData: FlDotData(show: true, getDotPainter: (_, __, ___, i) =>
+                      FlDotCirclePainter(radius: i == 0 ? 0 : 3 + 2 * p, color: kBlue, strokeWidth: 0)),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// One line in an admin detail sheet, with an optional proportion bar.
