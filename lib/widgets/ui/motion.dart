@@ -137,6 +137,7 @@ class AnimatedBar extends StatelessWidget {
           borderRadius: AppRadius.all(height),
           child: LinearProgressIndicator(
             value: v,
+            semanticsValue: '${(progress.clamp(0.0, 1.0) * 100).round()}%',
             minHeight: height,
             backgroundColor: trackColor ?? context.colors.surfaceAlt,
             valueColor: AlwaysStoppedAnimation(color),

@@ -269,6 +269,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
             title: const Text('Rewards Manager', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
             actions: [
               IconButton(
+                tooltip: 'Add reward',
                 icon: Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10),

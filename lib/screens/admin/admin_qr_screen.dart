@@ -227,7 +227,8 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
   Widget _qrBox() => Container(
         padding: const EdgeInsets.all(AppSpace.sm),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-        child: QrImageView(data: _qrData, version: QrVersions.auto, size: 180),
+        child: QrImageView(data: _qrData, version: QrVersions.auto, size: 180,
+            semanticsLabel: 'QR code for $_selectedType waste'),
       );
 
   Widget _buildQRDisplay() {
@@ -359,6 +360,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.2), blurRadius: 12, spreadRadius: 1)],
               ),
               child: QrImageView(
+                semanticsLabel: 'Receipt QR code for $_selectedType waste',
                 data: _qrData,
                 version: QrVersions.auto,
                 size: 160,

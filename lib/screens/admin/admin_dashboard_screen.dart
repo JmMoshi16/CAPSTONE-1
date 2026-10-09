@@ -244,7 +244,14 @@ class _DashboardTab extends StatelessWidget {
                     const Text('Predicted Growth', style: TextStyle(color: AdminColors.textSecondary, fontSize: 11)),
                   ]),
                   const SizedBox(height: AppSpace.md),
-                  SizedBox(
+                  Semantics(
+                    // Screen readers get the numbers the chart shows.
+                    label: 'Daily disposals, last 7 days: '
+                        '${List.generate(7, (i) => '${DateFormat('EEEE').format(allDays[i])} ${actual[i].round()}').join(', ')}. '
+                        'Forecast for the next 3 days: '
+                        '${List.generate(3, (i) => '${DateFormat('EEEE').format(allDays[7 + i])} about ${predicted[7 + i].round()}').join(', ')}.',
+                    excludeSemantics: true,
+                    child: SizedBox(
                     height: 200,
                     child: LineChart(LineChartData(
                       minY: 0,
@@ -286,7 +293,7 @@ class _DashboardTab extends StatelessWidget {
                         ),
                       ],
                     )),
-                  ),
+                  )),
                 ]),
               ),
             ),
@@ -406,7 +413,11 @@ class _DashboardTab extends StatelessWidget {
 
   Widget _biTile({required IconData icon, required Color color, required String title,
       required String value, required String sub, required Widget chart}) =>
-      Container(
+      // One spoken summary per tile; the mini chart is decorative.
+      Semantics(
+        label: '$title: $value, $sub',
+        excludeSemantics: true,
+        child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(20), border: Border.all(color: kBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -421,7 +432,7 @@ class _DashboardTab extends StatelessWidget {
           const Spacer(),
           SizedBox(height: 36, child: chart),
         ]),
-      );
+      ));
 
   Widget _miniLineChart(List<double> data, Color color) {
     if (data.isEmpty) return const SizedBox.shrink();

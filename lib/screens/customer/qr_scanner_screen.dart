@@ -271,12 +271,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: (capture) {
-              final barcode = capture.barcodes.firstOrNull;
-              if (barcode?.rawValue != null) _handleScan(barcode!.rawValue!);
-            },
+          Semantics(
+            label: 'Camera viewfinder. Point it at the QR code on the bin.',
+            child: MobileScanner(
+              controller: _controller,
+              onDetect: (capture) {
+                final barcode = capture.barcodes.firstOrNull;
+                if (barcode?.rawValue != null) _handleScan(barcode!.rawValue!);
+              },
+            ),
           ),
           // FIX 5: Animated scan line via AnimatedBuilder
           RepaintBoundary(
