@@ -23,6 +23,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   late TabController _tabController;
   List<Redemption> _redemptions = [];
   bool _loadingRedemptions = true;
+  bool _redemptionsError = false;
+  String _codeQuery = '';
+  final Set<String> _claiming = {};
 
   @override
   void initState() {
@@ -35,8 +38,19 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   void dispose() { _tabController.dispose(); super.dispose(); }
 
   Future<void> _loadRedemptions() async {
-    final r = await FirebaseService.getAllRedemptions();
-    if (mounted) setState(() { _redemptions = r; _loadingRedemptions = false; });
+    try {
+      final r = await FirebaseService.getAllRedemptions().timeout(const Duration(seconds: 15));
+      if (mounted) setState(() { _redemptions = r; _loadingRedemptions = false; _redemptionsError = false; });
+    } catch (_) {
+      if (mounted) setState(() { _loadingRedemptions = false; _redemptionsError = true; });
+    }
+  }
+
+  void _snack(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: TextStyle(color: error ? Colors.white : AdminColors.onAccent)),
+      backgroundColor: error ? AdminColors.dangerFill : kGreen,
+    ));
   }
 
   void _showForm({Reward? reward}) {
@@ -167,17 +181,77 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     );
   }
 
+  /// Staff confirm with the code in front of them before a reward is handed over.
   Future<void> _markClaimed(Redemption r) async {
-    await FirebaseService.claimRedemption(r.id!);
-    await _loadRedemptions();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('✓ "${r.rewardTitle}" marked as claimed'),
-        backgroundColor: kGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+    final expired = DateTime.now().isAfter(r.expiresAt);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hand over this reward?'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+          if (r.userEmail.isNotEmpty)
+            Text(r.userEmail, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: AppSpace.md),
+          const Text("Check this matches the code on the customer's phone:",
+              style: TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: AppSpace.xs),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
+            decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AdminColors.border)),
+            alignment: Alignment.center,
+            child: Text(_spaced(r.redemptionCode),
+                style: const TextStyle(color: AdminColors.textPrimary, fontFamily: 'monospace',
+                    fontWeight: FontWeight.w900, fontSize: 28, letterSpacing: 3)),
+          ),
+          if (expired) ...[
+            const SizedBox(height: AppSpace.sm),
+            Container(
+              padding: const EdgeInsets.all(AppSpace.sm),
+              decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(color: AdminColors.danger.withValues(alpha: 0.5))),
+              child: Row(children: [
+                const Icon(Icons.timer_off_rounded, color: AdminColors.danger, size: 18),
+                const SizedBox(width: AppSpace.xs),
+                Expanded(child: Text('This code expired on ${_formatDate(r.expiresAt)}.',
+                    style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.w600, fontSize: 13))),
+              ]),
+            ),
+          ],
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: AdminColors.textSecondary))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Mark as Claimed')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    setState(() => _claiming.add(r.id!));
+    try {
+      await FirebaseService.claimRedemption(r.id!);
+      await _loadRedemptions();
+      if (mounted) _snack('✓ "${r.rewardTitle}" marked as claimed');
+    } catch (_) {
+      if (mounted) _snack("Couldn't mark it as claimed. Check your connection and try again.", error: true);
+    } finally {
+      if (mounted) setState(() => _claiming.remove(r.id));
     }
+  }
+
+  /// "ABCD EFGH" for reading aloud; matching ignores spaces and case.
+  String _spaced(String code) => code.length == 8 ? '${code.substring(0, 4)} ${code.substring(4)}' : code;
+
+  bool _matches(Redemption r) {
+    final q = _codeQuery.replaceAll(' ', '').toUpperCase();
+    if (q.isEmpty) return true;
+    return r.redemptionCode.toUpperCase().contains(q) ||
+        r.userEmail.toUpperCase().contains(q) ||
+        r.rewardTitle.toUpperCase().contains(q);
   }
 
   @override
@@ -239,22 +313,19 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
 
   Widget _buildRewards() {
     if (widget.rewards.isEmpty) {
-      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.card_giftcard_rounded, color: AdminColors.textTertiary, size: 64),
-        const SizedBox(height: AppSpace.sm),
-        const Text('No rewards yet', style: TextStyle(color: AdminColors.textTertiary, fontSize: 15)),
-        const SizedBox(height: AppSpace.md),
-        ElevatedButton.icon(
-          onPressed: _showForm,
-          style: ElevatedButton.styleFrom(backgroundColor: kGreen, foregroundColor: AdminColors.onAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Add First Reward', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ]));
+      return EmptyState(
+        icon: Icons.card_giftcard_rounded,
+        title: 'No rewards yet',
+        message: 'Add the first reward customers can redeem.',
+        actionLabel: 'Add First Reward',
+        onAction: _showForm,
+      );
     }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: () async => widget.onChanged(),
+      child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 110),
       itemCount: widget.rewards.length,
       itemBuilder: (_, i) {
@@ -337,8 +408,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     ),
                   );
                   if (confirm == true) {
-                    await FirebaseService.deleteReward(r.id!);
-                    widget.onChanged();
+                    try {
+                      await FirebaseService.deleteReward(r.id!);
+                      widget.onChanged();
+                    } catch (_) {
+                      if (mounted) _snack("Couldn't delete the reward. Check your connection and try again.", error: true);
+                    }
                   }
                 },
                 child: Container(padding: const EdgeInsets.all(7),
@@ -350,39 +425,88 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           ),
         );
       },
-    );
+    ));
   }
 
   Widget _buildRedemptions() {
-    if (_loadingRedemptions) return const Center(child: CircularProgressIndicator(color: kGreen));
-
+    if (_loadingRedemptions) return const SkeletonList(count: 5);
+    if (_redemptionsError) {
+      return ErrorState(
+        title: "Couldn't load redemptions",
+        message: 'Check your connection, then try again.',
+        onRetry: () {
+          setState(() { _loadingRedemptions = true; _redemptionsError = false; });
+          _loadRedemptions();
+        },
+      );
+    }
     if (_redemptions.isEmpty) {
-      return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.receipt_long_rounded, color: AdminColors.textTertiary, size: 64),
-        SizedBox(height: AppSpace.sm),
-        Text('No redemptions yet', style: TextStyle(color: AdminColors.textTertiary, fontSize: 15)),
-      ]));
+      return RefreshIndicator(
+        onRefresh: _loadRedemptions,
+        child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
+          SliverFillRemaining(hasScrollBody: false, child: EmptyState(
+            icon: Icons.receipt_long_rounded,
+            title: 'No redemptions yet',
+            message: 'Codes appear here when customers redeem a reward.',
+            actionLabel: 'Refresh',
+            onAction: _loadRedemptions,
+          )),
+        ]),
+      );
     }
 
-    final pending = _redemptions.where((r) => r.status == 'pending').toList();
-    final claimed = _redemptions.where((r) => r.status == 'claimed').toList();
+    final now = DateTime.now();
+    final shown = _redemptions.where(_matches).toList();
+    final pending = shown.where((r) => r.status == 'pending' && !now.isAfter(r.expiresAt)).toList();
+    final expired = shown.where((r) => r.status == 'pending' && now.isAfter(r.expiresAt)).toList();
+    final claimed = shown.where((r) => r.status == 'claimed').toList();
 
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: _loadRedemptions,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 110),
       children: [
+        // Staff type the code the customer shows (spaces and case ignored).
+        TextField(
+          onChanged: (v) => setState(() => _codeQuery = v),
+          textCapitalization: TextCapitalization.characters,
+          style: const TextStyle(color: AdminColors.textPrimary, fontFamily: 'monospace', letterSpacing: 2),
+          decoration: InputDecoration(
+            hintText: 'Find a code, email or reward',
+            hintStyle: const TextStyle(color: AdminColors.textTertiary, letterSpacing: 0, fontFamily: 'Roboto'),
+            prefixIcon: const Icon(Icons.search_rounded, color: AdminColors.textTertiary),
+            filled: true,
+            fillColor: kDark,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md),
+                borderSide: const BorderSide(color: AdminColors.border)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md),
+                borderSide: const BorderSide(color: AdminColors.border)),
+          ),
+        ),
+        const SizedBox(height: AppSpace.md),
+        if (shown.isEmpty)
+          EmptyState(icon: Icons.search_off_rounded, title: 'No match for "$_codeQuery"',
+              message: 'Check the code on the customer\'s phone.', dense: true),
         if (pending.isNotEmpty) ...[
-          _sectionHeader('Pending Approval', AdminColors.orange, pending.length),
-          const SizedBox(height: 10),
+          _sectionHeader('Waiting for pickup', AdminColors.orange, pending.length),
+          const SizedBox(height: AppSpace.sm - 2),
           ...pending.map((r) => _redemptionCard(r, isPending: true)),
+          const SizedBox(height: AppSpace.lg),
+        ],
+        if (expired.isNotEmpty) ...[
+          _sectionHeader('Expired, not picked up', AdminColors.danger, expired.length),
+          const SizedBox(height: AppSpace.sm - 2),
+          ...expired.map((r) => _redemptionCard(r, isPending: true, isExpired: true)),
           const SizedBox(height: AppSpace.lg),
         ],
         if (claimed.isNotEmpty) ...[
           _sectionHeader('Claimed', kGreen, claimed.length),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpace.sm - 2),
           ...claimed.map((r) => _redemptionCard(r, isPending: false)),
         ],
       ],
-    );
+    ));
   }
 
   Widget _sectionHeader(String title, Color color, int count) => Row(children: [
@@ -397,60 +521,84 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
         ),
       ]);
 
-  Widget _redemptionCard(Redemption r, {required bool isPending}) {
+  Widget _redemptionCard(Redemption r, {required bool isPending, bool isExpired = false}) {
+    final accent = isExpired ? AdminColors.danger : (isPending ? AdminColors.orange : kGreen);
+    final busy = _claiming.contains(r.id);
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
+      padding: const EdgeInsets.all(AppSpace.md - 2),
       decoration: BoxDecoration(
         color: kCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isPending ? AdminColors.orange.withValues(alpha: 0.3) : kBorder),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: isPending ? accent.withValues(alpha: 0.45) : kBorder, width: isExpired ? 1.5 : 1),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
             width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: isPending ? AdminColors.orange.withValues(alpha: 0.1) : kGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(isPending ? Icons.hourglass_top_rounded : Icons.check_circle_rounded,
-                color: isPending ? AdminColors.orange : kGreen, size: 22),
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.md)),
+            child: Icon(isExpired ? Icons.timer_off_rounded : (isPending ? Icons.hourglass_top_rounded : Icons.check_circle_rounded),
+                color: accent, size: 22),
           ),
           const SizedBox(width: AppSpace.sm),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
             Text(r.userEmail.isNotEmpty ? r.userEmail : r.userId.substring(0, 8),
-                style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+                style: const TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
           ])),
-          Text('-${r.pointsUsed} pts', style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.bold, fontSize: 13)),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('-${r.pointsUsed} pts', style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.bold, fontSize: 13)),
+            if (isExpired)
+              Container(
+                margin: const EdgeInsets.only(top: AppSpace.xxs),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
+                decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                child: const Text('EXPIRED', style: TextStyle(color: AdminColors.danger, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1)),
+              ),
+          ]),
         ]),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpace.sm - 2),
         // Redemption code
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
-          decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+          decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.sm + 2), border: Border.all(color: kBorder)),
           child: Row(children: [
-            const Icon(Icons.confirmation_number_rounded, color: AdminColors.textTertiary, size: 14),
+            const Icon(Icons.confirmation_number_rounded, color: AdminColors.textTertiary, size: 16),
             const SizedBox(width: AppSpace.xs),
-            const Text('Code: ', style: TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
-            Text(r.redemptionCode,
-                style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 2)),
-            const Spacer(),
-            Text(_formatDate(r.redeemedAt), style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+            Expanded(
+              child: Text(_spaced(r.redemptionCode),
+                  style: TextStyle(color: AdminColors.textPrimary, fontFamily: 'monospace', fontWeight: FontWeight.w800,
+                      fontSize: 18, letterSpacing: 2,
+                      decoration: isExpired ? TextDecoration.lineThrough : null,
+                      decorationColor: AdminColors.danger)),
+            ),
+            Text(isPending ? (isExpired ? 'Expired ${_formatDate(r.expiresAt)}' : 'Until ${_formatDate(r.expiresAt)}')
+                    : _formatDate(r.redeemedAt),
+                style: TextStyle(color: isExpired ? AdminColors.danger : AdminColors.textTertiary, fontSize: 11)),
           ]),
         ),
         if (isPending) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpace.sm - 2),
           SizedBox(
-            width: double.infinity, height: 40,
-            child: ElevatedButton.icon(
-              onPressed: () => _markClaimed(r),
-              style: ElevatedButton.styleFrom(backgroundColor: kGreen,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
-              icon: const Icon(Icons.check_rounded, color: AdminColors.onAccent, size: 16),
-              label: const Text('Mark as Claimed', style: TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 13)),
-            ),
+            width: double.infinity, height: 48,
+            child: isExpired
+                ? OutlinedButton.icon(
+                    onPressed: busy ? null : () => _markClaimed(r),
+                    style: OutlinedButton.styleFrom(foregroundColor: AdminColors.danger,
+                        side: BorderSide(color: AdminColors.danger.withValues(alpha: 0.6)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm + 2))),
+                    icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                    label: const Text('Review expired code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: busy ? null : () => _markClaimed(r),
+                    style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm + 2))),
+                    icon: busy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AdminColors.onAccent))
+                        : const Icon(Icons.check_rounded, size: 18),
+                    label: Text(busy ? 'Saving…' : 'Mark as Claimed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
           ),
         ],
       ]),
