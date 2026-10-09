@@ -4,11 +4,12 @@ part of 'customer_home_screen.dart';
 class _HeroHeaderCard extends StatelessWidget {
   final UserModel user;
   final int myRank, pendingRedemptions, lifetimePoints, streak;
-  final Animation<double> pointsAnim;   // animates the spendable balance
+  final int points;                     // spendable balance, counted up when it changes
+  final bool countFromZero;
   final VoidCallback onBell, onProfile;
   const _HeroHeaderCard({
     required this.user, required this.myRank, required this.pendingRedemptions,
-    required this.lifetimePoints, required this.pointsAnim, required this.streak,
+    required this.lifetimePoints, required this.points, required this.countFromZero, required this.streak,
     required this.onBell, required this.onProfile,
   });
 
@@ -47,17 +48,21 @@ class _HeroHeaderCard extends StatelessWidget {
             Row(children: [
               Tap(label: 'Open profile', tooltip: true,
                 onTap: onProfile,
-                child: Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+                child: Hero(
+                  tag: 'avatar-${user.uid}',
+                  flightShuttleBuilder: heroMaterialFlight,
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+                    ),
+                    child: Center(child: Text(
+                      user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
+                      style: t.titleLarge!.copyWith(color: c.onHero),
+                    )),
                   ),
-                  child: Center(child: Text(
-                    user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                    style: t.titleLarge!.copyWith(color: c.onHero),
-                  )),
                 ),
               ),
               const SizedBox(width: AppSpace.sm),
@@ -68,7 +73,7 @@ class _HeroHeaderCard extends StatelessWidget {
               ])),
               Tap(label: pendingRedemptions > 0 ? 'Notifications, $pendingRedemptions pending' : 'Notifications', tooltip: true,
                 onTap: onBell,
-                child: Stack(clipBehavior: Clip.none, children: [
+                child: _WiggleBell(active: pendingRedemptions > 0, child: Stack(clipBehavior: Clip.none, children: [
                   Container(
                     width: 44, height: 44,
                     decoration: BoxDecoration(
@@ -88,7 +93,7 @@ class _HeroHeaderCard extends StatelessWidget {
                         child: Text('$pendingRedemptions',
                             style: t.labelSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
                       )),
-                ]),
+                ])),
               ),
             ]),
 
@@ -108,14 +113,13 @@ class _HeroHeaderCard extends StatelessWidget {
               const SizedBox(width: AppSpace.md - 2),
               Flexible(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  AnimatedBuilder(
-                    animation: pointsAnim,
-                    builder: (_, __) => FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        NumberFormat('#,###').format(pointsAnim.value.toInt()),
-                        style: AppType.numeral.copyWith(color: c.onHero),
-                      ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: AnimatedCount(
+                      points,
+                      fromZero: countFromZero,
+                      format: NumberFormat('#,###').format,
+                      style: AppType.numeral.copyWith(color: c.onHero),
                     ),
                   ),
                   Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: AppSpace.xs, children: [
@@ -171,9 +175,10 @@ class _ProgressBarRow extends StatelessWidget {
   final String leftLabel, rightLabel;
   final double progress;
   final Color color;
+  final bool fromZero;
   const _ProgressBarRow({
     required this.leftLabel, required this.rightLabel,
-    required this.progress, required this.color,
+    required this.progress, required this.color, this.fromZero = true,
   });
 
   @override
@@ -186,56 +191,17 @@ class _ProgressBarRow extends StatelessWidget {
         Text(rightLabel, style: context.text.labelSmall!.copyWith(color: c.textTertiary)),
       ]),
       const SizedBox(height: AppSpace.xs - 2),
-      _AnimatedProgressBar(progress: progress, color: color),
+      AnimatedBar(progress: progress, color: color, fromZero: fromZero),
     ]);
   }
-}
-
-// ── Animated Progress Bar ─────────────────────────────────────────────────────
-class _AnimatedProgressBar extends StatefulWidget {
-  final double progress;
-  final Color color;
-  const _AnimatedProgressBar({required this.progress, required this.color});
-  @override
-  State<_AnimatedProgressBar> createState() => _AnimatedProgressBarState();
-}
-
-class _AnimatedProgressBarState extends State<_AnimatedProgressBar> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: AppMotion.countUp);
-    _anim = Tween<double>(begin: 0, end: widget.progress)
-        .animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.standard));
-    Future.delayed(AppMotion.slow, () { if (mounted) _ctrl.forward(); });
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _anim,
-    builder: (_, __) => ClipRRect(
-      borderRadius: AppRadius.all(6),
-      child: LinearProgressIndicator(
-        value: _anim.value,
-        backgroundColor: context.colors.surfaceAlt,
-        valueColor: AlwaysStoppedAnimation(widget.color),
-        minHeight: 8,
-      ),
-    ),
-  );
 }
 
 // ── Weekly Goal Bar ───────────────────────────────────────────────────────────
 class _WeeklyGoalBar extends StatelessWidget {
   final int scanCount;
   final int weeklyGoal;
-  const _WeeklyGoalBar({required this.scanCount, required this.weeklyGoal});
+  final bool fromZero;
+  const _WeeklyGoalBar({required this.scanCount, required this.weeklyGoal, this.fromZero = true});
 
   @override
   Widget build(BuildContext context) {
@@ -260,15 +226,7 @@ class _WeeklyGoalBar extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: AppSpace.xs - 2),
-        ClipRRect(
-          borderRadius: AppRadius.all(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: c.surfaceAlt,
-            valueColor: AlwaysStoppedAnimation(done ? c.success : c.primary),
-            minHeight: 6,
-          ),
-        ),
+        AnimatedBar(progress: progress, color: done ? c.success : c.primary, height: 6, fromZero: fromZero),
       ]),
     );
   }
@@ -281,9 +239,12 @@ class _FloatingNavBar extends StatelessWidget {
   final VoidCallback onScan;
   const _FloatingNavBar({required this.selectedIndex, required this.onTap, required this.onScan});
 
+  static const _slotOfTab = [0, 1, 3, 4];   // slot 2 is the scan button
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final slot = _slotOfTab[selectedIndex];
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
@@ -295,28 +256,48 @@ class _FloatingNavBar extends StatelessWidget {
             border: c.isDark ? Border.all(color: c.border) : null,
             boxShadow: AppShadows.of(context, AppShadows.e3),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
+          child: Stack(alignment: Alignment.center, children: [
+            // Indicator that slides between tabs.
+            Positioned.fill(
+              child: AnimatedAlign(
+                alignment: Alignment(-1 + slot * 0.5, 0),
+                duration: AppMotion.of(context, AppMotion.medium),
+                curve: AppMotion.emphasized,
+                child: FractionallySizedBox(
+                  widthFactor: 1 / 5,
+                  child: Center(
+                    child: Container(
+                      width: 60, height: 52,
+                      decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.lg)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Row(children: [
               _navItem(context, Icons.home_rounded, Icons.home_outlined, 'Home', 0),
               _navItem(context, Icons.card_giftcard_rounded, Icons.card_giftcard_outlined, 'Rewards', 1),
-              Tap(label: 'Scan QR code', tooltip: true,
-                onTap: onScan,
-                child: Container(
-                  width: 54, height: 54,
-                  decoration: BoxDecoration(
-                    color: c.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: AppShadows.of(context,
-                        [BoxShadow(color: c.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))]),
+              Expanded(
+                child: Center(
+                  child: Tap(label: 'Scan QR code', tooltip: true,
+                    onTap: onScan,
+                    child: Container(
+                      width: 54, height: 54,
+                      decoration: BoxDecoration(
+                        color: c.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.of(context,
+                            [BoxShadow(color: c.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))]),
+                      ),
+                      child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 26),
+                    ),
                   ),
-                  child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 26),
                 ),
               ),
               _navItem(context, Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Impact', 2),
               _navItem(context, Icons.person_rounded, Icons.person_outlined, 'Profile', 3),
-            ],
-          ),
+            ]),
+          ]),
         ),
       ),
     );
@@ -326,25 +307,76 @@ class _FloatingNavBar extends StatelessWidget {
     final c = context.colors;
     final selected = selectedIndex == index;
     final fg = selected ? c.primary : c.textTertiary;
-    return Tap(label: label, selected: selected,
-      onTap: () => onTap(index),
-      child: AnimatedContainer(
-        duration: AppMotion.of(context, AppMotion.medium),
-        curve: AppMotion.standard,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm - 2, vertical: AppSpace.xs),
-        decoration: BoxDecoration(
-          color: selected ? c.primaryContainer : Colors.transparent,
-          borderRadius: AppRadius.all(AppRadius.lg - 2),
+    return Expanded(
+      child: Tap(label: label, selected: selected,
+        onTap: () => onTap(index),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            AnimatedSwitcher(
+              duration: AppMotion.of(context, AppMotion.fast),
+              child: Icon(selected ? active : inactive, key: ValueKey(selected), color: fg, size: 22),
+            ),
+            const SizedBox(height: 2),
+            AnimatedDefaultTextStyle(
+              duration: AppMotion.of(context, AppMotion.fast),
+              style: context.text.labelSmall!.copyWith(color: fg,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600),
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ]),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(selected ? active : inactive, color: fg, size: 22),
-          const SizedBox(height: 2),
-          Text(label, style: context.text.labelSmall!.copyWith(color: fg,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
-        ]),
       ),
     );
   }
+}
+
+// ── Bell wiggle ───────────────────────────────────────────────────────────────
+/// A short wiggle (400 ms) every 5 s while there are pending codes. Off with reduced motion.
+class _WiggleBell extends StatefulWidget {
+  const _WiggleBell({required this.active, required this.child});
+  final bool active;
+  final Widget child;
+  @override
+  State<_WiggleBell> createState() => _WiggleBellState();
+}
+
+class _WiggleBellState extends State<_WiggleBell> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: AppMotion.slow);
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted && widget.active && !AppMotion.reduced(context)) _c.forward(from: 0);
+    });
+    // First wiggle shortly after the screen settles.
+    Future.delayed(AppMotion.slow * 2, () {
+      if (mounted && widget.active && !AppMotion.reduced(context)) _c.forward(from: 0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _c,
+          child: widget.child,
+          builder: (_, child) => Transform.rotate(
+            // Damped swing: about ±14 degrees, settling to rest.
+            angle: math.sin(_c.value * math.pi * 4) * 0.25 * (1 - _c.value),
+            alignment: Alignment.topCenter,
+            child: child,
+          ),
+        ),
+      );
 }
 
 // ── Offline banner ────────────────────────────────────────────────────────────

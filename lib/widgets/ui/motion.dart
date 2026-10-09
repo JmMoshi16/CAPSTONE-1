@@ -77,16 +77,19 @@ class AnimatedCount extends StatelessWidget {
 
 /// Progress bar that fills from 0 on first show and then from the old value to the new one.
 class AnimatedBar extends StatelessWidget {
-  const AnimatedBar({super.key, required this.progress, required this.color, this.height = 8, this.trackColor});
+  const AnimatedBar({super.key, required this.progress, required this.color, this.height = 8, this.trackColor,
+      this.fromZero = true});
 
   final double progress;
+  /// Fill from 0 when first shown; false shows the current value at once (e.g. revisiting a tab).
+  final bool fromZero;
   final Color color;
   final double height;
   final Color? trackColor;
 
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
+        tween: Tween(begin: fromZero ? 0 : progress.clamp(0.0, 1.0), end: progress.clamp(0.0, 1.0)),
         duration: AppMotion.of(context, AppMotion.slow),
         curve: AppMotion.standard,
         builder: (_, v, __) => ClipRRect(
@@ -100,3 +103,8 @@ class AnimatedBar extends StatelessWidget {
         ),
       );
 }
+
+/// Hero flight that keeps text styled mid-flight (the overlay has no Material ancestor).
+Widget heroMaterialFlight(BuildContext _, Animation<double> __, HeroFlightDirection ___,
+        BuildContext from, BuildContext to) =>
+    Material(type: MaterialType.transparency, child: (to.widget as Hero).child);

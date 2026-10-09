@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -171,9 +173,9 @@ class _HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
   late AnimationController _staggerCtrl;
-  late AnimationController _pointsCtrl;
   late AnimationController _pulseCtrl;
-  late Animation<double> _pointsAnim;
+  /// Entrance animations and count-ups play on the first visit of the session only.
+  late final bool _firstLoad = AppMotion.firstTime('home');
   late Animation<double> _pulseAnim;
 
   // 6 staggered sections
@@ -201,11 +203,6 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
           .animate(CurvedAnimation(parent: _staggerCtrl, curve: Interval(iv.begin, iv.end, curve: AppMotion.standard))));
     }
 
-    // Points count-up
-    _pointsCtrl = AnimationController(vsync: this, duration: AppMotion.countUp);
-    _pointsAnim = Tween<double>(begin: 0, end: widget.user.points.toDouble())
-        .animate(CurvedAnimation(parent: _pointsCtrl, curve: AppMotion.standard));
-
     // Pulse for scan button
     _pulseCtrl = AnimationController(vsync: this, duration: AppMotion.ambient)
       ..repeat(reverse: true);
@@ -213,28 +210,28 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
     // Start animations
-    _staggerCtrl.forward();
-    Future.delayed(AppMotion.medium, () {
-      if (mounted) _pointsCtrl.forward();
-    });
+    if (_firstLoad) {
+      _staggerCtrl.forward();
+    } else {
+      _staggerCtrl.value = 1;
+    }
   }
 
   @override
-  void didUpdateWidget(_HomeTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.user.points != widget.user.points) {
-      _pointsAnim = Tween<double>(begin: oldWidget.user.points.toDouble(), end: widget.user.points.toDouble())
-          .animate(CurvedAnimation(parent: _pointsCtrl, curve: AppMotion.standard));
-      _pointsCtrl
-        ..reset()
-        ..forward();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: no slide-in and no pulsing; content simply appears.
+    if (AppMotion.reduced(context)) {
+      _staggerCtrl.value = 1;
+      _pulseCtrl
+        ..stop()
+        ..value = 0;
     }
   }
 
   @override
   void dispose() {
     _staggerCtrl.dispose();
-    _pointsCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -428,11 +425,13 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
               user: widget.user,
               myRank: widget.myRank,
               lifetimePoints: lifetime,
-              pointsAnim: _pointsAnim,
+              points: widget.user.points,
+              countFromZero: _firstLoad,
               streak: streak,
               onBell: () => _showNotificationsSheet(context),
               onProfile: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => CustomerProfileScreen(user: widget.user, logs: widget.logs, onUpdated: widget.onRefresh))),
+                  MaterialPageRoute(builder: (_) => CustomerProfileScreen(
+                      user: widget.user, logs: widget.logs, onUpdated: widget.onRefresh, heroAvatar: true))),
               pendingRedemptions: widget.redemptions.where((r) => r.status == 'pending' && !DateTime.now().isAfter(r.expiresAt)).length,
             )),
           ),
@@ -458,6 +457,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                       : 'Max Rank',
                   progress: rankProgress(lifetime),
                   color: rank.color,
+                  fromZero: _firstLoad,
                 ),
                 const SizedBox(height: AppSpace.sm),
                 // Level bar
@@ -468,10 +468,11 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                       : '${ptsToNextLevel(lifetime)} pts to next',
                   progress: levelProgress(lifetime),
                   color: level.color,
+                  fromZero: _firstLoad,
                 ),
                 const SizedBox(height: AppSpace.lg),
                 // Scan button
-                ScaleTransition(
+                RepaintBoundary(child: ScaleTransition(
                   scale: _pulseAnim,
                   child: AppButton(
                     label: 'Scan QR Code',
@@ -479,7 +480,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                     height: 56,
                     onPressed: widget.onScan,
                   ),
-                ),
+                )),
                 const SizedBox(height: AppSpace.sm),
                 // Rewards button
                 AppButton.secondary(
@@ -538,7 +539,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 ]),
                 const SizedBox(height: AppSpace.sm),
                 // Weekly scan goal bar
-                _WeeklyGoalBar(scanCount: scansThisWeek, weeklyGoal: 10),
+                _WeeklyGoalBar(scanCount: scansThisWeek, weeklyGoal: 10, fromZero: _firstLoad),
                 if (widget.user.scanCount == 0) ...[
                   const SizedBox(height: AppSpace.sm - 2),
                   Container(

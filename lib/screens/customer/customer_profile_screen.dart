@@ -13,7 +13,10 @@ class CustomerProfileScreen extends StatefulWidget {
   final UserModel user;
   final List<WasteLog> logs;
   final VoidCallback onUpdated;
-  const CustomerProfileScreen({super.key, required this.user, required this.logs, required this.onUpdated});
+  /// True when opened from the Home avatar, so the avatar flies in (Hero).
+  final bool heroAvatar;
+  const CustomerProfileScreen({super.key, required this.user, required this.logs, required this.onUpdated,
+      this.heroAvatar = false});
   @override
   State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
 }
@@ -157,7 +160,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                               child: Icon(Icons.stars_rounded, size: 13, color: c.onPrimary),
                             ),
                             const SizedBox(width: AppSpace.xs),
-                            Text('${widget.user.points} pts', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                            AnimatedCount(widget.user.points, suffix: ' pts', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
                           ]),
                         ),
                       ),
@@ -188,6 +191,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     initial: widget.user.username.isNotEmpty ? widget.user.username[0].toUpperCase() : 'U',
                     rankIcon: rank['icon'] as String,
                     rankColor: rankColor,
+                    heroTag: widget.heroAvatar ? 'avatar-${widget.user.uid}' : null,
                   ),
                   const SizedBox(height: AppSpace.md - 2),
                   Text(widget.user.username, style: t.headlineSmall, textAlign: TextAlign.center),
@@ -395,15 +399,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                             style: t.labelMedium!.copyWith(color: c.ink(rankColor), fontWeight: FontWeight.w700)),
                       ]),
                       const SizedBox(height: AppSpace.sm),
-                      ClipRRect(
-                        borderRadius: AppRadius.all(6),
-                        child: LinearProgressIndicator(
-                          value: _rankProgress,
-                          backgroundColor: c.surfaceAlt,
-                          valueColor: AlwaysStoppedAnimation(rankColor),
-                          minHeight: 8,
-                        ),
-                      ),
+                      AnimatedBar(progress: _rankProgress, color: rankColor),
                       const SizedBox(height: AppSpace.xs - 2),
                       Text('${(rank['nextPts'] as int) - widget.user.lifetimePoints} more points to reach ${rank['next']}',
                           style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
@@ -545,15 +541,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           Text('$count', style: context.text.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: AppSpace.xxs),
-        ClipRRect(
-          borderRadius: AppRadius.all(4),
-          child: LinearProgressIndicator(
-            value: pct,
-            backgroundColor: c.surfaceAlt,
-            valueColor: AlwaysStoppedAnimation(color),
-            minHeight: 6,
-          ),
-        ),
+        AnimatedBar(progress: pct, color: color, height: 6),
       ])),
     ]);
   }
@@ -564,7 +552,8 @@ class _DashedAvatar extends StatelessWidget {
   final String initial;
   final String rankIcon;
   final Color rankColor;
-  const _DashedAvatar({required this.initial, required this.rankIcon, required this.rankColor});
+  final String? heroTag;
+  const _DashedAvatar({required this.initial, required this.rankIcon, required this.rankColor, this.heroTag});
 
   @override
   Widget build(BuildContext context) {
@@ -576,13 +565,13 @@ class _DashedAvatar extends StatelessWidget {
           painter: _DashedCirclePainter(color: c.primary),
           child: Padding(
             padding: const EdgeInsets.all(AppSpace.xs - 2),
-            child: Container(
+            child: _hero(Container(
               width: 88, height: 88,
               decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
               child: Center(
                 child: Text(initial, style: AppType.numeral.copyWith(color: c.onPrimaryContainer, fontSize: 36)),
               ),
-            ),
+            )),
           ),
         ),
         Container(
@@ -597,6 +586,11 @@ class _DashedAvatar extends StatelessWidget {
       ],
     );
   }
+}
+
+extension on _DashedAvatar {
+  Widget _hero(Widget child) =>
+      heroTag == null ? child : Hero(tag: heroTag!, flightShuttleBuilder: heroMaterialFlight, child: child);
 }
 
 class _DashedCirclePainter extends CustomPainter {
