@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/app_theme.dart';
-import 'core/tokens.dart';
+import 'widgets/ui.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 import 'models/models.dart';
@@ -27,6 +27,7 @@ void main() async {
   // Run non-critical tasks in the background AFTER the app is visible
   FirebaseService.seedRewardsIfEmpty();
   NotificationService.init();
+  EcoAnimations.precache().ignore();   // first loader/success animation shows instantly; failure is harmless
 }
 
 class ECORewardApp extends StatelessWidget {
@@ -47,23 +48,43 @@ class ECORewardApp extends StatelessWidget {
   }
 }
 
-/// Reuses Firebase's persisted session instead of asking for a login on every launch (audit M-13).
-class _AuthGate extends StatelessWidget {
+/// Reuses Firebase's persisted session instead of asking for a login on every launch (audit M-13),
+/// routing by role. If a session exists but the profile cannot be loaded (offline, timeout), the
+/// user gets Retry instead of being dropped to the login screen.
+class _AuthGate extends StatefulWidget {
   const _AuthGate();
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
 
-  Future<UserModel?> _restore() async {
-    if (FirebaseService.currentUid == null) return null;
+enum _Restore { signedOut, ready, unreachable }
+
+class _AuthGateState extends State<_AuthGate> {
+  // Created once (a FutureBuilder future built inline would re-fetch on every rebuild).
+  late Future<(_Restore, UserModel?)> _future = _restore();
+
+  Future<(_Restore, UserModel?)> _restore() async {
+    if (FirebaseService.currentUid == null) return (_Restore.signedOut, null);
     try {
-      return await FirebaseService.getCurrentUser().timeout(const Duration(seconds: 8));
+      final user = await FirebaseService.getCurrentUser().timeout(const Duration(seconds: 8));
+      // Signed in but no profile document: treat as signed out.
+      return user == null ? (_Restore.signedOut, null) : (_Restore.ready, user);
     } catch (_) {
-      return null;   // unreachable / no profile: fall back to the login screen
+      return (_Restore.unreachable, null);
     }
   }
 
+  void _retry() => setState(() => _future = _restore());
+
+  Future<void> _useAnotherAccount() async {
+    await FirebaseService.logout();
+    _retry();
+  }
+
   @override
-  Widget build(BuildContext context) => FutureBuilder<UserModel?>(
-        future: _restore(),
-        builder: (_, snap) {
+  Widget build(BuildContext context) => FutureBuilder<(_Restore, UserModel?)>(
+        future: _future,
+        builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Scaffold(
               // Same cream as the splash, so restoring the session looks like part of it.
@@ -71,9 +92,31 @@ class _AuthGate extends StatelessWidget {
               body: Center(child: EcoLoader(size: 72, semanticLabel: 'Signing you in')),
             );
           }
-          final user = snap.data;
-          if (user == null) return const LoginScreen();
-          return user.role == 'admin' ? const AdminDashboardScreen() : const CustomerHomeScreen();
+          final (state, user) = snap.data ?? (_Restore.unreachable, null);
+          switch (state) {
+            case _Restore.signedOut:
+              return const LoginScreen();
+            case _Restore.ready:
+              return user!.role == 'admin' ? const AdminDashboardScreen() : const CustomerHomeScreen();
+            case _Restore.unreachable:
+              return Scaffold(
+                body: SafeArea(
+                  child: Column(children: [
+                    Expanded(
+                      child: ErrorState(
+                        title: "Couldn't reach ECOReward",
+                        message: "You're still signed in. Check your connection and try again.",
+                        onRetry: _retry,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpace.lg),
+                      child: TextButton(onPressed: _useAnotherAccount, child: const Text('Sign in with another account')),
+                    ),
+                  ]),
+                ),
+              );
+          }
         },
       );
 }
