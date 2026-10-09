@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
+import '../models/models.dart';
 import '../services/firebase_service.dart';
 import '../widgets/ui.dart';
 import 'customer/customer_home_screen.dart';
@@ -8,7 +9,11 @@ import 'admin/admin_dashboard_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.signIn});
+
+  /// Replaces the Firebase sign-in in widget tests; the app always leaves it null.
+  @visibleForTesting
+  final Future<UserModel> Function(String email, String password)? signIn;
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -94,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     setState(() => _loading = true);
     try {
       // Password trimmed exactly as at registration (audit M-17).
-      final user = await FirebaseService.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
+      final user = await (widget.signIn ?? FirebaseService.login)(_emailCtrl.text.trim(), _passCtrl.text.trim());
       if (mounted) {
         Navigator.pushReplacement(context, PageRouteBuilder(
           pageBuilder: (_, a, __) =>

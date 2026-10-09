@@ -282,7 +282,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
                 ]),
               ),
             if (!_isExpired)
-              _ExpiryRing(
+              ExpiryRing(
                 expiresAt: _expiresAt!,
                 total: _validFor,
                 onExpired: () => setState(() {}),
@@ -482,17 +482,20 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
 
 // Countdown ring: a progress ring around the QR that drains over the 20 minutes,
 // green → orange (under 5 min) → red (under 1 min), with a large mm:ss readout.
-class _ExpiryRing extends StatefulWidget {
+class ExpiryRing extends StatefulWidget {
   final DateTime expiresAt;
   final Duration total;
   final VoidCallback onExpired;
   final Widget child;
-  const _ExpiryRing({required this.expiresAt, required this.total, required this.onExpired, required this.child});
+  /// The current time; tests pass a fake clock. Defaults to [DateTime.now].
+  final DateTime Function() now;
+  const ExpiryRing({super.key, required this.expiresAt, required this.total, required this.onExpired,
+      required this.child, this.now = DateTime.now});
   @override
-  State<_ExpiryRing> createState() => _ExpiryRingState();
+  State<ExpiryRing> createState() => _ExpiryRingState();
 }
 
-class _ExpiryRingState extends State<_ExpiryRing> {
+class _ExpiryRingState extends State<ExpiryRing> {
   Timer? _timer;
   Duration _remaining = Duration.zero;
 
@@ -511,7 +514,7 @@ class _ExpiryRingState extends State<_ExpiryRing> {
 
   void _tick() {
     if (!mounted) return;
-    final remaining = widget.expiresAt.difference(DateTime.now());
+    final remaining = widget.expiresAt.difference(widget.now());
     if (remaining.isNegative) {
       _timer?.cancel();
       widget.onExpired();
