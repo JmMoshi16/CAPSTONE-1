@@ -77,11 +77,26 @@ class FirebaseService {
         final doc = await _db.collection('users').doc(uid).get()
             .timeout(const Duration(seconds: 8));
         if (doc.exists) return UserModel.fromDoc(doc);
+        // H-10: profile doc missing (auth exists but Firestore write failed at registration)
+        // Create a default customer profile so the account is not permanently locked.
+        final fallback = UserModel(
+          uid: uid,
+          email: email,
+          username: email.split('@').first,
+          role: 'customer',
+          points: 0,
+          createdAt: DateTime.now(),
+          scanCount: 0,
+          streak: 0,
+          badges: [],
+        );
+        await _db.collection('users').doc(uid).set(fallback.toMap());
+        return fallback;
       } catch (_) {
         await Future.delayed(const Duration(seconds: 1));
       }
     }
-    // Firestore unavailable — surface error so admin is not silently demoted to customer
+    // Firestore unreachable after retries
     throw Exception('Could not reach Firestore after 3 attempts. Check your connection and try again.');
   }
 
@@ -371,10 +386,15 @@ class FirebaseService {
       final expiresAt = DateTime.tryParse(data['expiresAt'] ?? '');
       if (expiresAt == null || DateTime.now().isAfter(expiresAt)) return QRValidationResult.expired;
 
+      // H-02: token-level guard — reject any second claimer regardless of account
+      if (data['isUsed'] == true) return QRValidationResult.alreadyUsed;
       final usedBy = List<String>.from(data['usedBy'] ?? []);
       if (usedBy.contains(userId)) return QRValidationResult.alreadyUsed;
 
-      tx.update(ref, {'usedBy': FieldValue.arrayUnion([userId])});
+      tx.update(ref, {
+        'isUsed': true,
+        'usedBy': FieldValue.arrayUnion([userId]),
+      });
       return QRValidationResult.valid;
     });
 

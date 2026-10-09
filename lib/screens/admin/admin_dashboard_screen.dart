@@ -30,16 +30,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<UserModel> _customers = [];
   List<Reward> _rewards = [];
   bool _loading = true;
+  String? _loadError;
 
   @override
   void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
-    final logs = await FirebaseService.getAllWasteLogs();
-    final customers = await FirebaseService.getAllCustomers();
-    final rewards = await FirebaseService.getAllRewards();
-    if (mounted) setState(() { _logs = logs; _customers = customers; _rewards = rewards; _loading = false; });
+    if (mounted) setState(() { _loading = true; _loadError = null; });
+    try {
+      final logs = await FirebaseService.getAllWasteLogs();
+      final customers = await FirebaseService.getAllCustomers();
+      final rewards = await FirebaseService.getAllRewards();
+      if (mounted) setState(() { _logs = logs; _customers = customers; _rewards = rewards; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _loadError = e.toString(); });
+    }
   }
 
   Future<void> _logout() async {
@@ -79,7 +84,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: kDark,
       extendBody: true,
-      body: _loading ? const Center(child: CircularProgressIndicator(color: kGreen)) : screens[_selectedIndex],
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: kGreen))
+          : _loadError != null
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                  const SizedBox(height: 12),
+                  Text('Failed to load data', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text(_loadError!, style: const TextStyle(color: Colors.white54, fontSize: 12), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
+                ]))
+              : screens[_selectedIndex],
       bottomNavigationBar: _AdminFloatingNav(
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
