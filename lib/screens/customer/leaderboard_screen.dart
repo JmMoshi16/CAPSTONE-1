@@ -13,6 +13,7 @@ class LeaderboardScreen extends StatefulWidget {
 class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProviderStateMixin {
   List<UserModel> _users = [];
   bool _loading = true;
+  bool _error = false;
   int _myRank = 0;
   late AnimationController _headerCtrl;
   late AnimationController _listCtrl;
@@ -35,19 +36,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   void dispose() { _headerCtrl.dispose(); _listCtrl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = false; });
     _listCtrl.reset();
-    final results = await Future.wait([
-      FirebaseService.getLeaderboard(limit: 20),
-      FirebaseService.getUserRank(widget.currentUid),
-    ]);
-    if (mounted) {
-      setState(() {
-        _users   = results[0] as List<UserModel>;
-        _myRank  = results[1] as int;
-        _loading = false;
-      });
-      _listCtrl.forward();
+    try {
+      // Never leave the user on an endless spinner: offline or a missing index ends in an error state.
+      final results = await Future.wait([
+        FirebaseService.getLeaderboard(limit: 20),
+        FirebaseService.getUserRank(widget.currentUid),
+      ]).timeout(const Duration(seconds: 10));
+      if (mounted) {
+        setState(() {
+          _users   = results[0] as List<UserModel>;
+          _myRank  = results[1] as int;
+          _loading = false;
+        });
+        _listCtrl.forward();
+      }
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; _error = true; });
     }
   }
 
@@ -107,11 +113,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
             ),
             if (_loading)
               const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
+                child: SkeletonList(count: 8, padding: EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xl, AppSpace.md, 0)),
+              )
+            else if (_error)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: ErrorState(
+                  title: "Couldn't load the leaderboard",
+                  message: 'Check your connection, then try again.',
+                  onRetry: _load,
+                ),
               )
             else if (_users.isEmpty)
-              const SliverFillRemaining(
-                child: EmptyState(emoji: '🏆', title: 'No users yet', dense: true),
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  emoji: '🏆',
+                  title: 'No one on the board yet',
+                  message: 'Scan a bin QR code to be the first!',
+                  actionLabel: 'Refresh',
+                  onAction: _load,
+                  dense: true,
+                ),
               )
             else ...[
               if (showPodium)
