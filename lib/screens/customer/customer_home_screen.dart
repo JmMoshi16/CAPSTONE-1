@@ -109,7 +109,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         onImpact:      () => setState(() => _selectedIndex = 2),
         onHistory: () => _openHistory(),
         onLeaderboard: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => LeaderboardScreen(currentUid: _user!.uid))),
+            builder: (_) => LeaderboardScreen(currentUid: _user!.uid, me: _user))),
         onBadges: () => Navigator.push(context, MaterialPageRoute(
             builder: (_) => BadgesScreen(user: _user!))),
         onRefresh: _loadData,

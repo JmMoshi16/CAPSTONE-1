@@ -104,7 +104,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   }
 
   void _openLeaderboard() => Navigator.push(context, MaterialPageRoute(
-      builder: (_) => LeaderboardScreen(currentUid: widget.user.uid)));
+      builder: (_) => LeaderboardScreen(currentUid: widget.user.uid, me: widget.user)));
 
   @override
   Widget build(BuildContext context) {

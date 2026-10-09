@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   final String currentUid;
-  const LeaderboardScreen({super.key, required this.currentUid});
+  /// The signed-in customer, for the row pinned at the bottom when they are outside the top 20.
+  final UserModel? me;
+  const LeaderboardScreen({super.key, required this.currentUid, this.me});
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
@@ -16,6 +19,22 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   bool _loading = true;
   bool _error = false;
   bool _denied = false;   // Firestore refused the read (rules), not a connection problem
+  /// Places gained (+) or lost (-) since the last visit on this phone. Display only.
+  int? _rankDelta;
+  bool _rankTracked = false;
+
+  Future<void> _trackRankChange() async {
+    if (_myRank <= 0) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'last_rank_${widget.currentUid}';
+      final prev = prefs.getInt(key);
+      await prefs.setInt(key, _myRank);
+      if (mounted && prev != null && prev != _myRank) setState(() => _rankDelta = prev - _myRank);
+    } catch (_) {
+      // Purely decorative: no arrow if local storage is unavailable.
+    }
+  }
   int _myRank = 0;
   late AnimationController _headerCtrl;
   late Animation<double> _headerFade;
@@ -55,6 +74,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
           _myRank  = results[1] as int;
           _loading = false;
         });
+        // Compare with the previous visit once per visit (not on every pull-to-refresh).
+        if (!_rankTracked) {
+          _rankTracked = true;
+          _trackRankChange();
+        }
       }
     } catch (e) {
       // The exact cause goes to the debug log (flutter run / logcat), never to the screen.
@@ -71,7 +95,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
     final showPodium = _users.length >= 3;
     final listOffset = showPodium ? 3 : 0;
 
+    final me = widget.me;
+    final pinMe = !_loading && !_error && me != null && _myRank > 0 && !_users.any((u) => u.uid == me.uid);
     return Scaffold(
+      // Outside the loaded top 20? Keep your own row visible at the bottom.
+      bottomNavigationBar: pinMe ? _PinnedMe(me: me, rank: _myRank, delta: _rankDelta) : null,
       body: RefreshIndicator(
         color: c.primary,
         onRefresh: _load,
@@ -109,6 +137,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                                 const SizedBox(width: AppSpace.xs),
                                 Text('Your Rank: #$_myRank',
                                     style: t.titleSmall!.copyWith(color: c.onHero, fontWeight: FontWeight.w700, fontSize: 15)),
+                                if (_rankDelta != null && _rankDelta != 0) _RankDelta(delta: _rankDelta!, onHero: true),
                               ]),
                             ),
                         ]),
@@ -198,7 +227,9 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
       final c = AnimationController(vsync: this, duration: AppMotion.slow);
       _ctrls.add(c);
       _scales.add(Tween<double>(begin: 0.6, end: 1).animate(CurvedAnimation(parent: c, curve: AppMotion.spring)));
-      Future.delayed(AppMotion.medium + AppMotion.stagger * (i * 2), () { if (mounted) c.forward(); });
+      // Order on screen is silver, gold, bronze; they rise bronze -> silver -> gold.
+      const delays = [250, 520, 120];
+      Future.delayed(Duration(milliseconds: delays[i]), () { if (mounted) c.forward(); });
     }
   }
 
@@ -237,9 +268,13 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
         final user = widget.users[idx];
         final isMe = user.uid == widget.currentUid;
         return Expanded(
-          child: ScaleTransition(
-            scale: _scales[i],
+          child: FadeTransition(
+            opacity: _ctrls[i],
             child: Column(children: [
+              if (idx == 0)
+                // The leader's crown, with a shine now and then.
+                const ShineSweep(every: Duration(seconds: 3), opacity: 0.6,
+                    child: ExcludeSemantics(child: Text('👑', style: TextStyle(fontSize: 24)))),
               if (isMe)
                 Container(
                   margin: const EdgeInsets.only(bottom: AppSpace.xxs),
@@ -266,16 +301,22 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               Text('${user.lifetimePoints} pts', style: t.labelSmall!.copyWith(color: c.ink(colors[i]), fontWeight: FontWeight.w700)),
               const SizedBox(height: AppSpace.xs - 2),
-              Container(
-                height: heights[i],
+              AnimatedBuilder(
+                animation: _scales[i],
+                builder: (_, child) => SizedBox(
+                  // The step grows from the floor with a spring (scale runs 0.6 -> 1).
+                  height: heights[i] * ((_scales[i].value - 0.6) / 0.4).clamp(0.0, 1.15),
+                  child: child,
+                ),
+                child: Container(
                 decoration: BoxDecoration(
                   color: colors[i].withValues(alpha: 0.15),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sm + 2)),
                   border: Border.all(color: colors[i].withValues(alpha: 0.4)),
                 ),
-                child: Center(child: Text('#${idx + 1}',
-                    style: t.titleMedium!.copyWith(color: c.ink(colors[i])))),
-              ),
+                child: Center(child: FittedBox(child: Text('#${idx + 1}',
+                    style: t.titleMedium!.copyWith(color: c.ink(colors[i]))))),
+              )),
             ]),
           ),
         );
@@ -366,6 +407,61 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
             ]),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+/// "▲ 2" / "▼ 1": places gained or lost since the last visit on this phone.
+class _RankDelta extends StatelessWidget {
+  const _RankDelta({required this.delta, this.onHero = false});
+  final int delta;
+  final bool onHero;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final up = delta > 0;
+    final color = onHero ? (up ? c.heroAccent : c.onHeroMuted) : (up ? c.success : c.danger);
+    return Semantics(
+      label: up ? 'up $delta since your last visit' : 'down ${-delta} since your last visit',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(left: AppSpace.xs),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(up ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded, color: color, size: 26),
+          Text('${delta.abs()}', style: context.text.titleSmall!.copyWith(color: color, fontWeight: FontWeight.w800)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Your own row, pinned under the list when you are not in the loaded top 20.
+class _PinnedMe extends StatelessWidget {
+  const _PinnedMe({required this.me, required this.rank, this.delta});
+  final UserModel me;
+  final int rank;
+  final int? delta;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, AppSpace.sm),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm),
+        decoration: cardDecoration(context, color: c.primaryContainer, borderColor: c.primary.withValues(alpha: 0.5))
+            .copyWith(boxShadow: AppShadows.of(context, AppShadows.e3)),
+        child: Row(children: [
+          Text('#$rank', style: t.titleMedium!.copyWith(color: c.primary, fontWeight: FontWeight.w800)),
+          if (delta != null && delta != 0) _RankDelta(delta: delta!),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(child: Text('You · ${me.username}', maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: t.titleSmall!.copyWith(color: c.onPrimaryContainer))),
+          Text('${me.lifetimePoints} pts', style: t.titleSmall!.copyWith(color: c.gold, fontWeight: FontWeight.w800)),
+        ]),
       ),
     );
   }
