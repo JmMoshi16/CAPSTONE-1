@@ -9,11 +9,30 @@ class NotificationService {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(const InitializationSettings(android: android, iOS: ios));
-    // Android 13+ silently drops notifications unless the user grants this at runtime (audit M-13).
-    await _plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    // The Android 13+ permission is no longer asked at startup: the app asks after the first
+    // successful scan, with an explanation first (see widgets/notification_prompt.dart).
     _initialized = true;
+  }
+
+  static AndroidFlutterLocalNotificationsPlugin? get _android =>
+      _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+  /// Whether notifications can be shown (true on platforms without a runtime permission).
+  static Future<bool> enabled() async {
+    try {
+      return await _android?.areNotificationsEnabled() ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Shows the system permission dialog on Android 13+; a no-op elsewhere.
+  static Future<void> requestPermission() async {
+    try {
+      await _android?.requestNotificationsPermission();
+    } catch (_) {
+      // Not available on this platform/version: nothing to ask.
+    }
   }
 
   static Future<void> showPointsCredited({

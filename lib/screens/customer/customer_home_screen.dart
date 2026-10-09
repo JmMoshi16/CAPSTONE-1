@@ -135,7 +135,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     if (_scannerOpen || _user == null) return;
     _scannerOpen = true;
     await Navigator.push(context, MaterialPageRoute(
-        builder: (_) => QRScannerScreen(userId: _user!.uid, username: _user!.username)));
+        builder: (_) => QRScannerScreen(
+            userId: _user!.uid, username: _user!.username, lifetimeBefore: _user!.lifetimePoints)));
     _loadData();
     _scannerOpen = false;
   }

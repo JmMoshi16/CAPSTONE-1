@@ -6,7 +6,8 @@ import '../../services/notification_service.dart';
 import '../../models/models.dart';
 import '../../widgets/eco_animations.dart';
 import '../../widgets/ui.dart';
-import '../../core/theme.dart' show wasteIcon;
+import '../../core/theme.dart' show wasteIcon, getRank;
+import '../../widgets/notification_prompt.dart';
 
 /// Scanner accents sit on the camera image, so they use the bright brand mint in both themes.
 const _kScanAccent = AppPalette.mint;
@@ -17,7 +18,9 @@ const _kPointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
 class QRScannerScreen extends StatefulWidget {
   final String userId;
   final String username;
-  const QRScannerScreen({super.key, required this.userId, required this.username});
+  /// Lifetime points before this scan, to celebrate a rank-up (display only).
+  final int lifetimeBefore;
+  const QRScannerScreen({super.key, required this.userId, required this.username, this.lifetimeBefore = 0});
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
@@ -152,6 +155,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               token: token,
               username: widget.username,
               newBadges: newBadges,
+              lifetimeBefore: widget.lifetimeBefore,
             ),
           ),
         );
@@ -384,6 +388,7 @@ class _SuccessScreen extends StatefulWidget {
   final String token;
   final String username;
   final List<String> newBadges;
+  final int lifetimeBefore;
   const _SuccessScreen({
     required this.wasteType,
     required this.points,
@@ -392,6 +397,7 @@ class _SuccessScreen extends StatefulWidget {
     required this.token,
     required this.username,
     this.newBadges = const [],
+    this.lifetimeBefore = 0,
   });
   @override
   State<_SuccessScreen> createState() => _SuccessScreenState();
@@ -406,7 +412,17 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
     _animCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: AppMotion.standard);
     _animCtrl.forward();
+    if (_rankedUp) HapticFeedback.heavyImpact();
+    // Once per device, after the celebration: explain notifications, then ask (Android 13+).
+    Future.delayed(AppMotion.celebration, () {
+      if (mounted) askForNotificationsOnce(context);
+    });
   }
+
+  /// Rank before and after this scan's credited points (lifetime points drive rank).
+  late final _rankBefore = getRank(widget.lifetimeBefore);
+  late final _rankAfter = getRank(widget.lifetimeBefore + widget.points);
+  bool get _rankedUp => widget.lifetimeBefore > 0 && _rankAfter.minPts > _rankBefore.minPts;
 
   @override
   void dispose() { _animCtrl.dispose(); super.dispose(); }
@@ -432,6 +448,32 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                 const SizedBox(height: AppSpace.xxs),
                 Text('Thank you for recycling responsibly 🌿', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
                 const SizedBox(height: AppSpace.xl),
+
+                // ── Rank-up (wired from the old, unused showRankUp idea) ──
+                if (_rankedUp) ...[
+                  FlipReveal(
+                    delay: const Duration(milliseconds: 300),
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpace.md),
+                        decoration: cardDecoration(context, color: c.primaryContainer,
+                            borderColor: c.ink(_rankAfter.color).withValues(alpha: 0.6)),
+                        child: Row(children: [
+                          ExcludeSemantics(child: Text(_rankAfter.icon, style: const TextStyle(fontSize: 34))),
+                          const SizedBox(width: AppSpace.sm),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('Rank up!', style: t.titleMedium!.copyWith(color: c.onPrimaryContainer)),
+                            Text('${_rankBefore.label} → ${_rankAfter.label}',
+                                style: t.titleSmall!.copyWith(color: c.ink(_rankAfter.color), fontWeight: FontWeight.w800)),
+                          ])),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                ],
 
                 // ── New badges notification ──
                 if (widget.newBadges.isNotEmpty) ...[
@@ -523,7 +565,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
         ),
       ),
       // Celebration: a confetti burst, stronger (gold, side cannons) when a badge unlocked.
-      Positioned.fill(child: ConfettiBurst(strong: widget.newBadges.isNotEmpty)),
+      Positioned.fill(child: ConfettiBurst(strong: widget.newBadges.isNotEmpty || _rankedUp)),
     ]),
     );
   }

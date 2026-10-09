@@ -25,6 +25,7 @@ dependencies:
   # Brand animations (Lottie)
   lottie: ^3.1.2
   animations: ^2.2.0
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:
