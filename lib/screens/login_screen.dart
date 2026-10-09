@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _passCtrl  = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
+  bool _sendingReset = false;
 
   late AnimationController _heroCtrl;
   late AnimationController _formCtrl;
@@ -131,6 +132,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       _snack('Enter your email above first, then tap "Forgot password?"', c.warning);
       return;
     }
+    setState(() => _sendingReset = true);
     try {
       await FirebaseService.sendPasswordReset(email);
       if (mounted) _snack(passwordResetSentMessage, c.success);
@@ -144,6 +146,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
     } catch (_) {
       if (mounted) _snack('No internet connection. Please try again.', c.danger);
+    } finally {
+      if (mounted) setState(() => _sendingReset = false);
     }
   }
 
@@ -305,8 +309,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
-                                      onPressed: _loading ? null : _forgotPassword,
-                                      child: const Text('Forgot password?'),
+                                      onPressed: _loading || _sendingReset ? null : _forgotPassword,
+                                      child: Text(_sendingReset ? 'Sending link…' : 'Forgot password?'),
                                     ),
                                   ),
                                 ])),

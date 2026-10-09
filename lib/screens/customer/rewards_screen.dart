@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
+import '../../widgets/eco_animations.dart';
 
 /// Category accent colours (decorative; text drawn in them goes through `colors.ink`).
 const _catColors = {
@@ -40,6 +41,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   String _selectedCategory = 'All';
   /// Card entrance plays on the first visit of the session only.
   late final bool _animateCards = AppMotion.firstTime('rewards');
+  bool _redeeming = false;
 
   @override
   void initState() {
@@ -151,20 +153,33 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       },
     ));
 
-    if (confirm == true) {
-      final success = await FirebaseService.redeemReward(widget.user, reward);
+    if (confirm != true) return;
+    // Busy overlay while the transaction runs (it used to happen invisibly, and a
+    // network error was not caught at all).
+    setState(() => _redeeming = true);
+    try {
+      final success = await FirebaseService.redeemReward(widget.user, reward).timeout(const Duration(seconds: 15));
       if (!mounted) return;
       if (success) {
-        // FIX 6: Haptic on successful redemption before switching tabs
-        HapticFeedback.lightImpact();
+        AppHaptics.success();
         widget.onRedeemed();
         await _loadHistory();
+        if (!mounted) return;
+        setState(() => _redeeming = false);
         _tabController.animateTo(1);
         final latest = _redemptions.isNotEmpty ? _redemptions.first : null;
         if (latest != null) _showRedemptionCode(latest);
       } else {
-        _showSnack('Not enough points or item sold out', context.colors.danger);
+        AppHaptics.error();
+        _showSnack("This reward just sold out, or you no longer have enough points.", context.colors.danger);
       }
+    } catch (_) {
+      if (!mounted) return;
+      AppHaptics.error();
+      _showSnack("We couldn't confirm the redemption. Check your connection, then look in My Codes before trying again.",
+          context.colors.danger);
+    } finally {
+      if (mounted && _redeeming) setState(() => _redeeming = false);
     }
   }
 
@@ -258,7 +273,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     final c = context.colors;
     final t = context.text;
     return Scaffold(
-      body: NestedScrollView(
+      body: Stack(children: [
+      NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
             expandedHeight: AppLayout.headerHeight(context, 170),
@@ -311,6 +327,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
           children: [_buildAvailable(), _buildHistory()],
         ),
       ),
+      if (_redeeming) const _RedeemingOverlay(),
+      ]),
     );
   }
 
@@ -927,4 +945,31 @@ class StaffCodeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Blocks the screen with a calm "Redeeming…" card while the redemption is written.
+class _RedeemingOverlay extends StatelessWidget {
+  const _RedeemingOverlay();
+
+  @override
+  Widget build(BuildContext context) => Positioned.fill(
+        child: Stack(children: [
+          const ModalBarrier(dismissible: false, color: Colors.black45),
+          Center(
+            child: Semantics(
+              liveRegion: true,
+              label: 'Redeeming your reward',
+              child: Container(
+                padding: const EdgeInsets.all(AppSpace.xl),
+                decoration: cardDecoration(context),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const EcoLoader(size: 72, semanticLabel: 'Redeeming'),
+                  const SizedBox(height: AppSpace.sm),
+                  Text('Redeeming…', style: context.text.titleMedium),
+                ]),
+              ),
+            ),
+          ),
+        ]),
+      );
 }
