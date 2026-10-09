@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app_settings/app_settings.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/firebase_service.dart';
 import '../../services/notification_service.dart';
@@ -74,7 +75,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
   Future<void> _handleScan(String raw) async {
     if (_scanned || _processing) return;
     // Immediate feedback that the code was seen, before the network round trip.
-    HapticFeedback.mediumImpact();
+    AppHaptics.primary();
     SystemSound.play(SystemSoundType.click);
     setState(() => _processing = true);
     await _controller.stop();
@@ -141,7 +142,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
       }
 
       // FIX 6: Haptic on successful scan just before navigation
-      HapticFeedback.lightImpact();
+      AppHaptics.success();
 
       if (mounted) {
         await Navigator.pushReplacement(
@@ -172,7 +173,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
       {_ErrorKind kind = _ErrorKind.error, IconData icon = Icons.error_rounded}) {
     if (!mounted) return;
     setState(() => _processing = false);
-    HapticFeedback.heavyImpact();
+    AppHaptics.error();
     showDialog(
       context: context,
       builder: (ctx) {
@@ -251,7 +252,12 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               FilledButton.icon(
                 onPressed: () async {
                   setState(() => _permissionDenied = false);
-                  await _controller.start();
+                  try {
+                    await _controller.start();
+                  } catch (_) {
+                    // Still blocked: stay on this screen instead of an unhandled error.
+                    if (mounted) setState(() => _permissionDenied = true);
+                  }
                 },
                 icon: const Icon(Icons.camera_alt_rounded),
                 label: const Text('Retry Camera Access'),
@@ -261,6 +267,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
                   padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.md - 2),
                 ),
               ),
+              const SizedBox(height: AppSpace.sm),
+              // If access was denied with "Don't ask again", only the settings page can turn it on.
+              TextButton.icon(
+                onPressed: () => AppSettings.openAppSettings(),
+                icon: const Icon(Icons.settings_rounded, color: Colors.white),
+                label: const Text('Open settings', style: TextStyle(color: Colors.white)),
+              ),
+              Text('Then allow Camera and come back.',
+                  style: t.bodySmall!.copyWith(color: Colors.white70), textAlign: TextAlign.center),
             ]),
           ),
         ),
