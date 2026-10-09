@@ -16,7 +16,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   bool _error = false;
   int _myRank = 0;
   late AnimationController _headerCtrl;
-  late AnimationController _listCtrl;
   late Animation<double> _headerFade;
   late Animation<Offset> _headerSlide;
 
@@ -24,7 +23,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   void initState() {
     super.initState();
     _headerCtrl = AnimationController(vsync: this, duration: AppMotion.slow);
-    _listCtrl   = AnimationController(vsync: this, duration: AppMotion.slow);
     _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard));
@@ -39,11 +37,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
   }
 
   @override
-  void dispose() { _headerCtrl.dispose(); _listCtrl.dispose(); super.dispose(); }
+  void dispose() { _headerCtrl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = false; });
-    _listCtrl.reset();
     try {
       // Never leave the user on an endless spinner: offline or a missing index ends in an error state.
       final results = await Future.wait([
@@ -56,7 +53,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
           _myRank  = results[1] as int;
           _loading = false;
         });
-        _listCtrl.forward();
       }
     } catch (_) {
       if (mounted) setState(() { _loading = false; _error = true; });
@@ -147,7 +143,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.xl, AppSpace.xl, AppSpace.xs),
-                    child: _Podium(users: _users.take(3).toList(), currentUid: widget.currentUid, ctrl: _listCtrl),
+                    child: _Podium(users: _users.take(3).toList(), currentUid: widget.currentUid),
                   ),
                 ),
               SliverPadding(
@@ -159,7 +155,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                       final user = _users[i + listOffset];
                       final isMe = user.uid == widget.currentUid;
                       final delay = AppMotion.stagger * i;
-                      return _AnimatedLeaderRow(rank: rank, user: user, isMe: isMe, ctrl: _listCtrl,
+                      return _AnimatedLeaderRow(rank: rank, user: user, isMe: isMe,
                           delay: delay > AppMotion.slow ? AppMotion.slow : delay);
                     },
                     childCount: (_users.length - listOffset).clamp(0, _users.length),
@@ -178,8 +174,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
 class _Podium extends StatefulWidget {
   final List<UserModel> users;
   final String currentUid;
-  final AnimationController ctrl;
-  const _Podium({required this.users, required this.currentUid, required this.ctrl});
+  const _Podium({required this.users, required this.currentUid});
   @override
   State<_Podium> createState() => _PodiumState();
 }
@@ -219,21 +214,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.users.length < 3) return const SizedBox.shrink();
-    // show partial podium for 1-2 users
-    final count = widget.users.length;
-    if (count < 3) {
-      return Column(
-        children: List.generate(count, (i) {
-          final user = widget.users[i];
-          final isMe = user.uid == widget.currentUid;
-          return _AnimatedLeaderRow(
-            rank: i + 1, user: user, isMe: isMe,
-            ctrl: widget.ctrl, delay: AppMotion.stagger * i,
-          );
-        }),
-      );
-    }
+    // Only built when there are at least three users (see showPodium).
     const order   = [1, 0, 2];
     const heights = [80.0, 110.0, 60.0];
     const medals  = ['🥈', '🥇', '🥉'];
@@ -301,8 +282,7 @@ class _AnimatedLeaderRow extends StatefulWidget {
   final Duration delay;
   final UserModel user;
   final bool isMe;
-  final AnimationController ctrl;
-  const _AnimatedLeaderRow({required this.rank, required this.user, required this.isMe, required this.ctrl, required this.delay});
+  const _AnimatedLeaderRow({required this.rank, required this.user, required this.isMe, required this.delay});
   @override
   State<_AnimatedLeaderRow> createState() => _AnimatedLeaderRowState();
 }

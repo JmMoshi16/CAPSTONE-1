@@ -13,10 +13,13 @@ class EmptyState extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.dense = false,
+    this.illustration,
   });
 
   final String title;
   final String? message;
+  /// Replaces the icon circle, e.g. a brand animation.
+  final Widget? illustration;
   final IconData? icon;
   final String? emoji;
   final String? actionLabel;
@@ -31,7 +34,7 @@ class EmptyState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.xxl, vertical: AppSpace.xl),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
+          if (illustration != null) illustration! else Container(
             width: circle,
             height: circle,
             decoration: BoxDecoration(color: c.surfaceAlt, shape: BoxShape.circle),

@@ -15,7 +15,6 @@ class ImpactScreen extends StatefulWidget {
 
 class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMixin {
   late AnimationController _headerCtrl;
-  late AnimationController _bodyCtrl;
   late Animation<double> _headerFade;
   /// Count-ups and entrances play on the first visit of the session only.
   late final bool _animate = AppMotion.firstTime('impact');
@@ -24,25 +23,22 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
     _headerCtrl = AnimationController(vsync: this, duration: AppMotion.countUp);
-    _bodyCtrl   = AnimationController(vsync: this, duration: AppMotion.slow);
     _headerFade = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     if (!_animate) {
       _headerCtrl.value = 1;
-      _bodyCtrl.value = 1;
       return;
     }
     _headerCtrl.forward();
-    Future.delayed(AppMotion.medium, () { if (mounted) _bodyCtrl.forward(); });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (AppMotion.reduced(context)) _headerCtrl.value = 1; _bodyCtrl.value = 1;
+    if (AppMotion.reduced(context)) _headerCtrl.value = 1;
   }
 
   @override
-  void dispose() { _headerCtrl.dispose(); _bodyCtrl.dispose(); super.dispose(); }
+  void dispose() { _headerCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {

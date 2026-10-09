@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart' show wasteIcon;
 import '../../widgets/ui.dart';
+import '../../widgets/eco_animations.dart';
 
 class ScanHistoryScreen extends StatefulWidget {
   final List<WasteLog> logs;
@@ -107,6 +108,8 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [SliverFillRemaining(hasScrollBody: false, child: EmptyState(
                         icon: Icons.history_rounded,
+                        // The idle brand animation (previously unused) welcomes a brand-new user.
+                        illustration: _filter == 'All' ? const EcoIdle(size: 140) : null,
                         title: _filter == 'All' ? 'No scans yet' : 'No $_filter scans',
                         message: _filter == 'All' ? 'Your scans will appear here.' : null,
                         actionLabel: _filter != 'All' ? 'Show all scans'

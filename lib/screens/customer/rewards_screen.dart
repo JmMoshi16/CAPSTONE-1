@@ -23,9 +23,10 @@ class RewardsScreen extends StatefulWidget {
 class _RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Redemption> _redemptions = [];
-  List<Reward> _rewards = [];
+  // Start from what Home already loaded; a fresh copy is fetched in the background.
+  late List<Reward> _rewards = widget.rewards;
   bool _loadingHistory = true;
-  bool _loadingRewards = true;
+  late bool _loadingRewards = widget.rewards.isEmpty;
   bool _rewardsError = false;
   bool _historyError = false;
   String _selectedCategory = 'All';
