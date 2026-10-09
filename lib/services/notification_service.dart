@@ -19,11 +19,17 @@ class NotificationService {
   static Future<void> showPointsCredited({
     required String wasteType,
     required int points,
+    int? basePoints,
+    double multiplier = 1.0,
   }) async {
+    // Display only: explain a streak bonus as "15 × 1.5" next to the credited total.
+    final bonus = multiplier > 1.0 && basePoints != null
+        ? ' ($basePoints × ${multiplier == multiplier.roundToDouble() ? multiplier.toStringAsFixed(0) : multiplier} streak bonus)'
+        : '';
     await _plugin.show(
       1, // one scan-points notification at a time is fine
       '♻️ Points Credited!',
-      'You earned +$points pts for $wasteType waste. Keep it up!',
+      'You earned +$points pts$bonus for $wasteType waste. Keep it up!',
       _details(),
     );
   }

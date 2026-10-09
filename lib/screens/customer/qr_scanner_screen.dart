@@ -60,13 +60,17 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
 
   Future<void> _handleScan(String raw) async {
     if (_scanned || _processing) return;
+    // Immediate feedback that the code was seen, before the network round trip.
+    HapticFeedback.mediumImpact();
+    SystemSound.play(SystemSoundType.click);
     setState(() => _processing = true);
     await _controller.stop();
 
     // Limit to 3 parts so colons inside the UUID token are preserved
     final parts = raw.split(':').take(3).toList();
     if (parts.length < 3 || parts[0] != 'ECOBIN') {
-      _showError('Invalid QR Code', 'This QR code is not from an ECOReward Bin.');
+      _showError('Not an ECOReward code',
+          "This QR code isn't from an ECOReward bin. Scan the code shown on the bin's screen.");
       return;
     }
 
@@ -74,22 +78,28 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
     final token = parts[2];
     final validTypes = ['Biodegradable', 'Recyclable', 'Residual'];
     if (!validTypes.contains(wasteType)) {
-      _showError('Invalid Waste Type', 'Unrecognized waste category.');
+      _showError('Code not recognised',
+          "We couldn't read the waste type from this code. Scan the bin's code again, or ask staff for a new one.");
       return;
     }
 
     try {
       final result = await FirebaseService.validateAndUseQRToken(token, widget.userId);
       if (result == QRValidationResult.expired) {
-        _showError('QR Expired', 'This QR code has expired. Ask admin to generate a new one.');
+        _showError('Code expired',
+            'Bin codes work for 20 minutes. Your next disposal at the bin gives you a new code, or staff can make one for you.',
+            kind: _ErrorKind.warning, icon: Icons.timer_off_rounded);
         return;
       }
       if (result == QRValidationResult.alreadyUsed) {
-        _showError('Already Used', 'You have already scanned this QR code.');
+        _showError('Already claimed',
+            'Each bin code can be claimed once, and this one has been. Your next disposal will give you a new code.',
+            kind: _ErrorKind.warning, icon: Icons.check_circle_outline_rounded);
         return;
       }
       if (result == QRValidationResult.invalid) {
-        _showError('Invalid QR Code', 'This QR code is not recognized.');
+        _showError('Code not found',
+            "We couldn't find this code. Make sure you're scanning the code on the bin's screen right now.");
         return;
       }
 
@@ -107,7 +117,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
       setState(() => _scanned = true);
 
       // Fire local notifications
-      await NotificationService.showPointsCredited(wasteType: wasteType, points: points);
+      await NotificationService.showPointsCredited(
+          wasteType: wasteType, points: points, basePoints: basePoints, multiplier: credit.multiplier);
       for (final id in newBadges) {
         // FIX 6: Haptic for each badge unlocked
         HapticFeedback.lightImpact();
@@ -126,6 +137,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
             builder: (_) => _SuccessScreen(
               wasteType: wasteType,
               points: points,
+              basePoints: basePoints,
               multiplier: credit.multiplier,
               token: token,
               username: widget.username,
@@ -136,24 +148,28 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
       }
     } catch (_) {
       // Never show raw exception text to customers (audit M-17).
-      _showError('Something went wrong',
-          'We could not process this QR code. Check your connection and try again.');
+      _showError("Couldn't reach ECOReward",
+          'We could not finish this scan. Check your internet connection and scan the code again.',
+          icon: Icons.wifi_off_rounded);
     }
   }
 
-  void _showError(String title, String message) {
+  void _showError(String title, String message,
+      {_ErrorKind kind = _ErrorKind.error, IconData icon = Icons.error_rounded}) {
     if (!mounted) return;
     setState(() => _processing = false);
+    HapticFeedback.heavyImpact();
     showDialog(
       context: context,
       builder: (ctx) {
         final c = ctx.colors;
+        final warn = kind == _ErrorKind.warning;
         return AlertDialog(
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: 64, height: 64,
-              decoration: BoxDecoration(color: c.dangerContainer, shape: BoxShape.circle),
-              child: Icon(Icons.error_rounded, color: c.danger, size: 36),
+              decoration: BoxDecoration(color: warn ? c.warningContainer : c.dangerContainer, shape: BoxShape.circle),
+              child: Icon(icon, color: warn ? c.warning : c.danger, size: 36),
             ),
             const SizedBox(height: AppSpace.md - 2),
             Text(title, style: ctx.text.titleLarge, textAlign: TextAlign.center),
@@ -161,15 +177,26 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
             Text(message, style: ctx.text.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
           ]),
           actions: [
-            AppButton(
-              label: 'Try Again',
-              kind: AppButtonKind.danger,
-              height: 48,
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _controller.start();
-              },
-            ),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              AppButton(
+                label: 'Scan again',
+                icon: Icons.qr_code_scanner_rounded,
+                height: 48,
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _controller.start();
+                },
+              ),
+              const SizedBox(height: AppSpace.xs),
+              AppButton.secondary(
+                label: 'Back to Home',
+                height: 48,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                },
+              ),
+            ]),
           ],
         );
       },
@@ -245,6 +272,26 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               child: const SizedBox.expand(),
             ),
           ),
+          // Framing hint just above the scan window (the window is 65 % of the width, centred).
+          Positioned.fill(
+            child: IgnorePointer(
+              child: LayoutBuilder(builder: (_, box) {
+                final scan = box.maxWidth * 0.65;
+                final top = (box.maxHeight - scan) / 2;
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(AppSpace.xl, (top - 48).clamp(0.0, double.infinity), AppSpace.xl, 0),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(
+                      _processing ? 'Code found' : "Fit the bin's QR code inside the frame",
+                      textAlign: TextAlign.center,
+                      style: t.titleSmall!.copyWith(color: Colors.white, shadows: const [Shadow(blurRadius: 6)]),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(AppSpace.md),
@@ -291,13 +338,21 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
               padding: const EdgeInsets.all(AppSpace.lg),
               decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: AppRadius.all(AppRadius.xl)),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.recycling_rounded, color: _kScanAccent, size: 28),
+                if (_processing)
+                  const EcoLoader(size: 56, semanticLabel: 'Verifying your code')
+                else
+                  const Icon(Icons.recycling_rounded, color: _kScanAccent, size: 28),
                 const SizedBox(height: AppSpace.xs),
-                Text('Point camera at the ECOReward Bin QR code',
-                    style: t.bodyMedium!.copyWith(color: Colors.white), textAlign: TextAlign.center),
-                if (_processing) ...[
-                  const SizedBox(height: AppSpace.sm - 2),
-                  const EcoLoader(size: 56, semanticLabel: 'Processing QR code'),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _processing ? 'Verifying your code…' : 'Point your camera at the code on the ECOReward bin',
+                    style: t.bodyMedium!.copyWith(color: Colors.white, fontWeight: _processing ? FontWeight.w700 : null),
+                    textAlign: TextAlign.center),
+                ),
+                if (!_processing) ...[
+                  const SizedBox(height: AppSpace.xxs),
+                  Text('Tap the flash icon if it is dark', style: t.labelSmall!.copyWith(color: Colors.white70)),
                 ],
               ]),
             ),
@@ -312,6 +367,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
 class _SuccessScreen extends StatefulWidget {
   final String wasteType;
   final int points;
+  final int basePoints;
   final double multiplier;
   final String token;
   final String username;
@@ -319,6 +375,7 @@ class _SuccessScreen extends StatefulWidget {
   const _SuccessScreen({
     required this.wasteType,
     required this.points,
+    required this.basePoints,
     this.multiplier = 1.0,
     required this.token,
     required this.username,
@@ -422,8 +479,9 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
                       Text('+${widget.points} Points Earned',
                           style: t.titleLarge!.copyWith(color: Colors.white, fontSize: 20)),
                       if (widget.multiplier > 1.0)
-                        Text('Includes ${widget.multiplier == 2.0 ? '2' : '1.5'}× streak bonus 🔥',
-                            style: t.labelSmall!.copyWith(color: Colors.white.withValues(alpha: 0.9))),
+                        // Display only: what was credited, broken down (+15 × 1.5 streak bonus = +23).
+                        Text('+${widget.basePoints} × ${_fmtMultiplier(widget.multiplier)} streak bonus = +${widget.points} 🔥',
+                            style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.95))),
                     ])),
                     Container(
                       padding: const EdgeInsets.all(AppSpace.sm - 2),
@@ -449,6 +507,10 @@ class _SuccessScreenState extends State<_SuccessScreen> with SingleTickerProvide
     );
   }
 } // end _SuccessScreenState
+
+String _fmtMultiplier(double m) => m == m.roundToDouble() ? m.toStringAsFixed(0) : m.toString();
+
+enum _ErrorKind { error, warning }
 
 // ── Scan Overlay ──────────────────────────────────────────────────────────────
 // FIX 5: Accepts scanProgress (0.0–1.0) to animate the scan line
