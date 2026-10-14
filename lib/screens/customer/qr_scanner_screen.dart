@@ -38,7 +38,9 @@ class QRScannerScreen extends StatefulWidget {
 class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderStateMixin {
   /// 0 -> 1 when a code is detected: the brackets tighten, thicken and turn white ("lock on").
   late final AnimationController _lockCtrl = AnimationController(vsync: this, duration: AppMotion.medium);
-  late final MobileScannerController _controller = MobileScannerController(torchEnabled: widget.startWithTorch);
+  // Not final: after a denial the package keeps the error until stop(), which is a no-op while the
+  // camera is not running, so Retry needs a fresh controller (audit I).
+  late MobileScannerController _controller = _newController(widget.startWithTorch);
   bool _scanned = false;
   bool _processing = false;
 
@@ -60,10 +62,26 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
       duration: AppMotion.ambient,
     )..repeat(reverse: true);
     _scanLineAnim = _scanLineCtrl;
-    // FIX 7: Detect camera permission denial on start
-    _controller.start().catchError((_) {
-      if (mounted) setState(() => _permissionDenied = true);
+  }
+
+  // The MobileScanner widget starts the controller itself; a denial arrives in value.error, start() does not throw.
+  MobileScannerController _newController(bool torch) =>
+      MobileScannerController(torchEnabled: torch)..addListener(_onCameraState);
+
+  void _onCameraState() {
+    final denied = _controller.value.error?.errorCode == MobileScannerErrorCode.permissionDenied;
+    if (mounted && denied != _permissionDenied) setState(() => _permissionDenied = denied);
+  }
+
+  void _retryCamera() {
+    final old = _controller;
+    setState(() {
+      _controller = _newController(_torchOn);
+      _permissionDenied = false;   // remounts MobileScanner, which starts the new controller
     });
+    old
+      ..removeListener(_onCameraState)
+      ..dispose();
   }
 
   @override
@@ -207,15 +225,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
                   textAlign: TextAlign.center),
               const SizedBox(height: AppSpace.xl + 4),
               FilledButton.icon(
-                onPressed: () async {
-                  setState(() => _permissionDenied = false);
-                  try {
-                    await _controller.start();
-                  } catch (_) {
-                    // Still blocked: stay on this screen instead of an unhandled error.
-                    if (mounted) setState(() => _permissionDenied = true);
-                  }
-                },
+                onPressed: _retryCamera,
                 icon: const Icon(Icons.camera_alt_rounded),
                 label: const Text('Retry Camera Access'),
                 style: FilledButton.styleFrom(
@@ -247,6 +257,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
             label: 'Camera viewfinder. Point it at the QR code on the bin.',
             child: MobileScanner(
               controller: _controller,
+              // Permission denial has its own screen above; this covers a busy or missing camera.
+              errorBuilder: (context, error, child) => Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.no_photography_rounded, color: Colors.white70, size: 40),
+                  const SizedBox(height: AppSpace.sm),
+                  Text('Camera unavailable', style: t.titleMedium!.copyWith(color: Colors.white)),
+                  Text('Close the scanner and try again.', style: t.bodySmall!.copyWith(color: Colors.white70)),
+                ]),
+              ),
               onDetect: (capture) {
                 final barcode = capture.barcodes.firstOrNull;
                 if (barcode?.rawValue != null) _handleScan(barcode!.rawValue!);
