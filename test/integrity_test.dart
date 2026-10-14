@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ecoreward_bin/core/app_theme.dart';
 import 'package:ecoreward_bin/core/auth_messages.dart';
 import 'package:ecoreward_bin/models/models.dart';
+import 'package:ecoreward_bin/screens/admin/admin_dashboard_screen.dart' show dashboardTabPreview;
 import 'package:ecoreward_bin/screens/admin/admin_users_screen.dart';
 import 'package:ecoreward_bin/services/firebase_service.dart';
 import 'package:flutter/material.dart';
@@ -118,5 +119,47 @@ void main() {
     expect(FirebaseService.scanWasteType({'wasteType': 'Plutonium'}, 'Recyclable'), 'Recyclable');
     expect(FirebaseService.scanWasteType({}, 'Residual'), 'Residual');
     expect(kBasePoints, {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5});
+  });
+
+  group('describeBins never invents a reading (Google Home: honest device state)', () {
+    final now = DateTime.utc(2026, 10, 15, 12);
+    BinStatus bin(String loc, int fill, {Duration ago = const Duration(minutes: 2), String status = 'online'}) =>
+        BinStatus(id: loc, location: loc, fillLevel: fill, status: status, lastUpdated: now.subtract(ago));
+
+    test('no data and failed load say so, with no level', () {
+      expect(describeBins(null, now).level, isNull);
+      expect(describeBins(null, now).detail, contains('Could not load'));
+      expect(describeBins(const [], now).level, isNull);
+      expect(describeBins(const [], now).detail, contains('No kiosk'));
+    });
+    test('fresh readings show the fullest compartment', () {
+      final r = describeBins([bin('Recyclable', 40), bin('Residual', 85)], now);
+      expect(r.value, '85%');
+      expect(r.level, 0.85);
+      expect(r.stale, isFalse);
+      expect(r.detail, 'Residual · 2 min ago');
+    });
+    test('old or offline readings are marked stale with their age', () {
+      final old = describeBins([bin('Residual', 60, ago: const Duration(hours: 3))], now);
+      expect(old.stale, isTrue);
+      expect(old.detail, 'Last report 3 h ago');
+      expect(describeBins([bin('Residual', 60, status: 'offline')], now).stale, isTrue);
+    });
+  });
+
+  testWidgets('the staff dashboard shows the kiosk reading, never a simulated level', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);   // overflow at phone sizes is covered by layout_test (real fonts)
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final bins = [BinStatus(id: 'k-res', location: 'Cafe kiosk · Residual', fillLevel: 85, status: 'online',
+        lastUpdated: DateTime.now().toUtc())];
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.admin,
+        home: dashboardTabPreview(logs: const [], customers: const [], bins: bins)));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('85%', skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('demo', skipOffstage: false), findsNothing);
+    expect(find.textContaining('simulated', skipOffstage: false), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

@@ -31,6 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<WasteLog> _logs = [];
   List<UserModel> _customers = [];
   List<Reward> _rewards = [];
+  List<BinStatus>? _bins;   // null = could not load; the tile says so instead of guessing
   bool _loading = true;
   String? _loadError;
 
@@ -43,12 +44,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (mounted) setState(() { _loading = firstLoad; _loadError = null; });
     try {
       // The three reads are independent; run them together (audit F).
-      final (logs, customers, rewards) = await (
+      final (logs, customers, rewards, bins) = await (
         FirebaseService.getAllWasteLogs(),
         FirebaseService.getAllCustomers(),
         FirebaseService.getAllRewards(),
+        // Bin status is optional: a failure here must not hide the rest of the dashboard.
+        FirebaseService.getBins().then<List<BinStatus>?>((b) => b, onError: (_) => null),
       ).wait;
-      if (mounted) setState(() { _logs = logs; _customers = customers; _rewards = rewards; _loading = false; });
+      if (mounted) {
+        setState(() { _logs = logs; _customers = customers; _rewards = rewards; _bins = bins; _loading = false; });
+      }
     } catch (_) {
       // Never show raw exception text; the error state explains what to do.
       if (mounted) setState(() { _loading = false; _loadError = 'failed'; });
@@ -85,7 +90,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      _DashboardTab(logs: _logs, customers: _customers, onRefresh: _loadData, onLogout: _logout,
+      _DashboardTab(logs: _logs, customers: _customers, bins: _bins, onRefresh: _loadData, onLogout: _logout,
           onOpenUsers: () => setState(() => _selectedIndex = 2)),
       AdminRewardsScreen(rewards: _rewards, onChanged: _loadData),
       AdminUsersScreen(customers: _customers, logs: _logs, onRefresh: _loadData),
@@ -127,16 +132,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
 /// The dashboard tab without Firebase, for layout tests.
 @visibleForTesting
-Widget dashboardTabPreview({required List<WasteLog> logs, required List<UserModel> customers}) =>
-    Scaffold(body: _DashboardTab(logs: logs, customers: customers, onRefresh: () {}, onLogout: () {}, onOpenUsers: () {}));
+Widget dashboardTabPreview({required List<WasteLog> logs, required List<UserModel> customers,
+        List<BinStatus>? bins}) =>
+    Scaffold(body: _DashboardTab(logs: logs, customers: customers, bins: bins, onRefresh: () {}, onLogout: () {},
+        onOpenUsers: () {}));
 
 class _DashboardTab extends StatelessWidget {
   final List<WasteLog> logs;
   final List<UserModel> customers;
+  final List<BinStatus>? bins;
   final VoidCallback onRefresh;
   final VoidCallback onLogout;
   final VoidCallback onOpenUsers;
-  const _DashboardTab({required this.logs, required this.customers, required this.onRefresh, required this.onLogout,
+  const _DashboardTab({required this.logs, required this.customers, this.bins, required this.onRefresh, required this.onLogout,
       required this.onOpenUsers});
 
   static const _typeColors = {'Biodegradable': AdminColors.bio, 'Recyclable': AdminColors.rec, 'Residual': AdminColors.res};
@@ -199,9 +207,11 @@ class _DashboardTab extends StatelessWidget {
     final res = logs.where((l) => l.wasteType == 'Residual').length;
     final total = logs.length;
     final totalPoints = customers.fold(0, (s, u) => s + u.points);
-    final binLevel = (total % 100) / 100.0;
-    final binPct = (binLevel * 100).round();
-    final binColor = binPct > 75 ? AdminColors.danger : binPct > 50 ? kOrange : kGreen;
+    final binReport = describeBins(bins, DateTime.now());
+    final binLevel = binReport.level;
+    final binColor = binLevel == null || binReport.stale
+        ? AdminColors.textTertiary
+        : binLevel > 0.75 ? AdminColors.danger : binLevel > 0.5 ? kOrange : kGreen;
     final nextDay = predicted.length > 7 ? predicted[7].round() : 0;
     final today = actual.isNotEmpty ? actual.last.round() : 0;
     final diff = nextDay - today;
@@ -368,13 +378,15 @@ class _DashboardTab extends StatelessWidget {
                     ),
                     _biTile(
                       icon: Icons.delete_rounded, color: binColor,
-                      title: 'Bin Status (demo)',
-                      value: '$binPct%',
-                      sub: 'simulated, no fill sensor',
-                      chart: _binLevelBar(binLevel, binColor),
-                      onTap: () => _detail(context, 'Bin Status (demo)', const [],
-                          note: 'This tile is a demonstration: it is computed from the number of logged disposals '
-                              '(total modulo 100), not measured. The bin has no fill-level sensor yet.'),
+                      title: 'Fullest bin',
+                      value: binReport.value,
+                      sub: binReport.detail,
+                      chart: binLevel == null ? const SizedBox.shrink() : _binLevelBar(binLevel, binColor),
+                      onTap: () => _detail(context, 'Bin fill levels', [
+                        for (final b in [...?bins]..sort((a, b) => b.fillLevel.compareTo(a.fillLevel)))
+                          _DetailRow(b.location, '${b.fillLevel}%', fraction: b.fillLevel / 100, color: binColor),
+                      ], note: '${binReport.detail}. Levels as last reported by the kiosk; until fill sensors are '
+                          'fitted, the bin firmware estimates them from the items it sorted.'),
                     ),
                     _biTile(
                       icon: Icons.pie_chart_rounded, color: kBlue,
@@ -469,7 +481,9 @@ class _DashboardTab extends StatelessWidget {
           ]),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 22)),
-          Text(sub, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+          // One line: the full text is in the spoken label and the detail sheet.
+          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
           const Spacer(),
           SizedBox(height: 36, child: chart),
         ]),

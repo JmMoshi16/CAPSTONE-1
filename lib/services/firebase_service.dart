@@ -214,6 +214,10 @@ class FirebaseService {
     return list;
   }
 
+  /// Fill levels the kiosk reported (admin-only in the rules).
+  static Future<List<BinStatus>> getBins() async =>
+      (await _db.collection('bins').get()).docs.map(BinStatus.fromDoc).toList();
+
   // ── Rewards ─────────────────────────────────────────────────────────────────
   static Future<void> addReward(Reward reward) async {
     await _db.collection('rewards').add(reward.toMap());

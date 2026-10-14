@@ -253,3 +253,55 @@ class ProfileModel {
         badges: user.badges,
       );
 }
+
+/// One bin compartment as the kiosk last reported it (`bins/{kioskId}-{bio|rec|res}`, written by app.py).
+class BinStatus {
+  final String id;
+  final String location;
+  final int fillLevel;
+  final String status;          // 'online' | 'offline'
+  final DateTime? lastUpdated;
+  const BinStatus({required this.id, required this.location, required this.fillLevel, required this.status,
+      this.lastUpdated});
+
+  factory BinStatus.fromDoc(DocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>? ?? const {};
+    return BinStatus(
+      id: doc.id,
+      location: d['location'] as String? ?? doc.id,
+      fillLevel: (d['fillLevel'] as num?)?.round().clamp(0, 100) ?? 0,
+      status: d['status'] as String? ?? 'offline',
+      lastUpdated: firestoreTime(d['lastUpdated']),
+    );
+  }
+}
+
+/// What the staff dashboard can honestly say about the bins: no reading is ever invented, and an
+/// old or offline reading is shown with its age. The kiosk refreshes every 5 minutes while running.
+typedef BinsReport = ({String value, String detail, double? level, bool stale});
+
+BinsReport describeBins(List<BinStatus>? bins, DateTime now) {
+  if (bins == null) return (value: '—', detail: 'Could not load bin status', level: null, stale: true);
+  if (bins.isEmpty) return (value: '—', detail: 'No kiosk has reported yet', level: null, stale: true);
+  final fullest = bins.reduce((a, b) => b.fillLevel > a.fillLevel ? b : a);
+  DateTime? newest;
+  for (final t in bins.map((b) => b.lastUpdated).whereType<DateTime>()) {
+    if (newest == null || t.isAfter(newest)) newest = t;
+  }
+  final age = newest == null ? null : now.difference(newest);
+  final stale = age == null || age > const Duration(minutes: 10) || bins.every((b) => b.status != 'online');
+  return (
+    value: '${fullest.fillLevel}%',
+    detail: stale ? 'Last report ${_ago(age)}' : '${fullest.location} · ${_ago(age)}',
+    level: fullest.fillLevel / 100,
+    stale: stale,
+  );
+}
+
+String _ago(Duration? d) {
+  if (d == null) return 'time unknown';
+  if (d.inMinutes < 1) return 'just now';
+  if (d.inHours < 1) return '${d.inMinutes} min ago';
+  if (d.inDays < 1) return '${d.inHours} h ago';
+  return '${d.inDays} d ago';
+}

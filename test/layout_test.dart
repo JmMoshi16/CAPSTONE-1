@@ -125,6 +125,12 @@ final Map<String, Widget Function()> _customerScreens = {
 
 final Map<String, Widget Function()> _adminScreens = {
   'Admin dashboard': () => dashboardTabPreview(logs: _logs, customers: _customers),
+  'Admin dashboard (bins reported)': () => dashboardTabPreview(logs: _logs, customers: _customers, bins: [
+        BinStatus(id: 'k-res', location: 'Main cafe kiosk · Residual', fillLevel: 85, status: 'online',
+            lastUpdated: DateTime.now().toUtc()),
+        BinStatus(id: 'k-rec', location: 'Main cafe kiosk · Recyclable', fillLevel: 40, status: 'online',
+            lastUpdated: DateTime.now().toUtc()),
+      ]),
   'Admin rewards': () => AdminRewardsScreen(rewards: _rewards, onChanged: () {}),
   'Admin users': () => AdminUsersScreen(customers: _customers, logs: _logs),
   'Admin QR': () => const AdminQRScreen(),
