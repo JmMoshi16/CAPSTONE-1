@@ -36,15 +36,16 @@ class AdminUsersScreen extends StatefulWidget {
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final _entrance = EntranceGate('admin-users');
   String _search = '';
-  String _sortBy = 'points'; // 'points' | 'disposals' | 'name'
+  String _sortBy = 'rank'; // 'rank' | 'disposals' | 'name'
 
   List<UserModel> get _filtered {
     var list = widget.customers.where((u) =>
         u.username.toLowerCase().contains(_search.toLowerCase()) ||
         u.email.toLowerCase().contains(_search.toLowerCase())).toList();
 
-    if (_sortBy == 'points') {
-      list.sort((a, b) => b.points.compareTo(a.points));
+    if (_sortBy == 'rank') {
+      // Same order as the customers' leaderboard: lifetime points, not the spendable balance.
+      list.sort((a, b) => b.lifetimePoints.compareTo(a.lifetimePoints));
     } else if (_sortBy == 'disposals') {
       list.sort((a, b) => _logCount(b.uid).compareTo(_logCount(a.uid)));
     } else {
@@ -70,7 +71,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final bio = userLogs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec = userLogs.where((l) => l.wasteType == 'Recyclable').length;
     final res = userLogs.where((l) => l.wasteType == 'Residual').length;
-    final totalPts = userLogs.fold(0, (s, l) => s + l.pointsAwarded);
 
     showModalBottomSheet(
       context: context,
@@ -109,11 +109,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
               // Stats row
               Row(children: [
-                Expanded(child: _detailStat('${u.points}', 'Points', Icons.stars_rounded, AdminColors.gold)),
+                Expanded(child: _detailStat('${u.lifetimePoints}', 'Earned', Icons.emoji_events_rounded, AdminColors.gold)),
                 const SizedBox(width: 10),
                 Expanded(child: _detailStat('${userLogs.length}', 'Disposals', Icons.recycling_rounded, kGreen)),
                 const SizedBox(width: 10),
-                Expanded(child: _detailStat('$totalPts', 'Pts Earned', Icons.emoji_events_rounded, AdminColors.orange)),
+                Expanded(child: _detailStat('${u.points}', 'To spend', Icons.stars_rounded, AdminColors.orange)),
               ]),
               const SizedBox(height: AppSpace.lg),
 
@@ -267,7 +267,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       Row(children: [
                         const Text('Sort:', style: TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
                         const SizedBox(width: AppSpace.xs),
-                        _sortChip('Points', 'points'),
+                        _sortChip('Rank', 'rank'),
                         const SizedBox(width: 6),
                         _sortChip('Disposals', 'disposals'),
                         const SizedBox(width: 6),
@@ -301,7 +301,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (_, i) {
                         // Top 3 get rank medals
-                        final rank = _sortBy == 'points' || _sortBy == 'disposals' ? i : -1;
+                        final rank = _sortBy == 'rank' || _sortBy == 'disposals' ? i : -1;
                         if (!_entrance.play) return _userCard(filtered[i], rank);
                         return TweenAnimationBuilder<double>(
                           key: ValueKey('$_search|$_sortBy|${filtered[i].uid}'),
@@ -333,7 +333,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final medalIcons = ['🥇', '🥈', '🥉'];
 
     return Tap(
-      label: '${u.username}, ${u.points} points, open details',
+      label: '${u.username}, ${u.lifetimePoints} points earned, ${u.points} to spend, open details',
       onTap: () => _showUserDetail(u),
       onLongPress: () {
         Clipboard.setData(ClipboardData(text: u.email));
@@ -373,9 +373,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           const SizedBox(width: AppSpace.xs),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Row(children: [
-              const Icon(Icons.stars_rounded, color: AdminColors.gold, size: 13),
+              const Icon(Icons.emoji_events_rounded, color: AdminColors.gold, size: 13),
               const SizedBox(width: 3),
-              Text('${u.points}', style: const TextStyle(color: AdminColors.gold, fontWeight: FontWeight.bold, fontSize: 13)),
+              Text('${u.lifetimePoints}', style: const TextStyle(color: AdminColors.gold, fontWeight: FontWeight.bold, fontSize: 13)),
             ]),
             const SizedBox(height: 3),
             Row(children: [

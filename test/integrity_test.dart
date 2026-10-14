@@ -162,4 +162,18 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 5));
   });
+
+  testWidgets('staff list ranks like the leaderboard: lifetime points first', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    UserModel u(String name, int balance, int lifetime) => UserModel(uid: name, username: name, email: '$name@x.com',
+        role: 'customer', points: balance, lifetimePoints: lifetime, createdAt: DateTime(2026));
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.admin,
+        home: Scaffold(body: AdminUsersScreen(customers: [u('Saver', 500, 500), u('Spender', 0, 900)], logs: const []))));
+    await tester.pump(const Duration(seconds: 2));
+    expect(tester.getTopLeft(find.text('Spender')).dy, lessThan(tester.getTopLeft(find.text('Saver')).dy));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
+  });
 }
