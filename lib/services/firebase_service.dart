@@ -156,50 +156,45 @@ class FirebaseService {
   }
 
   // ── Waste Logs ──────────────────────────────────────────────────────────────
-  /// Credits one scan: writes the waste log, points (base × streak multiplier), lifetime
-  /// points, streak and badges in ONE transaction, so the log always records what was credited.
-  static Future<ScanCredit> logWaste(WasteLog log) async {
+  /// Credits one scan inside [tx]: the waste log, points (base × streak multiplier), lifetime
+  /// points, streak and badges, so the log always records what was credited.
+  static ScanCredit _creditScan(Transaction tx, DocumentSnapshot<Map<String, dynamic>> userDoc, WasteLog log,
+      DateTime today) {
     final userRef = _db.collection('users').doc(log.userId);
     final profileRef = _db.collection('profiles').doc(log.userId);
     final logRef = _db.collection('waste_logs').doc();
-    final today = DateTime.now();
     final todayStr = dayKey(today);
+    final user = UserModel.fromDoc(userDoc);
 
-    return _db.runTransaction<ScanCredit>((tx) async {
-      final userDoc = await tx.get(userRef);
-      if (!userDoc.exists) throw StateError('User profile not found');
-      final user = UserModel.fromDoc(userDoc);
+    final streak     = nextStreak(user.streak, user.lastScanDate, today);
+    final multiplier = streakMultiplier(streak);
+    final awarded    = creditedPoints(log.pointsEarned, streak);
 
-      final streak     = nextStreak(user.streak, user.lastScanDate, today);
-      final multiplier = streakMultiplier(streak);
-      final awarded    = creditedPoints(log.pointsEarned, streak);
+    final projected = UserModel(
+      uid: user.uid, username: user.username, email: user.email, role: user.role,
+      points: user.points + awarded, lifetimePoints: user.lifetimePoints + awarded,
+      createdAt: user.createdAt, scanCount: user.scanCount + 1, streak: streak,
+      lastScanDate: todayStr, badges: List<String>.from(user.badges),
+    );
+    final newBadges = computeNewBadges(projected);
+    final allBadges = [...user.badges, ...newBadges];
 
-      final projected = UserModel(
-        uid: user.uid, username: user.username, email: user.email, role: user.role,
-        points: user.points + awarded, lifetimePoints: user.lifetimePoints + awarded,
-        createdAt: user.createdAt, scanCount: user.scanCount + 1, streak: streak,
-        lastScanDate: todayStr, badges: List<String>.from(user.badges),
-      );
-      final newBadges = computeNewBadges(projected);
-      final allBadges = [...user.badges, ...newBadges];
-
-      tx.set(logRef, WasteLog(
-        userId: log.userId, wasteType: log.wasteType, pointsEarned: log.pointsEarned,
-        pointsAwarded: awarded, timestamp: today, binId: log.binId,
-      ).toMap());
-      tx.update(userRef, {
-        'points':         projected.points,
-        'lifetimePoints': projected.lifetimePoints,
-        'scanCount':      projected.scanCount,
-        'streak':         streak,
-        'lastScanDate':   todayStr,
-        'badges':         allBadges,
-      });
-      tx.set(profileRef, _profileMirror(
-          username: user.username, points: projected.points,
-          lifetimePoints: projected.lifetimePoints, badges: allBadges));
-      return ScanCredit(awarded, multiplier, newBadges);
+    tx.set(logRef, WasteLog(
+      userId: log.userId, wasteType: log.wasteType, pointsEarned: log.pointsEarned,
+      pointsAwarded: awarded, timestamp: today, binId: log.binId,
+    ).toMap());
+    tx.update(userRef, {
+      'points':         projected.points,
+      'lifetimePoints': projected.lifetimePoints,
+      'scanCount':      projected.scanCount,
+      'streak':         streak,
+      'lastScanDate':   todayStr,
+      'badges':         allBadges,
     });
+    tx.set(profileRef, _profileMirror(
+        username: user.username, points: projected.points,
+        lifetimePoints: projected.lifetimePoints, badges: allBadges));
+    return ScanCredit(awarded, multiplier, newBadges);
   }
 
   static Future<List<WasteLog>> getUserWasteLogs(String userId) async {
@@ -421,68 +416,87 @@ class FirebaseService {
     });
   }
 
-  static Future<QRValidationResult> validateAndUseQRToken(String token, String userId) async {
+  /// Why [userId] may not claim a token with this [data] at [nowUtc], or null when they may.
+  static QRValidationResult? tokenRefusal(Map<String, dynamic>? data, String userId, DateTime nowUtc) {
+    if (data == null) return QRValidationResult.invalid;
+    // H-07: Timestamp or ISO string; an unreadable expiry counts as expired.
+    final expiresAt = firestoreTime(data['expiresAt']);
+    if (expiresAt == null || nowUtc.isAfter(expiresAt)) return QRValidationResult.expired;
+    // H-02: token-level guard — reject any second claimer regardless of account
+    if (data['isUsed'] == true) return QRValidationResult.alreadyUsed;
+    if (List<String>.from(data['usedBy'] ?? []).contains(userId)) return QRValidationResult.alreadyUsed;
+    return null;
+  }
+
+  /// The token's category is authoritative; the QR text is only a fallback for tokens without one.
+  static String scanWasteType(Map<String, dynamic> token, String fromQr) {
+    final t = token['wasteType'];
+    return kBasePoints.containsKey(t) ? t as String : fromQr;
+  }
+
+  /// Claims the token AND credits the points in one transaction, so a dropped connection can no
+  /// longer use up a token without crediting it.
+  static Future<ScanClaim> claimScan(String token, String userId, {required String qrWasteType}) async {
     final ref = _db.collection('qr_tokens').doc(token);
+    final userRef = _db.collection('users').doc(userId);
     final scanTime = DateTime.now();
+    Map<String, dynamic> tokenData = const {};
+    Map<String, dynamic> userData = const {};
 
-    // Run the atomic transaction — only tx.get/tx.update inside
-    final result = await _db.runTransaction((tx) async {
+    final claim = await _db.runTransaction<ScanClaim>((tx) async {
       final doc = await tx.get(ref);
-      if (!doc.exists) return QRValidationResult.invalid;
+      final refusal = tokenRefusal(doc.data(), userId, scanTime.toUtc());
+      if (refusal != null) return ScanClaim(refusal);
+      final userDoc = await tx.get(userRef);   // all reads before any write
+      if (!userDoc.exists) throw StateError('User profile not found');
+      tokenData = doc.data()!;
+      userData = userDoc.data() ?? const {};
 
-      final data = doc.data()!;
-      // H-07: tolerate both Firestore Timestamp and ISO string for expiresAt
-      final expiresRaw = data['expiresAt'];
-      final DateTime? expiresAt = expiresRaw is Timestamp
-          ? expiresRaw.toDate().toUtc()
-          : DateTime.tryParse(expiresRaw?.toString() ?? '')?.toUtc();
-      if (expiresAt == null || DateTime.now().toUtc().isAfter(expiresAt)) return QRValidationResult.expired;
-
-      // H-02: token-level guard — reject any second claimer regardless of account
-      if (data['isUsed'] == true) return QRValidationResult.alreadyUsed;
-      final usedBy = List<String>.from(data['usedBy'] ?? []);
-      if (usedBy.contains(userId)) return QRValidationResult.alreadyUsed;
-
-      tx.update(ref, {
-        'isUsed': true,
-        'usedBy': FieldValue.arrayUnion([userId]),
-      });
-      return QRValidationResult.valid;
+      final wasteType = scanWasteType(tokenData, qrWasteType);
+      final base = kBasePoints[wasteType]!;
+      tx.update(ref, {'isUsed': true, 'usedBy': FieldValue.arrayUnion([userId])});
+      final credit = _creditScan(tx, userDoc, WasteLog(
+        userId: userId, wasteType: wasteType, pointsEarned: base, timestamp: scanTime,
+        binId: token.substring(0, min(8, token.length)),
+      ), scanTime);
+      return ScanClaim(QRValidationResult.valid, wasteType: wasteType, basePoints: base, credit: credit);
     });
 
-    // Write scan history outside the transaction (non-atomic, non-critical)
-    if (result == QRValidationResult.valid) {
+    // Audit trail for staff, outside the transaction: a failure here must not undo or hide the credit.
+    if (claim.result == QRValidationResult.valid) {
       try {
-        final tokenDoc = await ref.get();
-        final data = tokenDoc.data() ?? {};
-        final wasteType = data['wasteType'] ?? 'Residual';
-        final pointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
-        final points = pointsMap[wasteType] ?? 5;
         // Kiosk tokens store a Timestamp; the old String-only parse threw and the history row was lost (audit B).
-        final createdAt = firestoreTime(data['createdAt']) ?? scanTime.toUtc();
-        final secondsAfterCreation = scanTime.toUtc().difference(createdAt).inSeconds;
-        final userDoc = await _db.collection('users').doc(userId).get();
-        final username = userDoc.exists ? (userDoc.data()?['username'] ?? '') : '';
-        final email = userDoc.exists ? (userDoc.data()?['email'] ?? '') : '';
+        final createdAt = firestoreTime(tokenData['createdAt']) ?? scanTime.toUtc();
         await _db.collection('qr_scan_history').add({
           'token': token,
-          'wasteType': wasteType,
+          'wasteType': claim.wasteType,
           'scannedAt': Timestamp.fromDate(scanTime.toUtc()),  // H-07
           'scannedByUid': userId,
-          'scannedByName': username,
-          'scannedByEmail': email,
-          'pointsAwarded': points,
-          'tokenCreatedAt': data['createdAt'] ?? Timestamp.fromDate(scanTime.toUtc()),
-          'expiresAt': data['expiresAt'] ?? Timestamp.fromDate(scanTime.toUtc()),
-          'secondsAfterCreation': secondsAfterCreation,
+          'scannedByName': userData['username'] ?? '',
+          'scannedByEmail': userData['email'] ?? '',
+          'pointsAwarded': claim.basePoints,
+          'tokenCreatedAt': tokenData['createdAt'] ?? Timestamp.fromDate(scanTime.toUtc()),
+          'expiresAt': tokenData['expiresAt'] ?? Timestamp.fromDate(scanTime.toUtc()),
+          'secondsAfterCreation': scanTime.toUtc().difference(createdAt).inSeconds,
         });
       } catch (_) {
         // Non-critical — scan history write failure should not block the user
       }
     }
-
-    return result;
+    return claim;
   }
+}
+
+/// Base points per category: the kiosk, the admin QR screen and the scanner all award these.
+const kBasePoints = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
+
+/// The outcome of a scan; [credit] is set only when [result] is valid.
+class ScanClaim {
+  final QRValidationResult result;
+  final String wasteType;
+  final int basePoints;
+  final ScanCredit? credit;
+  const ScanClaim(this.result, {this.wasteType = '', this.basePoints = 0, this.credit});
 }
 
 enum QRValidationResult { valid, expired, alreadyUsed, invalid }

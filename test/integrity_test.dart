@@ -87,4 +87,36 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 5));
   });
+
+  group('tokenRefusal: one check decides whether a scan may be credited', () {
+    final now = DateTime.utc(2026, 10, 15, 12);
+    Map<String, dynamic> token({Object? expires, bool isUsed = false, List<String> usedBy = const []}) => {
+          'wasteType': 'Recyclable',
+          'expiresAt': expires ?? Timestamp.fromDate(now.add(const Duration(minutes: 5))),
+          'isUsed': isUsed,
+          'usedBy': usedBy,
+        };
+    test('a fresh token may be claimed', () => expect(FirebaseService.tokenRefusal(token(), 'u', now), isNull));
+    test('missing token is invalid', () =>
+        expect(FirebaseService.tokenRefusal(null, 'u', now), QRValidationResult.invalid));
+    test('expired, or with no readable expiry, is expired', () {
+      expect(FirebaseService.tokenRefusal(token(expires: Timestamp.fromDate(now.subtract(const Duration(seconds: 1)))),
+          'u', now), QRValidationResult.expired);
+      expect(FirebaseService.tokenRefusal(token(expires: 'garbage'), 'u', now), QRValidationResult.expired);
+    });
+    test('an ISO string expiry still works (older admin tokens)', () => expect(
+        FirebaseService.tokenRefusal(token(expires: now.add(const Duration(minutes: 1)).toIso8601String()), 'u', now),
+        isNull));
+    test('used by anyone is already used', () {
+      expect(FirebaseService.tokenRefusal(token(isUsed: true), 'u', now), QRValidationResult.alreadyUsed);
+      expect(FirebaseService.tokenRefusal(token(usedBy: ['u']), 'u', now), QRValidationResult.alreadyUsed);
+    });
+  });
+
+  test('the waste type comes from the token; the QR text is only a fallback', () {
+    expect(FirebaseService.scanWasteType({'wasteType': 'Biodegradable'}, 'Residual'), 'Biodegradable');
+    expect(FirebaseService.scanWasteType({'wasteType': 'Plutonium'}, 'Recyclable'), 'Recyclable');
+    expect(FirebaseService.scanWasteType({}, 'Residual'), 'Residual');
+    expect(kBasePoints, {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5});
+  });
 }

@@ -335,8 +335,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
   Widget _buildReceiptDisplay() {
     final now = DateTime.now();
     final dateStr = DateFormat('MMM d, yyyy  h:mm a').format(now);
-    final pointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
-    final points = pointsMap[_selectedType]!;
+    final points = kBasePoints[_selectedType]!;
 
     return Column(children: [
       Container(

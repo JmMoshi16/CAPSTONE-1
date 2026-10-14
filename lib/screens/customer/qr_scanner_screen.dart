@@ -7,7 +7,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/firebase_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/sound_service.dart';
-import '../../models/models.dart';
 import '../../widgets/eco_animations.dart';
 import '../../widgets/ui.dart';
 import '../../core/theme.dart' show wasteIcon, getRank;
@@ -18,7 +17,6 @@ import 'scan_errors.dart';
 const _kScanAccent = AppPalette.mint;
 
 /// Shared points mapping — single source of truth in this file.
-const _kPointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
 
 class QRScannerScreen extends StatefulWidget {
   final String userId;
@@ -121,65 +119,64 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
       _showError(code.error!);
       return;
     }
-    final wasteType = code.wasteType;
     final token = code.token;
 
+    final ScanClaim claim;
     try {
-      final result = await FirebaseService.validateAndUseQRToken(token, widget.userId);
-      final error = scanErrorFor(result);
-      if (error != null) {
-        _showError(error);
-        return;
-      }
+      // Claim + credit are one transaction: either both happened or neither did.
+      claim = await FirebaseService.claimScan(token, widget.userId, qrWasteType: code.wasteType);
+    } catch (_) {
+      // Never show raw exception text to customers (audit M-17).
+      _showError(ScanError.offline);
+      return;
+    }
+    final error = scanErrorFor(claim.result);
+    if (error != null) {
+      _showError(error);
+      return;
+    }
 
-      final basePoints = _kPointsMap[wasteType] ?? 5;
-      final log = WasteLog(
-        userId: widget.userId,
-        wasteType: wasteType,
-        pointsEarned: basePoints,
-        timestamp: DateTime.now(),
-        binId: token.substring(0, 8),
-      );
-      final credit = await FirebaseService.logWaste(log);
-      final points = credit.pointsAwarded;   // what was credited, incl. streak bonus (audit M-11)
-      final newBadges = credit.newBadges;
-      setState(() => _scanned = true);
+    // From here the points are confirmed by the server; nothing below may report a failure.
+    final credit = claim.credit!;
+    final wasteType = claim.wasteType;
+    final basePoints = claim.basePoints;
+    final points = credit.pointsAwarded;   // what was credited, incl. streak bonus (audit M-11)
+    final newBadges = credit.newBadges;
+    if (mounted) setState(() => _scanned = true);
 
-      // Fire local notifications
+    try {
       await NotificationService.showPointsCredited(
           wasteType: wasteType, points: points, basePoints: basePoints, multiplier: credit.multiplier);
       for (final id in newBadges) {
         // A light tap for each badge unlocked (the success pulse follows)
         AppHaptics.primary();
         final info = FirebaseService.getBadgeInfo(id);
-        await NotificationService.showBadgeUnlocked(
-          info['icon'] as String, info['label'] as String);
-      }
-
-      // FIX 6: Haptic on successful scan just before navigation
-      AppHaptics.success();
-
-      if (mounted) {
-        await Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => _SuccessScreen(
-              wasteType: wasteType,
-              points: points,
-              basePoints: basePoints,
-              multiplier: credit.multiplier,
-              token: token,
-              username: widget.username,
-              newBadges: newBadges,
-              lifetimeBefore: widget.lifetimeBefore,
-              pointsBefore: widget.pointsBefore,
-            ),
-          ),
-        );
+        await NotificationService.showBadgeUnlocked(info['icon'] as String, info['label'] as String);
       }
     } catch (_) {
-      // Never show raw exception text to customers (audit M-17).
-      _showError(ScanError.offline);
+      // Notifications are a bonus; the success screen below says the same thing.
+    }
+
+    // FIX 6: Haptic on successful scan just before navigation
+    AppHaptics.success();
+
+    if (mounted) {
+      await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _SuccessScreen(
+            wasteType: wasteType,
+            points: points,
+            basePoints: basePoints,
+            multiplier: credit.multiplier,
+            token: token,
+            username: widget.username,
+            newBadges: newBadges,
+            lifetimeBefore: widget.lifetimeBefore,
+            pointsBefore: widget.pointsBefore,
+          ),
+        ),
+      );
     }
   }
 
