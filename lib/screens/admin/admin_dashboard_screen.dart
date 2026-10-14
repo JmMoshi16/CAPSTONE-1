@@ -42,9 +42,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final firstLoad = _logs.isEmpty && _customers.isEmpty && _rewards.isEmpty;
     if (mounted) setState(() { _loading = firstLoad; _loadError = null; });
     try {
-      final logs = await FirebaseService.getAllWasteLogs();
-      final customers = await FirebaseService.getAllCustomers();
-      final rewards = await FirebaseService.getAllRewards();
+      // The three reads are independent; run them together (audit F).
+      final (logs, customers, rewards) = await (
+        FirebaseService.getAllWasteLogs(),
+        FirebaseService.getAllCustomers(),
+        FirebaseService.getAllRewards(),
+      ).wait;
       if (mounted) setState(() { _logs = logs; _customers = customers; _rewards = rewards; _loading = false; });
     } catch (_) {
       // Never show raw exception text; the error state explains what to do.

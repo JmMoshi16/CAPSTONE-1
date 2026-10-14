@@ -137,7 +137,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                         slivers: [
                           for (final day in _groupByDay(filtered))
                             SliverMainAxisGroup(slivers: [
-                              SliverPersistentHeader(pinned: true, delegate: _DayHeader(day, context)),
+                              SliverPersistentHeader(pinned: true, delegate: _DayHeader(day, AppLayout.textScale(context))),
                               SliverPadding(
                                 padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
                                 sliver: SliverList.builder(
@@ -233,9 +233,10 @@ class _Day {
 
 /// Sticky day header: "Today · 3 scans · +38 pts".
 class _DayHeader extends SliverPersistentHeaderDelegate {
-  _DayHeader(this.day, this.ctx);
+  // The text scale is passed in; a delegate must not keep a BuildContext (audit O).
+  _DayHeader(this.day, this.textScale);
   final _Day day;
-  final BuildContext ctx;
+  final double textScale;
 
   static const _height = 40.0;
 
@@ -248,7 +249,7 @@ class _DayHeader extends SliverPersistentHeaderDelegate {
     return DateFormat(day.date.year == now.year ? 'EEE, MMM d' : 'EEE, MMM d yyyy').format(day.date);
   }
 
-  double get _extent => _height * AppLayout.textScale(ctx).clamp(1.0, 1.6);
+  double get _extent => _height * textScale.clamp(1.0, 1.6);
 
   @override
   double get minExtent => _extent;
@@ -276,5 +277,5 @@ class _DayHeader extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_DayHeader old) => old.day != day;
+  bool shouldRebuild(_DayHeader old) => old.day != day || old.textScale != textScale;
 }

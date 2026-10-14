@@ -396,9 +396,12 @@ class FirebaseService {
         {'title': 'Eco Tote Bag', 'description': 'Reusable eco-friendly tote bag', 'pointsCost': 120, 'category': 'Other', 'isActive': true},
         {'title': 'Plant a Tree', 'description': 'We plant a tree in your name', 'pointsCost': 200, 'category': 'Other', 'isActive': true},
       ];
-      for (final r in items) {
-        await _db.collection('rewards').add(r);
+      // Fixed IDs in one batch: two clients seeding at once write the same 8 docs, not 16 (audit L).
+      final batch = _db.batch();
+      for (final (i, r) in items.indexed) {
+        batch.set(_db.collection('rewards').doc('seed_$i'), r);
       }
+      await batch.commit();
     } catch (_) {
       // Non-critical — rewards will seed on next successful connection
     }
