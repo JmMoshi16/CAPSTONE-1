@@ -30,3 +30,7 @@ String registerErrorMessage(String err) {
 /// Shown whether or not the address has an account (no account enumeration).
 const passwordResetSentMessage =
     'If an account exists for that email, we have sent a link to reset the password.';
+
+// One "@", no spaces, a dot in the domain (audit N). Firebase does the final check.
+final _email = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+bool isValidEmail(String email) => _email.hasMatch(email);

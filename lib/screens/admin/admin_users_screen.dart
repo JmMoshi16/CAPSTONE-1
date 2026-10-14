@@ -13,6 +13,15 @@ const kDark = kAdminDark;
 const kCard = kAdminCard;
 const kBorder = kAdminBorder;
 
+/// Disposals per user, counted once instead of per sort comparison and per card (audit G).
+Map<String, int> countLogsByUser(Iterable<WasteLog> logs) {
+  final counts = <String, int>{};
+  for (final l in logs) {
+    counts[l.userId] = (counts[l.userId] ?? 0) + 1;
+  }
+  return counts;
+}
+
 
 class AdminUsersScreen extends StatefulWidget {
   final List<UserModel> customers;
@@ -43,7 +52,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return list;
   }
 
-  int _logCount(String uid) => widget.logs.where((l) => l.userId == uid).length;
+  late Map<String, int> _logCounts = countLogsByUser(widget.logs);
+
+  @override
+  void didUpdateWidget(AdminUsersScreen old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.logs, widget.logs)) _logCounts = countLogsByUser(widget.logs);
+  }
+
+  int _logCount(String uid) => _logCounts[uid] ?? 0;
 
   int _totalPoints() => widget.customers.fold(0, (s, u) => s + u.points);
 

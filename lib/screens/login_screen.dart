@@ -128,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   Future<void> _forgotPassword() async {
     final c = context.colors;
     final email = _emailCtrl.text.trim();
-    if (!email.contains('@')) {
+    if (!isValidEmail(email)) {
       _snack('Enter your email above first, then tap "Forgot password?"', c.warning);
       return;
     }
@@ -270,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     autofillHints: const [AutofillHints.email],
                                     hint: 'you@example.com',
                                     icon: Icons.alternate_email_rounded,
-                                    validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
+                                    validator: (v) => isValidEmail(v!.trim()) ? null : 'Enter a valid email',
                                   ),
                                 ])),
                               const SizedBox(height: AppSpace.md),

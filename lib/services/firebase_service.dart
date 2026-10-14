@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -66,13 +67,14 @@ class FirebaseService {
   static String? get currentUid => _auth.currentUser?.uid;
 
   // ── Auth ────────────────────────────────────────────────────────────────────
-  static Future<UserModel> register(String username, String email, String password, String role) async {
+  // Every self-registered account is a customer; the Firestore rules enforce the same on create (audit D).
+  static Future<UserModel> register(String username, String email, String password) async {
     final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
     final user = UserModel(
       uid: cred.user!.uid,
       username: username,
       email: email,
-      role: role,
+      role: 'customer',
       points: 0,
       createdAt: DateTime.now(),
       scanCount: 0,
@@ -115,13 +117,19 @@ class FirebaseService {
         );
         await _createUserAndProfile(fallback);
         return fallback;
-      } catch (_) {
+      } catch (e) {
+        if (!isTransient(e)) rethrow;   // permission-denied etc. would fail the same way again (audit H)
         await Future.delayed(const Duration(seconds: 1));
       }
     }
     // Firestore unreachable after retries
     throw Exception('Could not reach Firestore after 3 attempts. Check your connection and try again.');
   }
+
+  /// Errors worth retrying: the request may succeed a second later.
+  static bool isTransient(Object e) =>
+      e is TimeoutException ||
+      (e is FirebaseException && const {'unavailable', 'deadline-exceeded', 'aborted'}.contains(e.code));
 
   static Future<void> logout() => _auth.signOut();
 
@@ -255,12 +263,10 @@ class FirebaseService {
       final live = UserModel.fromDoc(userDoc);
       if (live.points < reward.pointsCost) return;
 
-      // FIX 10: Stock check — read live from Firestore to avoid races
-      if (rewardDoc.exists) {
-        final liveStock = rewardDoc.data()?['stock'];
-        final stockInt = (liveStock is int) ? liveStock : -1;
-        if (stockInt != -1 && stockInt <= 0) return;
-      }
+      // FIX 10: Stock is read live inside the transaction; the client copy may be stale (audit C).
+      final liveStock = rewardDoc.exists ? (rewardDoc.data()?['stock']) : null;
+      final stockInt = liveStock is int ? liveStock : null;
+      if (!stockAllows(stockInt)) return;
 
       final redemptionRef = _db.collection('redemptions').doc();
       final redemption = Redemption(
@@ -282,8 +288,7 @@ class FirebaseService {
           username: live.username, points: newBalance,
           lifetimePoints: live.lifetimePoints, badges: live.badges));
 
-      // FIX 10: Decrement stock only if limited
-      if (reward.stock != -1 && rewardDoc.exists) {
+      if (decrementsStock(stockInt)) {
         tx.update(rewardRef, {'stock': FieldValue.increment(-1)});
       }
 
@@ -292,6 +297,10 @@ class FirebaseService {
 
     return success;
   }
+
+  /// Stock -1 or missing means unlimited.
+  static bool stockAllows(int? stock) => stock == null || stock == -1 || stock > 0;
+  static bool decrementsStock(int? stock) => stock != null && stock > 0;
 
   static String _generateCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -446,8 +455,9 @@ class FirebaseService {
         final wasteType = data['wasteType'] ?? 'Residual';
         final pointsMap = {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5};
         final points = pointsMap[wasteType] ?? 5;
-        final createdAt = DateTime.tryParse(data['createdAt'] ?? '') ?? scanTime;
-        final secondsAfterCreation = scanTime.difference(createdAt).inSeconds;
+        // Kiosk tokens store a Timestamp; the old String-only parse threw and the history row was lost (audit B).
+        final createdAt = firestoreTime(data['createdAt']) ?? scanTime.toUtc();
+        final secondsAfterCreation = scanTime.toUtc().difference(createdAt).inSeconds;
         final userDoc = await _db.collection('users').doc(userId).get();
         final username = userDoc.exists ? (userDoc.data()?['username'] ?? '') : '';
         final email = userDoc.exists ? (userDoc.data()?['email'] ?? '') : '';

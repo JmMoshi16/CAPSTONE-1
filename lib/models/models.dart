@@ -1,11 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// H-07: tolerant reader for timestamp fields — handles Firestore Timestamp and ISO string fallback
-DateTime _tsToDateTime(dynamic v) {
+/// H-07: reads a Firestore Timestamp, DateTime or ISO string as UTC; anything else is null.
+DateTime? firestoreTime(dynamic v) {
   if (v is Timestamp) return v.toDate().toUtc();
-  if (v is String) return DateTime.tryParse(v)?.toUtc() ?? DateTime.now().toUtc();
-  return DateTime.now().toUtc();
+  if (v is DateTime) return v.toUtc();
+  if (v is String) return DateTime.tryParse(v)?.toUtc();
+  return null;
 }
+
+// Display fields only: a missing date shows as "now" rather than breaking the list.
+DateTime _tsToDateTime(dynamic v) => firestoreTime(v) ?? DateTime.now().toUtc();
 
 class UserModel {
   final String uid;

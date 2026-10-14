@@ -58,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     setState(() => _loading = true);
     try {
       await FirebaseService.register(
-        _userCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text.trim(), 'customer',
+        _userCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text.trim(),
       );
       if (mounted) {
         Navigator.pushAndRemoveUntil(context,
@@ -192,7 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               hint: 'Enter your email',
                               icon: Icons.mail_outline_rounded,
                               keyboardType: TextInputType.emailAddress,
-                              validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
+                              validator: (v) => isValidEmail(v!.trim()) ? null : 'Enter a valid email',
                             ),
 
                             const SizedBox(height: AppSpace.md),
