@@ -3,10 +3,12 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ecoreward_bin/core/app_theme.dart';
 import 'package:ecoreward_bin/core/auth_messages.dart';
 import 'package:ecoreward_bin/models/models.dart';
-import 'package:ecoreward_bin/screens/admin/admin_users_screen.dart' show countLogsByUser;
+import 'package:ecoreward_bin/screens/admin/admin_users_screen.dart';
 import 'package:ecoreward_bin/services/firebase_service.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -72,5 +74,17 @@ void main() {
         userId: uid, wasteType: 'Recyclable', pointsEarned: 10, timestamp: DateTime(2026), binId: 'b');
     expect(countLogsByUser([log('a'), log('b'), log('a')]), {'a': 2, 'b': 1});
     expect(countLogsByUser(const []), isEmpty);
+  });
+
+  testWidgets('staff see the same rank as the customer: lifetime points, not the balance (audit E)', (tester) async {
+    final spentAll = UserModel(uid: 'u', username: 'Ana', email: 'ana@x.com', role: 'customer', points: 0,
+        lifetimePoints: 600, createdAt: DateTime(2026));
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.admin,
+        home: Scaffold(body: AdminUsersScreen(customers: [spentAll], logs: const []))));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Platinum'), findsWidgets);
+    expect(find.text('Bronze'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

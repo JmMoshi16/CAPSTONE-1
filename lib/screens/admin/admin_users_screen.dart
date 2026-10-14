@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
+import '../../core/theme.dart' show getRank;
 import '../../widgets/ui.dart';
 
 const kGreen = kAdminGreen;
@@ -101,7 +102,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   const SizedBox(height: 2),
                   Text(u.email, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
                   const SizedBox(height: 6),
-                  _rankBadge(u.points),
+                  _rankBadge(u.lifetimePoints),
                 ])),
               ]),
               const SizedBox(height: AppSpace.xl),
@@ -363,7 +364,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Flexible(child: Text(u.username, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14))),
               const SizedBox(width: 6),
-              _rankBadge(u.points, small: true),
+              _rankBadge(u.lifetimePoints, small: true),
             ]),
             const SizedBox(height: 2),
             Text(u.email, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
@@ -406,12 +407,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
-  Widget _rankBadge(int points, {bool small = false}) {
-    String label; Color color;
-    if (points >= 500) { label = 'Platinum'; color = AdminColors.blue; }
-    else if (points >= 200) { label = 'Gold'; color = AdminColors.gold; }
-    else if (points >= 50) { label = 'Silver'; color = Colors.grey.shade400; }
-    else { label = 'Bronze'; color = AppPalette.medalBronze; }
+  // Same rank the customer sees: getRank on lifetime points, not the spendable balance (audit E).
+  Widget _rankBadge(int lifetimePoints, {bool small = false}) {
+    final label = getRank(lifetimePoints).label;
+    final color = switch (label) {
+      'Platinum' => AdminColors.blue,
+      'Gold' => AdminColors.gold,
+      'Silver' => Colors.grey.shade400,
+      _ => AppPalette.medalBronze,
+    };
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 6 : AppSpace.xs, vertical: small ? 2 : 3),
