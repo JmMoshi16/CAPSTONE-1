@@ -46,3 +46,7 @@ app.*.map.json
 
 # Stray Gradle problems-report folder created under android/ (AGP 9)
 /android/build/
+
+# Audit notes describe weaknesses: keep local (never push publicly)
+/PROJECT_DEEP_AUDIT.md
+/IMPLEMENTATION_REPORT.md
