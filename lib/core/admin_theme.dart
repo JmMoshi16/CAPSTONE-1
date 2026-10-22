@@ -35,6 +35,19 @@ class AdminColors {
   static const res = Color(0xFFEF5350);
 }
 
+/// Staff console type ramp. Denser than the customer app (a dashboard is scanned, not read), same
+/// family (DM Sans, from the theme), nothing below 11 sp. Colour is set at the call site with copyWith.
+class AdminType {
+  static const caption = TextStyle(fontSize: 11);                                 // meta lines, chips, stat labels
+  static const label = TextStyle(fontSize: 12);                                   // secondary rows, small counts
+  static const body = TextStyle(fontSize: 13);                                    // list rows
+  static const section = TextStyle(fontSize: 13, fontWeight: FontWeight.w600);    // section headings in sheets
+  static const input = TextStyle(fontSize: 14);                                   // text fields
+  static const title = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);      // row titles
+  static const stat = TextStyle(fontSize: 15, fontWeight: FontWeight.bold);       // numbers in stat cards
+  static const heading = TextStyle(fontSize: 18, fontWeight: FontWeight.bold);    // screen and sheet titles
+}
+
 // Older names, kept so admin screens read the same palette.
 const kAdminGreen = AdminColors.accent;
 const kAdminDGreen = AdminColors.accentDeep;

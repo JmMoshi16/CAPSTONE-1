@@ -26,6 +26,10 @@ ThemeExtension, with light and dark variants. Screens use these, not raw hex val
 Staff console (`AdminColors`): background #0D1117, card #161B22, accent #00E676 with dark `onAccent` text (12:1), and
 secondary text at ≥5.7:1 on cards.
 
+Staff type (`AdminType`, DM Sans, denser than the customer app, floor 11 sp): caption 11 · label 12 · body 13 ·
+section 13/600 · input 14 · title 14/bold · stat 15/bold · heading 18/bold. Colour via `copyWith`. Guarded by
+`test/admin_typography_test.dart`.
+
 ## Type (`AppType`)
 - **Fraunces** (display): headlines and big numbers, with lining figures for counters.
 - **DM Sans** (body): everything else.
@@ -56,9 +60,9 @@ loaders · StatCard · surfaces (cards, glass) · PressScale and `Tap` (semantic
 4. One celebration per action. Ambient loops stop under reduce-motion.
 
 ## Known debt
-- Staff console screens use ~100 literal `fontSize:` values and a few `Colors.grey` shades instead of the text
-  theme. They look consistent but don't scale with the type ramp. Migrate one screen at a time with a
-  golden test.
+- Staff console: the users screen is on `AdminType` (2026-10-15). The dashboard (23), rewards (25) and QR (21)
+  screens still use literal `fontSize:` values. Migrate one screen at a time with the same mapping, and add each
+  one to `admin_typography_test.dart`. Avatar initials and medal emoji are sized to their box, not the ramp.
 - Some celebration and scanner timings use literal `Duration`s (600–950 ms). They belong to the celebration sequence
   and are intentional, but should become named `AppMotion` constants.
 - `kGreen`-style aliases are duplicated in four admin screens; move them into `admin_theme.dart`.

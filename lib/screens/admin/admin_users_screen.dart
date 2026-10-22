@@ -98,9 +98,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 _avatar(u, size: 60, fontSize: 26),
                 const SizedBox(width: AppSpace.md),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(u.username, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(u.username, style: AdminType.heading.copyWith(color: AdminColors.textPrimary)),
                   const SizedBox(height: 2),
-                  Text(u.email, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
+                  Text(u.email, style: AdminType.body.copyWith(color: AdminColors.textSecondary)),
                   const SizedBox(height: 6),
                   _rankBadge(u.lifetimePoints),
                 ])),
@@ -123,7 +123,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Waste Breakdown', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text('Waste Breakdown', style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
                   const SizedBox(height: 14),
                   _wasteBar('Biodegradable', bio, userLogs.length, AdminColors.bio),
                   const SizedBox(height: 10),
@@ -140,7 +140,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               // Recent logs
               if (userLogs.isNotEmpty) ...[
                 const SizedBox(height: AppSpace.lg),
-                const Text('Recent Activity', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
+                Text('Recent Activity', style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
                 const SizedBox(height: 10),
                 ...userLogs.take(3).map((log) {
                   final colors = {'Biodegradable': AdminColors.bio, 'Recyclable': kBlue, 'Residual': AdminColors.res};
@@ -153,8 +153,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     child: Row(children: [
                       Icon(icons[log.wasteType] ?? Icons.recycling_rounded, color: c, size: 18),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(log.wasteType, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13))),
-                      Text('+${log.pointsAwarded} pts', style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Expanded(child: Text(log.wasteType, style: AdminType.body.copyWith(color: AdminColors.textSecondary))),
+                      Text('+${log.pointsAwarded} pts', style: AdminType.label.copyWith(color: c, fontWeight: FontWeight.bold)),
                     ]),
                   );
                 }),
@@ -170,8 +170,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final pct = total == 0 ? 0.0 : count / total;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 12)),
-        Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+        Text(label, style: AdminType.label.copyWith(color: AdminColors.textSecondary)),
+        Text('$count', style: AdminType.label.copyWith(color: color, fontWeight: FontWeight.bold)),
       ]),
       const SizedBox(height: AppSpace.xxs),
       ClipRRect(
@@ -189,8 +189,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         child: Column(children: [
           Icon(icon, color: c, size: 18),
           const SizedBox(height: AppSpace.xxs),
-          Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+          Text(v, style: AdminType.stat.copyWith(color: AdminColors.textPrimary)),
+          Text(l, style: AdminType.caption.copyWith(color: AdminColors.textTertiary)),
         ]),
       );
 
@@ -223,14 +223,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                 border: Border.all(color: kBlue.withValues(alpha: 0.3))),
                             child: const Icon(Icons.people_rounded, color: kBlue, size: 20)),
                         const SizedBox(width: AppSpace.sm),
-                        const Text('Customers', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+                        Text('Customers', style: AdminType.heading.copyWith(color: AdminColors.textPrimary)),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 6),
                           decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: kGreen.withValues(alpha: 0.3))),
                           child: Text('${widget.customers.length} users',
-                              style: const TextStyle(color: kGreen, fontWeight: FontWeight.bold, fontSize: 12)),
+                              style: AdminType.label.copyWith(color: kGreen, fontWeight: FontWeight.bold)),
                         ),
                       ]),
                       const SizedBox(height: AppSpace.md),
@@ -251,13 +251,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             border: Border.all(color: kBorder)),
                         child: TextField(
                           onChanged: (v) => setState(() => _search = v),
-                          style: const TextStyle(color: AdminColors.textPrimary, fontSize: 14),
-                          decoration: const InputDecoration(
+                          style: AdminType.input.copyWith(color: AdminColors.textPrimary),
+                          decoration: InputDecoration(
                             hintText: 'Search by name or email...',
-                            hintStyle: TextStyle(color: AdminColors.textTertiary, fontSize: 14),
-                            prefixIcon: Icon(Icons.search_rounded, color: AdminColors.textTertiary, size: 20),
+                            hintStyle: AdminType.input.copyWith(color: AdminColors.textTertiary),
+                            prefixIcon: const Icon(Icons.search_rounded, color: AdminColors.textTertiary, size: 20),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 14),
                           ),
                         ),
                       ),
@@ -265,7 +265,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
                       // Sort chips
                       Row(children: [
-                        const Text('Sort:', style: TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
+                        Text('Sort:', style: AdminType.label.copyWith(color: AdminColors.textTertiary)),
                         const SizedBox(width: AppSpace.xs),
                         _sortChip('Rank', 'rank'),
                         const SizedBox(width: 6),
@@ -354,7 +354,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             width: 28,
             child: rank < 3
                 ? Text(medalIcons[rank], style: const TextStyle(fontSize: 20))
-                : Text('${rank + 1}', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 13, fontWeight: FontWeight.bold)),
+                : Text('${rank + 1}', style: AdminType.body.copyWith(color: AdminColors.textTertiary, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: AppSpace.xs),
           _avatar(u, size: 46, fontSize: 18),
@@ -362,12 +362,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Flexible(child: Text(u.username, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14))),
+                  style: AdminType.title.copyWith(color: AdminColors.textPrimary))),
               const SizedBox(width: 6),
               _rankBadge(u.lifetimePoints, small: true),
             ]),
             const SizedBox(height: 2),
-            Text(u.email, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
+            Text(u.email, style: AdminType.caption.copyWith(color: AdminColors.textTertiary),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
           const SizedBox(width: AppSpace.xs),
@@ -375,13 +375,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             Row(children: [
               const Icon(Icons.emoji_events_rounded, color: AdminColors.gold, size: 13),
               const SizedBox(width: 3),
-              Text('${u.lifetimePoints}', style: const TextStyle(color: AdminColors.gold, fontWeight: FontWeight.bold, fontSize: 13)),
+              Text('${u.lifetimePoints}', style: AdminType.body.copyWith(color: AdminColors.gold, fontWeight: FontWeight.bold)),
             ]),
             const SizedBox(height: 3),
             Row(children: [
               const Icon(Icons.recycling_rounded, color: AdminColors.textTertiary, size: 12),
               const SizedBox(width: 3),
-              Text('$userLogs', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+              Text('$userLogs', style: AdminType.caption.copyWith(color: AdminColors.textTertiary)),
             ]),
           ]),
           const SizedBox(width: 6),
@@ -421,7 +421,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       padding: EdgeInsets.symmetric(horizontal: small ? 6 : AppSpace.xs, vertical: small ? 2 : 3),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6),
           border: Border.all(color: color.withValues(alpha: 0.4))),
-      child: Text(label, style: TextStyle(color: color, fontSize: small ? 9 : 11, fontWeight: FontWeight.bold)),
+      child: Text(label, style: AdminType.caption.copyWith(color: color, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -432,8 +432,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         child: Column(children: [
           Icon(icon, color: c, size: 18),
           const SizedBox(height: AppSpace.xxs),
-          Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+          Text(v, style: AdminType.stat.copyWith(color: AdminColors.textPrimary)),
+          Text(l, style: AdminType.caption.copyWith(color: AdminColors.textTertiary)),
         ]),
       );
 
@@ -451,8 +451,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? kGreen.withValues(alpha: 0.5) : kBorder),
         ),
-        child: Text(label, style: TextStyle(color: selected ? kGreen : AdminColors.textTertiary,
-            fontSize: 11, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+        child: Text(label, style: AdminType.caption.copyWith(color: selected ? kGreen : AdminColors.textTertiary,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
       ),
     );
   }
@@ -489,7 +489,7 @@ class _UserWeekChartState extends State<_UserWeekChart> {
       decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: kBorder)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Last 7 days · ${counts.fold(0, (a, b) => a + b)} disposals',
-            style: const TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
+            style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
         const SizedBox(height: AppSpace.sm),
         Semantics(
           label: 'Disposals per day: ${List.generate(7, (i) => '${DateFormat('EEEE').format(days[i])} ${counts[i]}').join(', ')}',
@@ -512,7 +512,7 @@ class _UserWeekChartState extends State<_UserWeekChart> {
                     showTitles: true,
                     reservedSize: 20,
                     getTitlesWidget: (v, _) => Text(DateFormat('E').format(days[v.toInt()]).substring(0, 2),
-                        style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+                        style: AdminType.caption.copyWith(color: AdminColors.textTertiary)),
                   )),
                 ),
                 barGroups: [
