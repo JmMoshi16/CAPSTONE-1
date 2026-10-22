@@ -124,10 +124,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
     final ScanClaim claim;
     try {
       // Claim + credit are one transaction: either both happened or neither did.
-      claim = await FirebaseService.claimScan(token, widget.userId, qrWasteType: code.wasteType);
-    } catch (_) {
+      claim = await FirebaseService.claimScan(token, widget.userId);
+    } catch (e) {
       // Never show raw exception text to customers (audit M-17).
-      _showError(ScanError.offline);
+      _showError(scanErrorForException(e));
       return;
     }
     final error = scanErrorFor(claim.result);

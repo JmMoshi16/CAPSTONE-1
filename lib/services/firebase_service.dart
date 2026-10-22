@@ -423,24 +423,22 @@ class FirebaseService {
   /// Why [userId] may not claim a token with this [data] at [nowUtc], or null when they may.
   static QRValidationResult? tokenRefusal(Map<String, dynamic>? data, String userId, DateTime nowUtc) {
     if (data == null) return QRValidationResult.invalid;
+    // The category, and so the points, come only from the token; the QR text never decides them.
+    if (!kBasePoints.containsKey(data['wasteType'])) return QRValidationResult.invalid;
+    // First: if this account already claimed it (e.g. the reply to a committed scan was lost), say so.
+    if (List<String>.from(data['usedBy'] ?? const []).contains(userId)) return QRValidationResult.claimedByYou;
     // H-07: Timestamp or ISO string; an unreadable expiry counts as expired.
     final expiresAt = firestoreTime(data['expiresAt']);
     if (expiresAt == null || nowUtc.isAfter(expiresAt)) return QRValidationResult.expired;
     // H-02: token-level guard — reject any second claimer regardless of account
     if (data['isUsed'] == true) return QRValidationResult.alreadyUsed;
-    if (List<String>.from(data['usedBy'] ?? []).contains(userId)) return QRValidationResult.alreadyUsed;
     return null;
-  }
-
-  /// The token's category is authoritative; the QR text is only a fallback for tokens without one.
-  static String scanWasteType(Map<String, dynamic> token, String fromQr) {
-    final t = token['wasteType'];
-    return kBasePoints.containsKey(t) ? t as String : fromQr;
   }
 
   /// Claims the token AND credits the points in one transaction, so a dropped connection can no
   /// longer use up a token without crediting it.
-  static Future<ScanClaim> claimScan(String token, String userId, {required String qrWasteType}) async {
+  /// The rules re-check expiry (server time), single use and the point bounds on every write.
+  static Future<ScanClaim> claimScan(String token, String userId) async {
     final ref = _db.collection('qr_tokens').doc(token);
     final userRef = _db.collection('users').doc(userId);
     final scanTime = DateTime.now();
@@ -456,7 +454,7 @@ class FirebaseService {
       tokenData = doc.data()!;
       userData = userDoc.data() ?? const {};
 
-      final wasteType = scanWasteType(tokenData, qrWasteType);
+      final wasteType = tokenData['wasteType'] as String;   // validated by tokenRefusal
       final base = kBasePoints[wasteType]!;
       tx.update(ref, {'isUsed': true, 'usedBy': FieldValue.arrayUnion([userId])});
       final credit = _creditScan(tx, userDoc, WasteLog(
@@ -503,4 +501,4 @@ class ScanClaim {
   const ScanClaim(this.result, {this.wasteType = '', this.basePoints = 0, this.credit});
 }
 
-enum QRValidationResult { valid, expired, alreadyUsed, invalid }
+enum QRValidationResult { valid, expired, alreadyUsed, claimedByYou, invalid }

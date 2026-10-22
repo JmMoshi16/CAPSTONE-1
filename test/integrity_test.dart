@@ -8,6 +8,7 @@ import 'package:ecoreward_bin/core/auth_messages.dart';
 import 'package:ecoreward_bin/models/models.dart';
 import 'package:ecoreward_bin/screens/admin/admin_dashboard_screen.dart' show dashboardTabPreview;
 import 'package:ecoreward_bin/screens/admin/admin_users_screen.dart';
+import 'package:ecoreward_bin/screens/customer/scan_errors.dart';
 import 'package:ecoreward_bin/services/firebase_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +26,17 @@ void main() {
       expect(firestoreTime('not a date'), isNull);
       expect(firestoreTime(42), isNull);
     });
+  });
+
+  group('times shown and grouped are local, not UTC', () {
+    test('a stored scan time reads back as the local wall-clock time', () {
+      final scan = DateTime(2026, 10, 15, 7, 30);   // 7:30 AM on this device
+      final read = localTime(Timestamp.fromDate(scan));
+      expect(read.isUtc, isFalse);
+      expect([read.year, read.month, read.day, read.hour, read.minute], [2026, 10, 15, 7, 30]);
+    });
+    test('missing values still fall back to now (display only)', () =>
+        expect(localTime(null).difference(DateTime.now()).inSeconds.abs(), lessThan(5)));
   });
 
   group('reward stock is decided from the live document', () {
@@ -108,17 +120,42 @@ void main() {
     test('an ISO string expiry still works (older admin tokens)', () => expect(
         FirebaseService.tokenRefusal(token(expires: now.add(const Duration(minutes: 1)).toIso8601String()), 'u', now),
         isNull));
-    test('used by anyone is already used', () {
+    test('used by someone else is already used', () {
+      expect(FirebaseService.tokenRefusal(token(isUsed: true, usedBy: ['other']), 'u', now),
+          QRValidationResult.alreadyUsed);
       expect(FirebaseService.tokenRefusal(token(isUsed: true), 'u', now), QRValidationResult.alreadyUsed);
-      expect(FirebaseService.tokenRefusal(token(usedBy: ['u']), 'u', now), QRValidationResult.alreadyUsed);
+    });
+    test('claimed by this account (e.g. the reply to a committed scan was lost) is told apart', () {
+      expect(FirebaseService.tokenRefusal(token(isUsed: true, usedBy: ['u']), 'u', now),
+          QRValidationResult.claimedByYou);
+      // even after expiry: the points are in, that is the useful answer
+      expect(FirebaseService.tokenRefusal(token(isUsed: true, usedBy: ['u'],
+          expires: Timestamp.fromDate(now.subtract(const Duration(hours: 1)))), 'u', now),
+          QRValidationResult.claimedByYou);
+    });
+    test('a token without a known category is invalid; the QR text never decides the points', () {
+      for (final t in [null, 'Plutonium', 42]) {
+        expect(FirebaseService.tokenRefusal({...token(), 'wasteType': t}, 'u', now), QRValidationResult.invalid,
+            reason: '$t');
+      }
     });
   });
 
-  test('the waste type comes from the token; the QR text is only a fallback', () {
-    expect(FirebaseService.scanWasteType({'wasteType': 'Biodegradable'}, 'Residual'), 'Biodegradable');
-    expect(FirebaseService.scanWasteType({'wasteType': 'Plutonium'}, 'Recyclable'), 'Recyclable');
-    expect(FirebaseService.scanWasteType({}, 'Residual'), 'Residual');
-    expect(kBasePoints, {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5});
+  test('base points per category', () =>
+      expect(kBasePoints, {'Biodegradable': 15, 'Recyclable': 10, 'Residual': 5}));
+
+  group('scan failures are named honestly', () {
+    test('already claimed by you is not an error about someone else', () {
+      expect(scanErrorFor(QRValidationResult.claimedByYou), ScanError.claimedByYou);
+      expect(ScanError.claimedByYou.message, contains('already in your balance'));
+    });
+    test('a server refusal is not reported as a connection problem', () {
+      expect(scanErrorForException(FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied')),
+          ScanError.rejected);
+      expect(scanErrorForException(FirebaseException(plugin: 'cloud_firestore', code: 'unavailable')),
+          ScanError.offline);
+      expect(scanErrorForException(TimeoutException('slow')), ScanError.offline);
+    });
   });
 
   group('describeBins never invents a reading (Google Home: honest device state)', () {

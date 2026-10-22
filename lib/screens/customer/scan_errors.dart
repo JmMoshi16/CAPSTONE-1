@@ -2,6 +2,7 @@
 // shows them. Kept apart from the camera screen so the rules can be tested on their own.
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
 import '../../services/firebase_service.dart' show QRValidationResult;
 import '../../widgets/ui.dart';
 
@@ -19,6 +20,14 @@ enum ScanError {
   alreadyClaimed('Already claimed',
       'Each bin code can be claimed once, and this one has been. Your next disposal will give you a new code.',
       warning: true, icon: Icons.check_circle_outline_rounded),
+  claimedByYou('Points already added',
+      'You claimed this code already, so its points are already in your balance. You can see the scan in Scan History.',
+      warning: true, icon: Icons.check_circle_rounded),
+  // The rules check expiry by server time, so a phone whose clock is behind can see a code as still valid.
+  rejected('Code not accepted',
+      'ECOReward did not accept this code. It has most likely just expired. Scan the code on the bin again, '
+          'or ask staff for a new one.',
+      warning: true, icon: Icons.block_rounded),
   notFound('Code not found',
       "We couldn't find this code. Make sure you're scanning the code on the bin's screen right now."),
   offline("Couldn't reach ECOReward",
@@ -53,8 +62,13 @@ ScanError? scanErrorFor(QRValidationResult result) => switch (result) {
       QRValidationResult.valid => null,
       QRValidationResult.expired => ScanError.expired,
       QRValidationResult.alreadyUsed => ScanError.alreadyClaimed,
+      QRValidationResult.claimedByYou => ScanError.claimedByYou,
       QRValidationResult.invalid => ScanError.notFound,
     };
+
+/// A failed claim: a server refusal (rules) is not a connection problem; anything else is.
+ScanError scanErrorForException(Object e) =>
+    e is FirebaseException && e.code == 'permission-denied' ? ScanError.rejected : ScanError.offline;
 
 /// The scan error dialog: what happened, then "Scan again" or "Back to Home".
 Future<void> showScanErrorDialog(BuildContext context, ScanError e,

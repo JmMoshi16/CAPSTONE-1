@@ -8,8 +8,10 @@ DateTime? firestoreTime(dynamic v) {
   return null;
 }
 
-// Display fields only: a missing date shows as "now" rather than breaking the list.
-DateTime _tsToDateTime(dynamic v) => firestoreTime(v) ?? DateTime.now().toUtc();
+/// Model times are LOCAL: screens format them ("h:mm a") and group them by day and hour, which must
+/// follow the phone's clock, not UTC (a 7 AM scan in UTC+8 used to count on the previous day).
+/// Display fields only: a missing date shows as "now" rather than breaking the list.
+DateTime localTime(dynamic v) => (firestoreTime(v) ?? DateTime.now()).toLocal();
 
 class UserModel {
   final String uid;
@@ -60,7 +62,7 @@ class UserModel {
       role: d['role'] ?? 'customer',
       points: d['points'] ?? 0,
       lifetimePoints: d['lifetimePoints'] as int?,   // older docs: falls back to points
-      createdAt: _tsToDateTime(d['createdAt']),
+      createdAt: localTime(d['createdAt']),
       scanCount: d['scanCount'] ?? 0,
       streak: d['streak'] ?? 0,
       lastScanDate: d['lastScanDate'],
@@ -105,7 +107,7 @@ class WasteLog {
       wasteType: d['wasteType'] ?? '',
       pointsEarned: d['pointsEarned'] ?? 0,
       pointsAwarded: d['pointsAwarded'] as int?,   // older logs: falls back to base
-      timestamp: _tsToDateTime(d['timestamp']),
+      timestamp: localTime(d['timestamp']),
       binId: d['binId'] ?? '',
     );
   }
@@ -204,7 +206,7 @@ class Redemption {
       rewardId: d['rewardId'] ?? '',
       rewardTitle: d['rewardTitle'] ?? '',
       pointsUsed: d['pointsUsed'] ?? 0,
-      redeemedAt: _tsToDateTime(d['redeemedAt']),
+      redeemedAt: localTime(d['redeemedAt']),
       status: d['status'] ?? 'pending',
       redemptionCode: d['redemptionCode'] ?? '',
     );
