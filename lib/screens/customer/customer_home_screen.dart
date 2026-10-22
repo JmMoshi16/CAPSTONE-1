@@ -533,7 +533,6 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
     final t = context.text;
     final bio = widget.logs.where((l) => l.wasteType == 'Biodegradable').length;
     final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
-    final co2 = (rec * 0.5 + bio * 0.3).toStringAsFixed(1);
     final recent = widget.logs.take(3).toList();
     final now = DateTime.now();
     final lifetime = widget.user.lifetimePoints;
@@ -741,7 +740,7 @@ class _HomeTabState extends State<_HomeTab> with TickerProviderStateMixin {
                 Row(children: [
                   Expanded(child: _gridTile(onTap: widget.onHistory, icon: Icons.history_rounded, color: c.info, label: 'Scan History', subtitle: '${widget.logs.length} total scans')),
                   const SizedBox(width: AppSpace.sm),
-                  Expanded(child: _gridTile(onTap: widget.onImpact, icon: Icons.eco_rounded, color: c.success, label: 'Your impact', subtitle: '${co2}kg CO₂ reduced')),
+                  Expanded(child: _gridTile(onTap: widget.onImpact, icon: Icons.eco_rounded, color: c.success, label: 'Your impact', subtitle: '${rec + bio} recyclable or compostable')),
                 ]),
               ]),
             )),

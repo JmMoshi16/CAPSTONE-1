@@ -13,11 +13,8 @@ class ImpactCharts extends StatefulWidget {
   final List<WasteLog> logs;
   final bool animate;
 
-  // Rough averages, labelled as estimates on screen.
-  static const kgCo2PerRecyclable = 0.5;      // same factors as the Home "Your impact" tile
-  static const kgCo2PerBiodegradable = 0.3;
-  static const kgCo2PerPhoneCharge = 0.00822; // US EPA greenhouse-gas equivalencies
-  static const kgCo2PerTreeDay = 21.77 / 365; // a mature tree absorbs ~22 kg CO₂ a year
+  // No CO₂ figure on purpose: items are not weighed per scan, and the old per-item factors (0.5 / 0.3 kg)
+  // had no source. Only counts of scanned items are shown (decision 2026-10-15, PROJECT_DEEP_AUDIT.md U).
 
   @override
   State<ImpactCharts> createState() => _ImpactChartsState();
@@ -50,7 +47,6 @@ class _ImpactChartsState extends State<ImpactCharts> {
     final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final res = widget.logs.where((l) => l.wasteType == 'Residual').length;
     final total = bio + rec + res;
-    final kg = rec * ImpactCharts.kgCo2PerRecyclable + bio * ImpactCharts.kgCo2PerBiodegradable;
     final duration = AppMotion.of(context, const Duration(milliseconds: 700));
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -173,29 +169,19 @@ class _ImpactChartsState extends State<ImpactCharts> {
       ),
       const SizedBox(height: AppSpace.md),
 
-      // ── CO₂ ──
+      // ── Separated from residual waste (counts only) ──
       _Card(
-        title: 'CO₂ you helped avoid',
-        subtitle: '≈ ${kg.toStringAsFixed(1)} kg (estimate)',
+        title: 'Recyclable or compostable',
+        subtitle: '${rec + bio} of $total items you scanned',
         child: Column(children: [
           Row(children: [
-            Expanded(child: _Equivalent(
-              emoji: '📱',
-              value: (kg / ImpactCharts.kgCo2PerPhoneCharge).round(),
-              label: 'phone charges',
-              animate: widget.animate,
-            )),
+            Expanded(child: _Equivalent(emoji: '♻️', value: rec, label: 'recyclable', animate: widget.animate)),
             const SizedBox(width: AppSpace.sm),
-            Expanded(child: _Equivalent(
-              emoji: '🌳',
-              value: (kg / ImpactCharts.kgCo2PerTreeDay).round(),
-              label: "days of a tree's work",
-              animate: widget.animate,
-            )),
+            Expanded(child: _Equivalent(emoji: '🌱', value: bio, label: 'biodegradable', animate: widget.animate)),
           ]),
           const SizedBox(height: AppSpace.sm),
-          Text('Rough estimates: about 0.5 kg CO₂ per recyclable and 0.3 kg per biodegradable item; '
-              '8.2 g per smartphone charge (US EPA); a tree absorbs about 22 kg a year.',
+          Text('Counted from your scans at the bin. We do not show CO₂ savings: items are not weighed '
+              'per scan yet, so there is no reliable figure.',
               style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
         ]),
       ),
