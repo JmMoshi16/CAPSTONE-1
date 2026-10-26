@@ -146,8 +146,9 @@ void main() {
   testWidgets('nav bar: Scan is a round action that never looks like the selected tab', (tester) async {
     await _pump(tester, homeTabPreview(user: _user));
     const c = AppColors.light;
-    expect(tester.widget<Text>(find.text('Scan')).style!.color, c.textSecondary,
-        reason: 'the label used to be bold green, like a selected tab');
+    // Two "Scan" labels: the hero shortcut (on forest) and the nav button, whose label must look unselected.
+    expect(tester.widgetList<Text>(find.text('Scan')).map((t) => t.style!.color), contains(c.textSecondary),
+        reason: 'the nav label used to be bold green, like a selected tab');
     final circles = tester.widgetList<Container>(find.byType(Container)).where((w) {
       final d = w.decoration;
       return d is BoxDecoration && d.shape == BoxShape.circle && d.color == c.primary;
@@ -181,5 +182,61 @@ void main() {
       expect(box.height, lessThanOrEqualTo(160), reason: 'the old skeleton opened with a 260 px grey block');
     }
     await _done(tester);
+  });
+
+  group('premium surfaces', () {
+    testWidgets('the forest surface drifts on arrival, then rests; with reduced motion it never moves', (tester) async {
+      await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: const AuroraBackground(child: SizedBox(height: 200))));
+      expect(tester.binding.hasScheduledFrame, isTrue, reason: 'alive on arrival');
+      await tester.pumpAndSettle(const Duration(milliseconds: 500), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 40));
+      await _done(tester);
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.light,
+        home: const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: AuroraBackground(child: SizedBox(height: 200)),
+        ),
+      ));
+      await tester.pump();
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      await _done(tester);
+    });
+
+    testWidgets('an entrance that should not play shows its child at once', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: StaggeredEntrance(index: 3, play: false, child: Text('row'))));
+      final opacity = tester.widget<Opacity>(find.ancestor(of: find.text('row'), matching: find.byType(Opacity)).first);
+      expect(opacity.opacity, 1);
+      await _done(tester);
+    });
+
+    testWidgets('Home: a reward in the carousel opens it', (tester) async {
+      Reward? opened;
+      tester.view.physicalSize = const Size(400, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: Builder(builder: (_) => homeTabPreview(
+        user: _user,
+        rewards: [_reward('Latte', 50), _reward('Mocha', 60)],
+        onOpenReward: (r) => opened = r,
+      ))));
+      await tester.pump(const Duration(seconds: 2));
+      // Ready rewards lead with the most valuable, so Mocha is in focus and Latte peeks from the right.
+      await tester.tap(find.text('Mocha'));
+      expect(opened?.title, 'Mocha');
+      await _done(tester);
+    });
+
+    testWidgets('the nav pill slides to the selected tab', (tester) async {
+      Future<double> pillLeft(int index) async {
+        await _pump(tester, homeTabPreview(user: _user, selectedTab: index));
+        await tester.pump(const Duration(seconds: 1));
+        return tester.getTopLeft(find.byKey(const ValueKey('nav-pill'))).dx;
+      }
+      final home = await pillLeft(0);
+      final profile = await pillLeft(3);
+      expect(profile, greaterThan(home + 200), reason: 'Profile is the last slot');
+      await _done(tester);
+    });
   });
 }

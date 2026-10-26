@@ -257,12 +257,12 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
           SliverAppBar(
             expandedHeight: AppLayout.headerHeight(context, 140, perScale: 100),
             pinned: true,
-            backgroundColor: c.background,
+            backgroundColor: c.hero[1],
             surfaceTintColor: Colors.transparent,
+            systemOverlayStyle: SystemUiOverlayStyle.light,
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                color: c.background,
+              background: AuroraBackground(
                 child: SafeArea(
                   child: Padding(
                     // Bottom padding = the tab bar, which sits on top of this background.
@@ -271,11 +271,11 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(children: [
-                          Expanded(child: Text('Rewards', style: t.headlineMedium)),
+                          Expanded(child: Text('Rewards', style: t.headlineMedium!.copyWith(color: AppPalette.cream))),
                           IconButton(
                             tooltip: 'How rewards work',
                             onPressed: () => showHowItWorksSheet(context),
-                            icon: Icon(Icons.help_outline_rounded, color: c.textSecondary),
+                            icon: Icon(Icons.help_outline_rounded, color: c.onHeroMuted),
                           ),
                         ]),
                         Semantics(
@@ -283,9 +283,9 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                           excludeSemantics: true,
                           child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                             AnimatedCount(widget.user.points,
-                                style: t.titleLarge!.copyWith(fontFamily: AppType.displayFamily, color: c.primary)),
+                                style: t.headlineSmall!.copyWith(color: AppPalette.cream)),
                             Flexible(child: Text(' pts to spend', maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: t.bodyMedium!.copyWith(color: c.textSecondary))),
+                                style: t.bodyMedium!.copyWith(color: c.onHeroMuted))),
                           ]),
                         ),
                       ],
@@ -296,11 +296,11 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             ),
             bottom: TabBar(
               controller: _tabController,
-              indicatorColor: c.primary,
+              indicatorColor: c.accent,
               indicatorWeight: 3,
-              labelColor: c.textPrimary,
-              unselectedLabelColor: c.textSecondary,
-              dividerColor: c.border,
+              labelColor: AppPalette.cream,
+              unselectedLabelColor: c.onHeroMuted,
+              dividerColor: Colors.transparent,
               tabs: [
                 const Tab(text: 'Available'),
                 Tab(text: codes > 0 ? 'My codes ($codes)' : 'My codes'),

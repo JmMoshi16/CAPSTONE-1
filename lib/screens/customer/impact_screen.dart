@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart' show wasteIcon;
@@ -59,21 +60,21 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
           SliverAppBar(
             expandedHeight: AppLayout.headerHeight(context, 160),
             pinned: true,
-            backgroundColor: c.background,
+            backgroundColor: c.hero[1],
             surfaceTintColor: Colors.transparent,
+            systemOverlayStyle: SystemUiOverlayStyle.light,
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
-              background: FadeTransition(
-                opacity: _headerFade,
-                child: Container(
-                  color: c.background,
+              background: AuroraBackground(
+                child: FadeTransition(
+                  opacity: _headerFade,
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Activity', style: t.headlineMedium),
-                        const SizedBox(height: AppSpace.xs - 2),
-                        Text('Everything you have sorted at the bin', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+                        Text('Activity', style: t.headlineMedium!.copyWith(color: AppPalette.cream)),
+                        const SizedBox(height: AppSpace.xxs),
+                        Text('Everything you have sorted at the bin', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
                         const SizedBox(height: AppSpace.md),
                         Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
                           _CountUpStat(end: widget.logs.length, label: 'Items sorted', ctrl: _headerCtrl),
@@ -201,9 +202,9 @@ class _CountUpStat extends StatelessWidget {
       AnimatedBuilder(
         animation: anim,
         builder: (_, __) => Text('${anim.value.toInt()}',
-            style: AppType.numeral.copyWith(fontSize: 24, color: c.textPrimary)),
+            style: AppType.numeral.copyWith(fontSize: 26, color: AppPalette.cream)),
       ),
-      Text(label, style: context.text.bodySmall),
+      Text(label, style: context.text.bodySmall!.copyWith(color: c.onHeroMuted)),
     ]);
   }
 }

@@ -12,6 +12,7 @@ export 'ui/marks.dart';
 export 'ui/app_sheet.dart';
 export 'ui/celebration.dart';
 export 'ui/motion.dart';
+export 'ui/premium.dart';
 export 'ui/press_scale.dart';
 export 'ui/skeleton.dart';
 export 'ui/stat_card.dart';

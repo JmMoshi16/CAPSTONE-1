@@ -35,6 +35,10 @@ Future<void> _done(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 20));
 }
 
+/// Long enough for the forest surfaces' slow drift, which plays two 12 s cycles and then rests;
+/// anything that loops forever still times out.
+const _settleLimit = Duration(seconds: 40);
+
 /// Emoji blocks used as icons before the redesign (pictographs, dingbats, misc symbols).
 final _emoji = RegExp(r'[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]', unicode: true);
 
@@ -142,14 +146,14 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: homeTabPreview(user: _user())));
     // pumpAndSettle throws if an animation repeats forever.
-    await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 10));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, _settleLimit);
     await _done(tester);
   });
 
   testWidgets('Sign in and Register: no emoji, and they settle (no pulsing button or drifting leaves)', (tester) async {
     for (final screen in const <Widget>[LoginScreen(), RegisterScreen()]) {
       await _pump(tester, screen);
-      await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 10));
+      await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, _settleLimit);
       expect(_renderedText(tester).where(_emoji.hasMatch), isEmpty, reason: '${screen.runtimeType}');
       await _done(tester);
     }

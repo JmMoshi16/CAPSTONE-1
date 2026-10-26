@@ -82,46 +82,56 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         child: Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg), child: child));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,   // the page opens on the forest band
       child: Scaffold(
         body: EcoRefresh(
           onRefresh: () async => widget.onUpdated(),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              // ── Identity, on the forest band ──
               SliverToBoxAdapter(
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
-                    child: Text('Profile', style: t.headlineMedium),
+                child: AuroraBackground(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxl)),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xl),
+                      child: Column(children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Profile', style: t.headlineMedium!.copyWith(color: AppPalette.cream)),
+                        ),
+                        const SizedBox(height: AppSpace.md),
+                        Tap(label: 'Edit profile photo', onTap: _editProfile,
+                            child: UserAvatar(name: user.username, photo: user.photo, size: 96, onHero: true)),
+                        const SizedBox(height: AppSpace.md),
+                        Text(user.username, style: t.headlineSmall!.copyWith(color: AppPalette.cream),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: AppSpace.xxs),
+                        Text('Member since ${_monthYear(user.createdAt)}', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
+                        const SizedBox(height: AppSpace.sm),
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          RankMark(lifetimePoints: user.lifetimePoints, size: 24),
+                          const SizedBox(width: AppSpace.xs),
+                          Flexible(child: Text('${rank.label} member, level ${level.level} ${level.title}',
+                              style: t.labelLarge!.copyWith(color: c.onHero), textAlign: TextAlign.center)),
+                        ]),
+                        const SizedBox(height: AppSpace.md),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppPalette.cream,
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                          ),
+                          onPressed: _editProfile,
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Edit profile'),
+                        ),
+                      ]),
+                    ),
                   ),
                 ),
               ),
-              gap(AppSpace.lg),
-
-              // ── Identity ──
-              padded(Column(children: [
-                Tap(label: 'Edit profile photo', onTap: _editProfile,
-                    child: UserAvatar(name: user.username, photo: user.photo, size: 96)),
-                const SizedBox(height: AppSpace.md),
-                Text(user.username, style: t.headlineSmall, textAlign: TextAlign.center),
-                const SizedBox(height: AppSpace.xxs),
-                Text('Member since ${_monthYear(user.createdAt)}', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
-                const SizedBox(height: AppSpace.sm),
-                Row(mainAxisSize: MainAxisSize.min, children: [
-                  RankMark(lifetimePoints: user.lifetimePoints, size: 24),
-                  const SizedBox(width: AppSpace.xs),
-                  Flexible(child: Text('${rank.label} member · Level ${level.level} ${level.title}',
-                      style: t.labelLarge, textAlign: TextAlign.center)),
-                ]),
-                const SizedBox(height: AppSpace.md),
-                OutlinedButton.icon(
-                  onPressed: _editProfile,
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit profile'),
-                ),
-              ])),
               gap(),
 
               // ── Numbers: each opens the screen it summarises ──

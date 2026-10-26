@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
 import '../services/firebase_service.dart';
 import '../widgets/ui.dart';
+import 'auth_scaffold.dart';
 import 'customer/customer_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -77,22 +78,15 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
-    return Scaffold(
-      backgroundColor: c.background,
-      appBar: AppBar(
-        backgroundColor: c.background,
-        surfaceTintColor: Colors.transparent,
-        leading: HeroBackButton(onTap: () => Navigator.pop(context)),
-      ),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.sm, AppSpace.xl, AppSpace.xxl),
-            // Centred at 480 dp on tablets.
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: FadeTransition(
+    return AuthScaffold(
+      heroFraction: 0.32,
+      onBack: () => Navigator.pop(context),
+      hero: Column(mainAxisSize: MainAxisSize.min, children: [
+        Semantics(header: true, child: Text('Create your account', style: t.displaySmall!.copyWith(color: AppPalette.cream))),
+        const SizedBox(height: AppSpace.lg),
+        const _HowItWorksRow(),
+      ]),
+      sheet: FadeTransition(
                 opacity: _fadeAnim,
                 child: SlideTransition(
                   position: _slideAnim,
@@ -101,12 +95,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text('Create your account', style: t.displaySmall),
-                            const SizedBox(height: AppSpace.xs),
-                            Text('Sort your waste at the bin, collect points, and spend them at the counter.',
-                                style: t.bodyLarge!.copyWith(color: c.textSecondary)),
-                            const SizedBox(height: AppSpace.xxl),
-
                             // Username
                             _fieldLabel('Username'),
                             const SizedBox(height: AppSpace.xs),
@@ -195,10 +183,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       )),
                 ),
               ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -226,4 +210,45 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         onChanged: onChanged,
         textInputAction: TextInputAction.next,
       );
+}
+
+/// Sort, scan, spend: the whole loop in three marks on the hero, so a new customer knows what the account is for.
+class _HowItWorksRow extends StatelessWidget {
+  const _HowItWorksRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    Widget step(IconData icon, String label) => SizedBox(
+          width: 88,
+          child: Column(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+              ),
+              child: Icon(icon, color: AppPalette.cream, size: 22),
+            ),
+            const SizedBox(height: AppSpace.xs),
+            Text(label, textAlign: TextAlign.center, style: context.text.labelMedium!.copyWith(color: c.onHeroMuted)),
+          ]),
+        );
+    Widget link() => Padding(
+          padding: const EdgeInsets.only(bottom: 30),
+          child: Container(width: 20, height: 1, color: Colors.white.withValues(alpha: 0.3)),
+        );
+    return Semantics(
+      label: 'Sort your waste at the bin, scan its code, spend the points at the counter',
+      excludeSemantics: true,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        step(Icons.recycling_rounded, 'Sort at\nthe bin'),
+        link(),
+        step(Icons.qr_code_scanner_rounded, 'Scan\nthe code'),
+        link(),
+        step(Icons.local_cafe_rounded, 'Spend at\nthe counter'),
+      ]),
+    );
+  }
 }

@@ -7,6 +7,7 @@ import '../widgets/eco_animations.dart';
 import '../widgets/ui.dart';
 import 'customer/customer_home_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
+import 'auth_scaffold.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,11 +29,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _sendingReset = false;
   final _shakeKey = GlobalKey<ShakeState>();
 
-  // One quiet entrance: the page fades and rises a little, once.
+  // The sheet rises over the hero once; its rows then cascade in (first visit of the session only).
   late final AnimationController _enter = AnimationController(vsync: this, duration: AppMotion.slow);
   late final Animation<double> _fade = CurvedAnimation(parent: _enter, curve: AppMotion.standard);
-  late final Animation<Offset> _slide = Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
+  late final Animation<Offset> _slide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
       .animate(_fade);
+  final _cascade = EntranceGate('login');
 
   @override
   void initState() {
@@ -119,94 +121,99 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
-    return Scaffold(
-      backgroundColor: c.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.xxl),
-            // Centred at 480 dp on tablets.
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: FadeTransition(
-                opacity: _fade,
-                child: SlideTransition(
-                  position: _slide,
-                  child: Shake(key: _shakeKey, child: Form(
-                    key: _formKey,
-                    child: AutofillGroup(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        // The app's one brand moment: the coffee bean becomes a leaf in the cup-bin, once.
-                        const Center(child: EcoBrandIntro(size: 132)),
-                        const SizedBox(height: AppSpace.sm),
-                        Semantics(
-                          header: true,
-                          child: Text('ECOReward', textAlign: TextAlign.center,
-                              style: t.displaySmall!.copyWith(color: c.primary)),
-                        ),
-                        const SizedBox(height: AppSpace.xs),
-                        Text('Sign in to collect points for everything you sort at the bin.', textAlign: TextAlign.center,
-                            style: t.bodyLarge!.copyWith(color: c.textSecondary)),
-                        const SizedBox(height: AppSpace.xxl),
-
-                        _label('Email address'),
-                        const SizedBox(height: AppSpace.xs),
-                        AppTextField(
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          hint: 'you@example.com',
-                          icon: Icons.alternate_email_rounded,
-                          validator: (v) => isValidEmail(v!.trim()) ? null : 'Enter a valid email',
-                        ),
-                        const SizedBox(height: AppSpace.md),
-
-                        _label('Password'),
-                        const SizedBox(height: AppSpace.xs),
-                        AppTextField(
-                          controller: _passCtrl,
-                          obscure: _obscure,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          onSubmitted: (_) => _login(),
-                          hint: '••••••••',
-                          icon: Icons.lock_outline_rounded,
-                          suffix: IconButton(
-                            tooltip: _obscure ? 'Show password' : 'Hide password',
-                            onPressed: () => setState(() => _obscure = !_obscure),
-                            icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
-                          ),
-                          validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null,
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _loading || _sendingReset ? null : _forgotPassword,
-                            child: Text(_sendingReset ? 'Sending link…' : 'Forgot password?'),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpace.md),
-
-                        AppButton(
-                          key: const ValueKey('sign-in'),
-                          label: 'Sign in',
-                          loading: _loading,
-                          onPressed: _login,
-                        ),
-                        const SizedBox(height: AppSpace.sm),
-                        AppButton.secondary(
-                          label: 'Create an account',
-                          onPressed: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                        ),
-                      ]),
+    final play = _cascade.play;
+    return AuthScaffold(
+      hero: Column(mainAxisSize: MainAxisSize.min, children: [
+        // The brand moment: the coffee bean becomes a leaf in the cup-bin, once.
+        const BrandMedallion(child: EcoBrandIntro(size: 104)),
+        const SizedBox(height: AppSpace.md),
+        Semantics(
+          header: true,
+          child: Text('ECOReward', style: t.displaySmall!.copyWith(color: AppPalette.cream, fontSize: 34)),
+        ),
+        const SizedBox(height: AppSpace.xxs),
+        Text('From coffee to a greener future', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
+      ]),
+      sheet: FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(
+          position: _slide,
+          child: Shake(key: _shakeKey, child: Form(
+            key: _formKey,
+            child: AutofillGroup(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                StaggeredEntrance(index: 0, play: play, child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Welcome back', style: t.headlineMedium),
+                    const SizedBox(height: AppSpace.xxs),
+                    Text('Sign in to collect points for everything you sort at the bin.',
+                        style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+                  ],
+                )),
+                const SizedBox(height: AppSpace.xl),
+                StaggeredEntrance(index: 1, play: play, child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _label('Email address'),
+                    const SizedBox(height: AppSpace.xs),
+                    AppTextField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      hint: 'you@example.com',
+                      icon: Icons.alternate_email_rounded,
+                      validator: (v) => isValidEmail(v!.trim()) ? null : 'Enter a valid email',
                     ),
-                  )),
-                ),
-              ),
+                  ],
+                )),
+                const SizedBox(height: AppSpace.md),
+                StaggeredEntrance(index: 2, play: play, child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _label('Password'),
+                    const SizedBox(height: AppSpace.xs),
+                    AppTextField(
+                      controller: _passCtrl,
+                      obscure: _obscure,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.password],
+                      onSubmitted: (_) => _login(),
+                      hint: '••••••••',
+                      icon: Icons.lock_outline_rounded,
+                      suffix: IconButton(
+                        tooltip: _obscure ? 'Show password' : 'Hide password',
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                      ),
+                      validator: (v) => v!.trim().isEmpty ? 'Enter your password' : null,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _loading || _sendingReset ? null : _forgotPassword,
+                        child: Text(_sendingReset ? 'Sending link…' : 'Forgot password?'),
+                      ),
+                    ),
+                  ],
+                )),
+                const SizedBox(height: AppSpace.sm),
+                StaggeredEntrance(index: 3, play: play, child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppButton(key: const ValueKey('sign-in'), label: 'Sign in', loading: _loading, onPressed: _login),
+                    const SizedBox(height: AppSpace.sm),
+                    AppButton.secondary(
+                      label: 'Create an account',
+                      onPressed: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                    ),
+                  ],
+                )),
+              ]),
             ),
-          ),
+          )),
         ),
       ),
     );

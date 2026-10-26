@@ -110,6 +110,8 @@ class AppMotion {
   static const stagger = Duration(milliseconds: 50);   // delay between list items
   static const ambient = Duration(milliseconds: 1500); // looping hints (scan line, pulse)
   static const page = Duration(milliseconds: 300);     // page / tab / dialog-route transitions
+  static const cascade = Duration(milliseconds: 60);   // between items of one entrance (StaggeredEntrance)
+  static const aurora = Duration(seconds: 12);         // one slow drift of the forest surfaces (AuroraBackground)
 
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubicEmphasized;

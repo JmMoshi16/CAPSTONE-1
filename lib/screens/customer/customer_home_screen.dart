@@ -186,15 +186,17 @@ Widget homeTabPreview({
   List<Redemption> redemptions = const [],
   int myRank = 0,
   bool offline = false,
+  ValueChanged<Reward>? onOpenReward,
+  int selectedTab = 0,
 }) =>
     Scaffold(
       body: _HomeTab(
         user: user, logs: logs, rewards: rewards, redemptions: redemptions, myRank: myRank, offline: offline,
-        onScan: () {}, onRewards: () {}, onOpenReward: (_) {}, onMyCodes: () {},
+        onScan: () {}, onRewards: () {}, onOpenReward: onOpenReward ?? (_) {}, onMyCodes: () {},
         onHistory: () {}, onLeaderboard: () {}, onBadges: () {}, onProfile: () {},
         onRefresh: () async {},
       ),
-      bottomNavigationBar: _BottomNav(selectedIndex: 0, onTap: (_) {}, onScan: () {}, onScanWithLight: () {}),
+      bottomNavigationBar: _BottomNav(selectedIndex: selectedTab, onTap: (_) {}, onScan: () {}, onScanWithLight: () {}),
     );
 
 // ── Home Tab ──────────────────────────────────────────────────────────────────
@@ -512,26 +514,28 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
         );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Home no longer sits under a dark header: status-bar icons follow the theme.
-      value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      // Home opens on the forest hero: light status-bar icons.
+      value: SystemUiOverlayStyle.light,
       child: EcoRefresh(
         onRefresh: widget.onRefresh,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            // The hero: who you are, your balance, and the four things you do most.
             SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
-                  child: _fadeSlide(0, _HomeHeader(
-                    user: widget.user,
-                    pending: pending,
-                    onProfile: widget.onProfile,
-                    onBell: () => _showNotificationsSheet(context),
-                  )),
-                ),
-              ),
+              child: _fadeSlide(0, _HomeHero(
+                user: widget.user,
+                rewards: widget.rewards,
+                pending: pending,
+                countFromZero: _firstLoad,
+                onProfile: widget.onProfile,
+                onBell: () => _showNotificationsSheet(context),
+                onBalance: () => showRankLevelSheet(context, lifetimePoints: widget.user.lifetimePoints),
+                onScan: widget.onScan,
+                onMyCodes: widget.onMyCodes,
+                onLeaderboard: widget.onLeaderboard,
+                onBadges: widget.onBadges,
+              )),
             ),
 
             if (widget.offline)
@@ -542,29 +546,12 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                 ),
               ),
 
-            // Balance + the one primary action.
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, 0),
-                child: _fadeSlide(1, Column(children: [
-                  _BalanceCard(
-                    user: widget.user,
-                    rewards: widget.rewards,
-                    countFromZero: _firstLoad,
-                    onTap: () => showRankLevelSheet(context, lifetimePoints: widget.user.lifetimePoints),
-                  ),
-                  const SizedBox(height: AppSpace.md),
-                  AppButton(label: 'Scan at the bin', icon: Icons.qr_code_scanner_rounded, onPressed: widget.onScan),
-                ])),
-              ),
-            ),
-
             // What the points buy.
             if (strip.isNotEmpty) ...[
               SliverToBoxAdapter(child: _fadeSlide(2,
                   section(canRedeem ? 'Ready to redeem' : 'Rewards to work towards', action: 'See all', onAction: widget.onRewards))),
               SliverToBoxAdapter(child: _fadeSlide(2,
-                  _RewardStrip(rewards: strip, points: widget.user.points, onOpen: widget.onOpenReward))),
+                  _RewardCarousel(rewards: strip, points: widget.user.points, onOpen: widget.onOpenReward))),
             ],
 
             // This week.

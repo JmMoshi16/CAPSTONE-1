@@ -3,9 +3,11 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 
+/// Frosted glass for content sitting on a forest surface: blur, a white tint, a hairline edge and a soft
+/// light along the top, like a pass in a wallet.
 class GlassCard extends StatelessWidget {
   const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(AppSpace.md),
-      this.radius = AppRadius.lg, this.tint = Colors.white, this.opacity = 0.14, this.blur = 12});
+      this.radius = AppRadius.xl, this.tint = Colors.white, this.opacity = 0.10, this.blur = 16});
 
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -22,9 +24,13 @@ class GlassCard extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: tint.withValues(alpha: opacity),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.center,
+                colors: [Colors.white.withValues(alpha: opacity + 0.08), tint.withValues(alpha: opacity)],
+              ),
               borderRadius: AppRadius.all(radius),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: child,
           ),

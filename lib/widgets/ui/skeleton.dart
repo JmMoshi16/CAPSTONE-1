@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
+import 'premium.dart';
 
 /// Shimmer loading placeholder. One animation drives every [SkeletonBox] inside it;
 /// with "Remove animations" on, the boxes are shown without the moving highlight.
@@ -118,49 +119,83 @@ class SkeletonList extends StatelessWidget {
       );
 }
 
-/// Home while the first data loads: the real screen's silhouette (header, balance card, Scan button, the
-/// reward strip, the week card), so nothing jumps when the content fades in.
+/// Home while the first data loads: the real forest hero straight away (faint shapes where the name, the
+/// balance and the shortcuts will be), then the rest of Home in shimmering grey, so nothing jumps when the
+/// content fades in.
 class HomeSkeleton extends StatelessWidget {
   const HomeSkeleton({super.key});
 
+  static Widget _ghost(double? width, double height, {bool circle = false, double radius = AppRadius.md}) => Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.10),
+          shape: circle ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: circle ? null : AppRadius.all(radius),
+        ),
+      );
+
   @override
-  Widget build(BuildContext context) => Skeleton(
+  Widget build(BuildContext context) => Semantics(
         label: 'Loading your home screen',
-        child: SafeArea(
-          bottom: false,
+        liveRegion: true,
+        child: ExcludeSemantics(
           child: ListView(
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
-            children: const [
-              Row(children: [
-                SkeletonBox(width: 44, height: 44, radius: 22),
-                SizedBox(width: AppSpace.sm),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SkeletonBox(width: 84, height: 10),
-                  SizedBox(height: AppSpace.xs),
-                  SkeletonBox(width: 140, height: 16),
-                ])),
-                SkeletonBox(width: 44, height: 44, radius: 22),
-              ]),
-              SizedBox(height: AppSpace.lg),
-              SkeletonBox(height: 156, radius: AppRadius.xl),
-              SizedBox(height: AppSpace.md),
-              SkeletonBox(height: 52, radius: AppRadius.lg),
-              SizedBox(height: AppSpace.xl),
-              SkeletonBox(width: 150, height: 16),
-              SizedBox(height: AppSpace.sm),
-              // Two reward cards and the edge of a third, as the strip scrolls sideways.
-              Row(children: [
-                Expanded(flex: 10, child: SkeletonBox(height: 112, radius: AppRadius.lg)),
-                SizedBox(width: AppSpace.sm),
-                Expanded(flex: 10, child: SkeletonBox(height: 112, radius: AppRadius.lg)),
-                SizedBox(width: AppSpace.sm),
-                Expanded(flex: 3, child: SkeletonBox(height: 112, radius: AppRadius.lg)),
-              ]),
-              SizedBox(height: AppSpace.xl),
-              SkeletonBox(width: 100, height: 16),
-              SizedBox(height: AppSpace.sm),
-              SkeletonBox(height: 84, radius: AppRadius.lg),
+            padding: EdgeInsets.zero,
+            children: [
+              AuroraBackground(
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxl)),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xl),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Row(children: [
+                        _ghost(44, 44, circle: true),
+                        const SizedBox(width: AppSpace.sm),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          _ghost(84, 10),
+                          const SizedBox(height: AppSpace.xs),
+                          _ghost(140, 16),
+                        ]),
+                        const Spacer(),
+                        _ghost(44, 44, circle: true),
+                      ]),
+                      const SizedBox(height: AppSpace.lg),
+                      _ghost(null, 174, radius: AppRadius.xl),
+                      const SizedBox(height: AppSpace.lg),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                        for (var i = 0; i < 4; i++)
+                          Column(children: [
+                            _ghost(56, 56, circle: true),
+                            const SizedBox(height: AppSpace.xs),
+                            _ghost(44, 10),
+                          ]),
+                      ]),
+                    ]),
+                  ),
+                ),
+              ),
+              const Skeleton(
+                label: 'Loading your home screen',
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, 0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SkeletonBox(width: 150, height: 16),
+                    SizedBox(height: AppSpace.sm),
+                    Row(children: [
+                      Expanded(flex: 8, child: SkeletonBox(height: 150, radius: AppRadius.lg)),
+                      SizedBox(width: AppSpace.sm),
+                      Expanded(flex: 2, child: SkeletonBox(height: 150, radius: AppRadius.lg)),
+                    ]),
+                    SizedBox(height: AppSpace.xl),
+                    SkeletonBox(width: 100, height: 16),
+                    SizedBox(height: AppSpace.sm),
+                    SkeletonBox(height: 92, radius: AppRadius.lg),
+                  ]),
+                ),
+              ),
             ],
           ),
         ),
