@@ -49,8 +49,8 @@ void main() {
       final fields = find.byType(TextFormField);
       await tester.enterText(fields.at(0), email);
       await tester.enterText(fields.at(1), password);
-      await tester.ensureVisible(find.byType(GlowButton));
-      await tester.tap(find.byType(GlowButton));
+      await tester.ensureVisible(find.byKey(const ValueKey('sign-in')));
+      await tester.tap(find.byKey(const ValueKey('sign-in')));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));   // route fade
       return calls;
@@ -82,7 +82,7 @@ void main() {
       expect(find.byType(LoginScreen), findsOneWidget);
       expect(find.text(loginErrorMessage('invalid-credential')), findsOneWidget);
       // The button is usable again (not stuck in its loading state).
-      expect(tester.widget<GlowButton>(find.byType(GlowButton)).loading, isFalse);
+      expect(tester.widget<AppButton>(find.byKey(const ValueKey('sign-in'))).loading, isFalse);
       await _finish(tester);
     });
 

@@ -36,7 +36,7 @@ Future<void> showStreakSheet(BuildContext context, {required int streak, VoidCal
   final next = tiers.where((e) => e.$1 > streak).firstOrNull;
   return _sheet(context, 'Your streak', [
     Row(children: [
-      const ExcludeSemantics(child: Text('🔥', style: TextStyle(fontSize: 44))),
+      Medallion(icon: Icons.local_fire_department_rounded, color: streak > 0 ? c.warning : c.textTertiary, size: 56),
       const SizedBox(width: AppSpace.md),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(streak == 0 ? 'No streak yet' : '$streak day${streak == 1 ? '' : 's'} in a row',
@@ -94,7 +94,8 @@ Future<void> showRankLevelSheet(BuildContext context, {required int lifetimePoin
     const SizedBox(height: AppSpace.xs),
     for (final r in ranks)
       AppListTile(
-        title: '${r.icon}  ${r.label}',
+        leading: Medallion(icon: rankIconData(r.label), color: r.color, size: 36),
+        title: r.label,
         subtitle: Text('From ${r.minPts} pts', style: t.bodySmall),
         borderColor: r.label == rank.label ? c.ink(r.color) : null,
         trailing: r.label == rank.label ? PointsPill('You', color: c.ink(r.color)) : null,
@@ -109,7 +110,8 @@ Future<void> showRankLevelSheet(BuildContext context, {required int lifetimePoin
     const SizedBox(height: AppSpace.xs),
     for (final l in allLevels)
       AppListTile(
-        title: '${l.emoji}  Lv ${l.level} ${l.title}',
+        leading: Medallion(icon: levelIconData(l.level), color: l.color, size: 36),
+        title: 'Level ${l.level} · ${l.title}',
         subtitle: Text(l.maxPts == -1 ? 'From ${l.minPts} pts' : '${l.minPts}–${l.maxPts} pts', style: t.bodySmall),
         borderColor: l.level == level.level ? c.ink(l.color) : null,
         trailing: l.level == level.level ? PointsPill('You', color: c.ink(l.color)) : null,
@@ -194,12 +196,12 @@ Future<void> showBadgeSheet(BuildContext context, {required Map<String, dynamic>
   };
   final unit = switch (req) { 'scans' => 'scans', 'points' => 'lifetime points', 'streak' => 'day streak', _ => '' };
   return _sheet(context, def['label'] as String, [
-    Center(child: Text(def['icon'] as String, style: const TextStyle(fontSize: 64))),
+    Center(child: BadgeMark(id: def['id'] as String, color: c.gold, earned: earned, size: 80)),
     const SizedBox(height: AppSpace.sm),
     Center(child: Text(def['desc'] as String, style: t.titleMedium, textAlign: TextAlign.center)),
     const SizedBox(height: AppSpace.lg),
     if (earned)
-      Center(child: PointsPill('✓ Earned', color: c.gold))
+      Center(child: PointsPill('Earned', color: c.ink(c.gold)))
     else ...[
       Row(children: [
         Expanded(child: Text('Progress', style: t.bodyMedium!.copyWith(color: c.textSecondary))),

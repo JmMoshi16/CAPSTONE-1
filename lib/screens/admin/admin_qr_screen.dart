@@ -436,7 +436,7 @@ class _AdminQRScreenState extends State<AdminQRScreen> {
             color: _kReceiptFooter,
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
           ),
-          child: const Text('Thank you for helping the environment! 🌍',
+          child: const Text('Thank you for helping the environment.',
               style: TextStyle(color: _kReceiptInk, fontSize: 11), textAlign: TextAlign.center),
         ),
       ]),

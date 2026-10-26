@@ -111,33 +111,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                 child: SlideTransition(
                   position: _headerSlide,
                   child: Container(
-                    decoration: heroDecoration(context,
-                        radius: const BorderRadius.vertical(bottom: Radius.circular(AppSpace.xxl))),
+                    color: c.background,
                     child: SafeArea(
                       bottom: false,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.lg, AppSpace.xl + 4),
+                        padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.xs, AppSpace.lg, AppSpace.md),
                         child: Column(children: [
                           Row(children: [
                             HeroBackButton(onTap: () => Navigator.pop(context)),
                             const SizedBox(width: AppSpace.xs),
-                            Text('Leaderboard', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 20)),
+                            Text('Leaderboard', style: t.headlineMedium),
                           ]),
                           const SizedBox(height: AppSpace.lg),
                           if (_myRank > 0)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm - 2),
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
+                                color: c.surface,
                                 borderRadius: AppRadius.all(AppRadius.pill),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                border: Border.all(color: c.border),
                               ),
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(Icons.emoji_events_rounded, color: AppPalette.coin[1], size: 20),
+                                Icon(Icons.emoji_events_rounded, color: c.ink(c.gold), size: 20),
                                 const SizedBox(width: AppSpace.xs),
-                                Text('Your Rank: #$_myRank',
-                                    style: t.titleSmall!.copyWith(color: c.onHero, fontWeight: FontWeight.w700, fontSize: 15)),
-                                if (_rankDelta != null && _rankDelta != 0) _RankDelta(delta: _rankDelta!, onHero: true),
+                                Text('Your rank: #$_myRank', style: t.titleSmall),
+                                if (_rankDelta != null && _rankDelta != 0) _RankDelta(delta: _rankDelta!),
                               ]),
                             ),
                         ]),
@@ -167,7 +165,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: EmptyState(
-                  emoji: '🏆',
+                  icon: Icons.emoji_events_outlined,
                   title: 'No one on the board yet',
                   message: 'Scan a bin QR code to be the first!',
                   actionLabel: 'Refresh',
@@ -256,7 +254,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
     // Only built when there are at least three users (see showPodium).
     const order   = [1, 0, 2];
     const heights = [80.0, 110.0, 60.0];
-    const medals  = ['🥈', '🥇', '🥉'];
+    const places  = [2, 1, 3];
     final c = context.colors;
     final t = context.text;
     final colors  = [AppPalette.medalSilver, AppPalette.medalGold, AppPalette.medalBronze];
@@ -271,10 +269,6 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
           child: FadeTransition(
             opacity: _ctrls[i],
             child: Column(children: [
-              if (idx == 0)
-                // The leader's crown, with a shine now and then.
-                const ShineSweep(every: Duration(seconds: 3), opacity: 0.6,
-                    child: ExcludeSemantics(child: Text('👑', style: TextStyle(fontSize: 24)))),
               if (isMe)
                 Container(
                   margin: const EdgeInsets.only(bottom: AppSpace.xxs),
@@ -282,7 +276,13 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
                   decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.sm)),
                   child: Text('You', style: t.labelSmall!.copyWith(color: c.onPrimary, fontWeight: FontWeight.w700)),
                 ),
-              Text(medals[i], style: const TextStyle(fontSize: 28)),
+              // Place number on its medal colour.
+              Container(
+                width: 28, height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: colors[i], shape: BoxShape.circle),
+                child: Text('${places[i]}', style: t.labelMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+              ),
               const SizedBox(height: AppSpace.xxs),
               Container(
                 width: 52, height: 52,
@@ -420,15 +420,14 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
 
 /// "▲ 2" / "▼ 1": places gained or lost since the last visit on this phone.
 class _RankDelta extends StatelessWidget {
-  const _RankDelta({required this.delta, this.onHero = false});
+  const _RankDelta({required this.delta});
   final int delta;
-  final bool onHero;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final up = delta > 0;
-    final color = onHero ? (up ? c.heroAccent : c.onHeroMuted) : (up ? c.success : c.danger);
+    final color = up ? c.success : c.danger;
     return Semantics(
       label: up ? 'up $delta since your last visit' : 'down ${-delta} since your last visit',
       excludeSemantics: true,

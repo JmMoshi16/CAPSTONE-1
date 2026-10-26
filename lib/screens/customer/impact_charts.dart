@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme.dart' show wasteIcon;
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 
@@ -175,9 +176,9 @@ class _ImpactChartsState extends State<ImpactCharts> {
         subtitle: '${rec + bio} of $total items you scanned',
         child: Column(children: [
           Row(children: [
-            Expanded(child: _Equivalent(emoji: '♻️', value: rec, label: 'recyclable', animate: widget.animate)),
+            Expanded(child: _Equivalent(icon: wasteIcon('Recyclable'), color: c.rec, value: rec, label: 'recyclable', animate: widget.animate)),
             const SizedBox(width: AppSpace.sm),
-            Expanded(child: _Equivalent(emoji: '🌱', value: bio, label: 'biodegradable', animate: widget.animate)),
+            Expanded(child: _Equivalent(icon: wasteIcon('Biodegradable'), color: c.bio, value: bio, label: 'biodegradable', animate: widget.animate)),
           ]),
           const SizedBox(height: AppSpace.sm),
           Text('Counted from your scans at the bin. We do not show CO₂ savings: items are not weighed '
@@ -212,10 +213,12 @@ class _Card extends StatelessWidget {
       );
 }
 
-/// A relatable equivalent: the emoji grows in, the number counts up.
+/// One count with its waste-type icon; the number counts up.
 class _Equivalent extends StatelessWidget {
-  const _Equivalent({required this.emoji, required this.value, required this.label, required this.animate});
-  final String emoji, label;
+  const _Equivalent({required this.icon, required this.color, required this.value, required this.label, required this.animate});
+  final IconData icon;
+  final Color color;
+  final String label;
   final int value;
   final bool animate;
 
@@ -223,20 +226,14 @@ class _Equivalent extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return Container(
-      padding: const EdgeInsets.all(AppSpace.sm),
-      decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.lg)),
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: cardDecoration(context),
       child: Column(children: [
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: animate ? 0.4 : 1, end: 1),
-          duration: AppMotion.of(context, AppMotion.slow * 2),
-          curve: AppMotion.spring,
-          builder: (_, s, child) => Transform.scale(scale: s, child: child),
-          child: ExcludeSemantics(child: Text(emoji, style: const TextStyle(fontSize: 32))),
-        ),
+        Medallion(icon: icon, color: color, size: 40),
+        const SizedBox(height: AppSpace.xs),
         AnimatedCount(value, fromZero: animate, duration: const Duration(milliseconds: 900),
-            style: context.text.headlineSmall!.copyWith(color: c.onPrimaryContainer)),
-        Text(label, textAlign: TextAlign.center,
-            style: context.text.labelSmall!.copyWith(color: c.onPrimaryContainer)),
+            style: AppType.numeral.copyWith(fontSize: 26, color: c.textPrimary)),
+        Text(label, textAlign: TextAlign.center, style: context.text.bodySmall),
       ]),
     );
   }

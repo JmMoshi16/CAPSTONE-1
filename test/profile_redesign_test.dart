@@ -13,6 +13,8 @@ import 'package:ecoreward_bin/models/models.dart';
 import 'package:ecoreward_bin/screens/customer/customer_home_screen.dart';
 import 'package:ecoreward_bin/screens/customer/customer_profile_screen.dart';
 import 'package:ecoreward_bin/screens/customer/edit_profile_screen.dart';
+import 'package:ecoreward_bin/screens/login_screen.dart';
+import 'package:ecoreward_bin/screens/register_screen.dart';
 import 'package:ecoreward_bin/widgets/ui.dart';
 
 UserModel _user({Uint8List? photo}) => UserModel(
@@ -142,5 +144,14 @@ void main() {
     // pumpAndSettle throws if an animation repeats forever.
     await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 10));
     await _done(tester);
+  });
+
+  testWidgets('Sign in and Register: no emoji, and they settle (no pulsing button or drifting leaves)', (tester) async {
+    for (final screen in const <Widget>[LoginScreen(), RegisterScreen()]) {
+      await _pump(tester, screen);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 10));
+      expect(_renderedText(tester).where(_emoji.hasMatch), isEmpty, reason: '${screen.runtimeType}');
+      await _done(tester);
+    }
   });
 }

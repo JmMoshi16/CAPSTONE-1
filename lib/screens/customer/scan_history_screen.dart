@@ -47,15 +47,16 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
           SliverAppBar(
             expandedHeight: AppLayout.headerHeight(context, 180),
             pinned: true,
-            backgroundColor: c.hero[1],
+            backgroundColor: c.background,
+            surfaceTintColor: Colors.transparent,
             leading: IconButton(
               tooltip: 'Back',
-              icon: Icon(Icons.arrow_back_ios_new, color: c.onHero, size: 18),
+              icon: Icon(Icons.arrow_back_rounded, color: c.textPrimary),
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: heroDecoration(context),
+                color: c.background,
                 child: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
@@ -63,17 +64,21 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: AppSpace.xxxl),
-                        Text('Scan History', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 24)),
+                        Text('Scan History', style: t.headlineMedium),
                         const SizedBox(height: AppSpace.xxs),
                         Text('${_logs.length} scans · $_totalPoints pts total',
-                            style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
+                            style: t.bodyMedium!.copyWith(color: c.textSecondary)),
                         const SizedBox(height: AppSpace.md),
-                        // Summary chips
-                        Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-                          _summaryChip('🌿', '${_logs.where((l) => l.wasteType == 'Biodegradable').length}', 'Bio'),
-                          _summaryChip('♻️', '${_logs.where((l) => l.wasteType == 'Recyclable').length}', 'Rec'),
-                          _summaryChip('🗑️', '${_logs.where((l) => l.wasteType == 'Residual').length}', 'Res'),
-                        ]),
+                        // Summary chips: one row (scrolls on narrow phones) so the header height holds.
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(children: [
+                            for (final type in const ['Biodegradable', 'Recyclable', 'Residual']) ...[
+                              _summaryChip(type, '${_logs.where((l) => l.wasteType == type).length}'),
+                              const SizedBox(width: AppSpace.xs),
+                            ],
+                          ]),
+                        ),
                       ],
                     ),
                   ),
@@ -160,16 +165,17 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   Widget _withRefresh(Widget child) =>
       widget.onRefresh == null ? child : EcoRefresh(onRefresh: _refresh, child: child);
 
-  Widget _summaryChip(String emoji, String count, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs - 2),
+  Widget _summaryChip(String type, String count) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: context.colors.surface,
           borderRadius: AppRadius.all(AppRadius.pill),
+          border: Border.all(color: context.colors.border),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          ExcludeSemantics(child: Text(emoji, style: const TextStyle(fontSize: 13))),
+          Icon(wasteIcon(type), size: 16, color: context.colors.ink(context.colors.waste(type))),
           const SizedBox(width: AppSpace.xxs),
-          Text('$count $label', style: context.text.labelMedium!.copyWith(color: context.colors.onHero)),
+          Text('$count $type', style: context.text.labelMedium),
         ]),
       );
 

@@ -59,24 +59,25 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
           SliverAppBar(
             expandedHeight: AppLayout.headerHeight(context, 160),
             pinned: true,
-            backgroundColor: c.hero[1],
+            backgroundColor: c.background,
+            surfaceTintColor: Colors.transparent,
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: FadeTransition(
                 opacity: _headerFade,
                 child: Container(
-                  decoration: heroDecoration(context),
+                  color: c.background,
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Your activity', style: t.headlineSmall!.copyWith(color: c.onHero)),
+                        Text('Activity', style: t.headlineMedium),
                         const SizedBox(height: AppSpace.xs - 2),
-                        Text('Your recycling contribution', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
+                        Text('Everything you have sorted at the bin', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
                         const SizedBox(height: AppSpace.md),
                         Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                          _CountUpStat(end: widget.logs.length, label: 'Total Logs', ctrl: _headerCtrl),
-                          _CountUpStat(end: totalPts, label: 'Points Earned', ctrl: _headerCtrl),
+                          _CountUpStat(end: widget.logs.length, label: 'Items sorted', ctrl: _headerCtrl),
+                          _CountUpStat(end: totalPts, label: 'Points earned', ctrl: _headerCtrl),
                           _CountUpStat(end: rec, label: 'Recyclable', ctrl: _headerCtrl),
                         ]),
                       ]),
@@ -200,9 +201,9 @@ class _CountUpStat extends StatelessWidget {
       AnimatedBuilder(
         animation: anim,
         builder: (_, __) => Text('${anim.value.toInt()}',
-            style: context.text.titleLarge!.copyWith(color: c.onHero, fontSize: 20)),
+            style: AppType.numeral.copyWith(fontSize: 24, color: c.textPrimary)),
       ),
-      Text(label, style: context.text.labelSmall!.copyWith(color: c.onHeroMuted)),
+      Text(label, style: context.text.bodySmall),
     ]);
   }
 }

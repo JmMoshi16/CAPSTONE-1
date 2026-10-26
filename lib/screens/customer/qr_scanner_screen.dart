@@ -151,7 +151,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
         // A light tap for each badge unlocked (the success pulse follows)
         AppHaptics.primary();
         final info = FirebaseService.getBadgeInfo(id);
-        await NotificationService.showBadgeUnlocked(info['icon'] as String, info['label'] as String);
+        await NotificationService.showBadgeUnlocked(info['label'] as String);
       }
     } catch (_) {
       // Notifications are a bonus; the success screen below says the same thing.
@@ -526,9 +526,9 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                 // Brand success animation (plays once)
                 const EcoSuccess(size: 140),
                 const SizedBox(height: AppSpace.xs),
-                Text('Waste Verified!', style: t.headlineMedium!.copyWith(color: c.primary)),
+                Text('Points added', style: t.headlineMedium!.copyWith(color: c.primary)),
                 const SizedBox(height: AppSpace.xxs),
-                Text('Thank you for recycling responsibly 🌿', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+                Text('Thank you for sorting your waste.', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
                 const SizedBox(height: AppSpace.xl),
 
                 // ── Rank-up (wired from the old, unused showRankUp idea) ──
@@ -543,10 +543,10 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                         decoration: cardDecoration(context, color: c.primaryContainer,
                             borderColor: c.ink(_rankAfter.color).withValues(alpha: 0.6)),
                         child: Row(children: [
-                          ExcludeSemantics(child: Text(_rankAfter.icon, style: const TextStyle(fontSize: 34))),
+                          Medallion(icon: rankIconData(_rankAfter.label), color: _rankAfter.color, size: 44),
                           const SizedBox(width: AppSpace.sm),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Rank up!', style: t.titleMedium!.copyWith(color: c.onPrimaryContainer)),
+                            Text('New rank', style: t.titleMedium!.copyWith(color: c.onPrimaryContainer)),
                             Text('${_rankBefore.label} → ${_rankAfter.label}',
                                 style: t.titleSmall!.copyWith(color: c.ink(_rankAfter.color), fontWeight: FontWeight.w800)),
                           ])),
@@ -570,7 +570,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                         Row(children: [
                           Icon(Icons.emoji_events_rounded, color: c.gold, size: 20),
                           const SizedBox(width: AppSpace.xs),
-                          Text('Badge Unlocked!', style: t.titleSmall!.copyWith(color: c.gold, fontWeight: FontWeight.w700)),
+                          Text('Badge unlocked', style: t.titleSmall!.copyWith(color: c.ink(c.gold), fontWeight: FontWeight.w700)),
                         ]),
                         const SizedBox(height: AppSpace.sm - 2),
                         ...widget.newBadges.indexed.map((e) {
@@ -583,12 +583,11 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                             margin: const EdgeInsets.only(bottom: AppSpace.xs),
                             padding: const EdgeInsets.all(AppSpace.xs),
                             decoration: BoxDecoration(
-                              color: c.surface.withValues(alpha: c.isDark ? 1 : 0.8),
+                              color: c.surface,
                               borderRadius: AppRadius.all(AppRadius.md),
-                              boxShadow: AppShadows.glow(AppPalette.medalGold, strength: 0.55),
                             ),
                             child: Row(children: [
-                              Text(info['icon'] as String, style: const TextStyle(fontSize: 22)),
+                              BadgeMark(id: id, color: c.gold, size: 36),
                               const SizedBox(width: AppSpace.sm - 2),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(info['label'] as String, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
@@ -609,9 +608,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                   padding: const EdgeInsets.all(AppSpace.lg),
                   decoration: BoxDecoration(
                     color: fill,
-                    borderRadius: AppRadius.all(AppRadius.xl + 4),
-                    boxShadow: AppShadows.of(context,
-                        [BoxShadow(color: fill.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))]),
+                    borderRadius: AppRadius.all(AppRadius.xl),
                   ),
                   child: Row(children: [
                     Container(
@@ -624,12 +621,12 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                       Text('Category: ${widget.wasteType}',
                           style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500)),
                       const SizedBox(height: 2),
-                      AnimatedCount(widget.points, fromZero: true, prefix: '+', suffix: ' Points Earned',
+                      AnimatedCount(widget.points, fromZero: true, prefix: '+', suffix: ' points',
                           duration: const Duration(milliseconds: 700),   // part of the celebration
                           style: t.titleLarge!.copyWith(color: Colors.white, fontSize: 20)),
                       if (widget.multiplier > 1.0)
                         // Display only: what was credited, broken down (+15 × 1.5 streak bonus = +23).
-                        Text('+${widget.basePoints} × ${_fmtMultiplier(widget.multiplier)} streak bonus = +${widget.points} 🔥',
+                        Text('+${widget.basePoints} × ${_fmtMultiplier(widget.multiplier)} streak bonus = +${widget.points}',
                             style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.95))),
                     ])),
                     Container(
@@ -643,7 +640,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
 
                 // Done button
                 AppButton(
-                  label: 'Awesome! Back to Home',
+                  label: 'Done',
                   height: 56,
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -653,8 +650,8 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
           ),
         ),
       ),
-      // Celebration: a confetti burst, stronger (gold, side cannons) when a badge unlocked.
-      Positioned.fill(child: ConfettiBurst(strong: widget.newBadges.isNotEmpty || _rankedUp)),
+      // Confetti only for the special moments (a new badge or rank); an ordinary scan gets the success animation.
+      if (widget.newBadges.isNotEmpty || _rankedUp) const Positioned.fill(child: ConfettiBurst(strong: true)),
       if (_flight != null && !_landed)
         AnimatedBuilder(
           animation: _flyCtrl,
@@ -676,7 +673,6 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                         // Light gold only: the dark text stays >= 9.9:1 across the chip.
                         gradient: LinearGradient(colors: [AppPalette.coin[0], AppPalette.coin[1]]),
                         borderRadius: AppRadius.all(AppRadius.pill),
-                        boxShadow: AppShadows.glow(AppPalette.coin[1], strength: 0.8),
                       ),
                       child: Text('+${widget.points}',
                           style: context.text.titleMedium!.copyWith(color: const Color(0xFF3A2A00), fontWeight: FontWeight.w800)),

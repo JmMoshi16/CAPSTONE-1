@@ -185,7 +185,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
               child: Icon(Icons.check_circle_rounded, color: c.success, size: 44),
             ),
             const SizedBox(height: AppSpace.md),
-            Text('Reward Redeemed! 🎉', style: t.titleLarge, textAlign: TextAlign.center),
+            Text('Reward redeemed', style: t.titleLarge, textAlign: TextAlign.center),
             const SizedBox(height: AppSpace.xs - 2),
             Text(r.rewardTitle, style: t.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
             const SizedBox(height: AppSpace.lg),
@@ -257,11 +257,12 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
           SliverAppBar(
             expandedHeight: AppLayout.headerHeight(context, 184, perScale: 130),
             pinned: true,
-            backgroundColor: c.hero[1],
+            backgroundColor: c.background,
+            surfaceTintColor: Colors.transparent,
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: heroDecoration(context),
+                color: c.background,
                 child: SafeArea(
                   child: Padding(
                     // Bottom padding = the tab bar, which sits on top of this background.
@@ -269,16 +270,16 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Rewards', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 24)),
+                        Text('Rewards', style: t.headlineMedium),
                         const SizedBox(height: AppSpace.xxs),
-                        Text('Redeem your points for great rewards', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
+                        Text('Spend your points at the counter', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
                         const SizedBox(height: AppSpace.md - 2),
                         Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-                          _headerPill(Icons.stars_rounded, AppPalette.coin[1], widget.user.points, bold: true),
+                          _headerPill(Icons.stars_rounded, c.ink(c.gold), widget.user.points, bold: true),
                           Tap(
                             label: '${_redemptions.length} redeemed, open My Codes',
                             onTap: showMyCodes,
-                            child: _headerPill(Icons.receipt_long_rounded, c.onHeroMuted, _redemptions.length),
+                            child: _headerPill(Icons.receipt_long_rounded, c.textSecondary, _redemptions.length),
                           ),
                         ]),
                       ],
@@ -289,11 +290,11 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             ),
             bottom: TabBar(
               controller: _tabController,
-              indicatorColor: c.onHero,
+              indicatorColor: c.primary,
               indicatorWeight: 3,
-              labelColor: c.onHero,
-              unselectedLabelColor: c.onHeroMuted,
-              dividerColor: Colors.transparent,
+              labelColor: c.textPrimary,
+              unselectedLabelColor: c.textSecondary,
+              dividerColor: c.border,
               tabs: [
                 Tab(text: 'Available (${_rewards.length})'),
                 Tab(text: 'My Codes (${_redemptions.length})'),
@@ -321,15 +322,15 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       decoration: bold
           ? null
           : BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: c.surface,
               borderRadius: AppRadius.all(AppRadius.pill),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+              border: Border.all(color: c.border),
             ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, color: iconColor, size: 16),
         const SizedBox(width: AppSpace.xs - 2),
         AnimatedCount(count, suffix: bold ? ' pts available' : ' redeemed', style: context.text.labelMedium!.copyWith(
-            color: bold ? c.onHero : c.onHeroMuted, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, fontSize: 13)),
+            color: bold ? c.textPrimary : c.textSecondary, fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
       ]),
     );
   }
@@ -800,9 +801,7 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
 
-  Widget _maybeShine({required bool locked, required Widget child}) => locked
-      ? ShineSweep(delay: Duration(milliseconds: 400 + 350 * widget.index), every: const Duration(seconds: 5), child: child)
-      : child;
+  Widget _maybeShine({required bool locked, required Widget child}) => child;
 
   @override
   Widget build(BuildContext context) {
@@ -827,10 +826,8 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
           scale: 0.97,
           child: Container(
             clipBehavior: Clip.antiAlias,
-            // Affordable: a soft brand glow. Locked: an occasional shine across the picture.
-            decoration: cardDecoration(context, radius: AppRadius.xl,
-                    borderColor: canAfford ? c.primary.withValues(alpha: 0.35) : null)
-                .copyWith(boxShadow: canAfford && !c.isDark ? AppShadows.glow(c.primary, strength: 0.4) : null),
+            // Affordable rewards get a brand-coloured hairline.
+            decoration: cardDecoration(context, borderColor: canAfford ? c.primary.withValues(alpha: 0.5) : null),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // FIX 10: Image area with sold-out overlay
               _maybeShine(locked: !canAfford && !isSoldOut, child: Stack(children: [

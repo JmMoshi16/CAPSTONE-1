@@ -63,30 +63,27 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               child: SlideTransition(
                 position: _headerSlide,
                 child: Container(
-                  decoration: heroDecoration(context,
-                      radius: const BorderRadius.vertical(bottom: Radius.circular(AppSpace.xxl))),
+                  color: c.background,
                   child: SafeArea(
                     bottom: false,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.lg, AppSpace.xl + 4),
+                      padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.xs, AppSpace.lg, 0),
                       child: Column(children: [
                         Row(children: [
                           HeroBackButton(onTap: () => Navigator.pop(context)),
                           const SizedBox(width: AppSpace.xs),
-                          Text('My Badges', style: t.headlineSmall!.copyWith(color: c.onHero, fontSize: 20)),
+                          Text('Badges', style: t.headlineMedium),
                         ]),
                         const SizedBox(height: AppSpace.md),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: AppRadius.all(AppRadius.lg),
-                          ),
+                          margin: const EdgeInsets.only(left: AppSpace.sm),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.md),
+                          decoration: cardDecoration(context),
                           child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
                             _headerStat('${earnedDefs.length}', 'Earned'),
-                            Container(width: 1, height: 30, color: Colors.white.withValues(alpha: 0.3)),
+                            Container(width: 1, height: 30, color: c.border),
                             _headerStat('${lockedDefs.length}', 'Locked'),
-                            Container(width: 1, height: 30, color: Colors.white.withValues(alpha: 0.3)),
+                            Container(width: 1, height: 30, color: c.border),
                             _headerStat('${allDefs.length}', 'Total'),
                           ]),
                         ),
@@ -117,12 +114,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                   (_, i) => Tap(
                     label: '${earnedDefs[i]['label']}, earned, details',
                     onTap: () => showBadgeSheet(context, def: earnedDefs[i], user: widget.user),
-                    // Earned badges catch the light now and then (staggered so they don't flash together).
-                    child: ShineSweep(
-                      delay: Duration(milliseconds: 600 + 450 * i),
-                      every: const Duration(seconds: 6),
-                      child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i, animate: _entrance.play),
-                    ),
+                    child: _AnimatedBadgeCard(def: earnedDefs[i], earned: true, index: i, animate: _entrance.play),
                   ),
                   childCount: earnedDefs.length,
                 ),
@@ -163,8 +155,8 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   }
 
   Widget _headerStat(String value, String label) => Column(children: [
-    Text(value, style: context.text.headlineSmall!.copyWith(color: context.colors.onHero)),
-    Text(label, style: context.text.labelSmall!.copyWith(color: context.colors.onHeroMuted)),
+    Text(value, style: AppType.numeral.copyWith(fontSize: 24, color: context.colors.textPrimary)),
+    Text(label, style: context.text.bodySmall),
   ]);
 }
 
@@ -241,26 +233,9 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
             padding: const EdgeInsets.all(AppSpace.md),
             decoration: widget.earned
                 ? cardDecoration(context, borderColor: c.gold.withValues(alpha: 0.5))
-                : BoxDecoration(
-                    color: c.surfaceAlt,
-                    borderRadius: AppRadius.all(AppRadius.xl),
-                    border: Border.all(color: c.border),
-                  ),
+                : cardDecoration(context, color: c.surfaceAlt),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              widget.earned
-                  ? Text(widget.def['icon'] as String, style: const TextStyle(fontSize: 36))
-                  : Stack(alignment: Alignment.center, children: [
-                      ColorFiltered(
-                        colorFilter: const ColorFilter.matrix([
-                          0.2126, 0.7152, 0.0722, 0, 0,
-                          0.2126, 0.7152, 0.0722, 0, 0,
-                          0.2126, 0.7152, 0.0722, 0, 0,
-                          0,      0,      0,      0.4, 0,
-                        ]),
-                        child: Text(widget.def['icon'] as String, style: const TextStyle(fontSize: 36)),
-                      ),
-                      Icon(Icons.lock_rounded, color: c.textSecondary, size: 18),
-                    ]),
+              BadgeMark(id: widget.def['id'] as String, color: c.gold, earned: widget.earned, size: 52),
               const SizedBox(height: AppSpace.xs),
               Text(widget.def['label'] as String,
                   style: t.labelMedium!.copyWith(fontWeight: FontWeight.w700,
@@ -283,7 +258,11 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
                     borderRadius: AppRadius.all(AppRadius.sm),
                     border: Border.all(color: c.gold.withValues(alpha: 0.4)),
                   ),
-                  child: Text('✓ Earned', style: t.labelSmall!.copyWith(color: c.gold, fontWeight: FontWeight.w700)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.check_rounded, size: 12, color: c.ink(c.gold)),
+                    const SizedBox(width: 2),
+                    Text('Earned', style: t.labelSmall!.copyWith(color: c.ink(c.gold), fontWeight: FontWeight.w700)),
+                  ]),
                 ),
               ],
             ]),

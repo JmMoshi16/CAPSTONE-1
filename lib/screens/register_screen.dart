@@ -79,98 +79,33 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     final t = context.text;
     return Scaffold(
       backgroundColor: c.background,
-      // Header and form scroll together, so large text or a small phone never clips the
-      // header (it used to be a fixed 32 % of the height). Centred at 560 dp on tablets.
-      body: SingleChildScrollView(
-        child: Column(children: [
-          Container(
-            width: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: heroDecoration(context,
-                radius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxxl))),
-            child: Stack(children: [
-              const Positioned.fill(child: FloatingLeaves()),
-              SafeArea(
-              bottom: false,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: Padding(
-                    // Extra bottom room: the form card overlaps the header's rounded edge.
-                    padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.md, AppSpace.xl, AppSpace.xxl + AppSpace.xl),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Back + logo row
-                        Row(children: [
-                          Tap(
-                            label: 'Back',
-                            tooltip: true,
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              width: 40, height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: AppRadius.all(AppRadius.md),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                              ),
-                              child: Icon(Icons.arrow_back_ios_new_rounded, color: c.onHero, size: 16),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpace.xs),
-                          Icon(Icons.recycling_rounded, color: c.onHeroMuted, size: 20),
-                          const SizedBox(width: AppSpace.xs - 2),
-                          Text('ECOReward', style: t.titleSmall!.copyWith(color: c.onHeroMuted)),
-                        ]),
-
-                        const SizedBox(height: AppSpace.md),
-
-                        Text('Join ECOReward ♻️', style: t.headlineMedium!.copyWith(color: c.onHero, fontSize: 30)),
-                        const SizedBox(height: AppSpace.xs),
-                        Text('Start earning rewards for recycling today',
-                            style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )]),
-          ),
-
-          // Form
-          Transform.translate(
-            offset: const Offset(0, -AppSpace.xl),
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: c.background,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl + 4)),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(AppSpace.xl + 4, AppSpace.xl + 4, AppSpace.xl + 4, AppSpace.xl),
-                      child: Shake(key: _shakeKey, child: Form(
+      appBar: AppBar(
+        backgroundColor: c.background,
+        surfaceTintColor: Colors.transparent,
+        leading: HeroBackButton(onTap: () => Navigator.pop(context)),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.sm, AppSpace.xl, AppSpace.xxl),
+            // Centred at 480 dp on tablets.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: Shake(key: _shakeKey, child: Form(
                         key: _formKey,
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Benefits chips
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(children: [
-                                _chip(Icons.stars_rounded, 'Earn Points'),
-                                const SizedBox(width: AppSpace.xs),
-                                _chip(Icons.card_giftcard_rounded, 'Claim Rewards'),
-                                const SizedBox(width: AppSpace.xs),
-                                _chip(Icons.eco_rounded, 'Track Impact'),
-                              ]),
-                            ),
-
-                            const SizedBox(height: AppSpace.xl),
+                            Text('Create your account', style: t.displaySmall),
+                            const SizedBox(height: AppSpace.xs),
+                            Text('Sort your waste at the bin, collect points, and spend them at the counter.',
+                                style: t.bodyLarge!.copyWith(color: c.textSecondary)),
+                            const SizedBox(height: AppSpace.xxl),
 
                             // Username
                             _fieldLabel('Username'),
@@ -218,7 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             const SizedBox(height: AppSpace.md),
 
                             // Confirm password
-                            _fieldLabel('Confirm Password'),
+                            _fieldLabel('Confirm password'),
                             const SizedBox(height: AppSpace.xs),
                             _buildField(
                               controller: _confirmCtrl,
@@ -234,13 +169,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               validator: (v) => v != _passCtrl.text ? 'Passwords do not match' : null,
                             ),
 
-                            const SizedBox(height: AppSpace.xl + 4),
+                            const SizedBox(height: AppSpace.xl),
 
-                            // Create button
-                            GlowButton(
-                              label: 'Create Account',
-                              icon: Icons.eco_rounded,
-                              trailingIcon: Icons.arrow_forward_rounded,
+                            AppButton(
+                              label: 'Create account',
                               loading: _loading,
                               onPressed: _register,
                             ),
@@ -253,40 +185,20 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                 child: Text.rich(TextSpan(
                                   text: 'Already have an account?  ',
                                   style: t.bodyMedium!.copyWith(color: c.textSecondary),
-                                  children: [TextSpan(text: 'Sign In',
+                                  children: [TextSpan(text: 'Sign in',
                                       style: TextStyle(color: c.primary, fontWeight: FontWeight.bold))],
                                 )),
                               ),
                             ),
-                            const SizedBox(height: AppSpace.xl),
                           ],
                         ),
                       )),
-                    ),
-                  ),
                 ),
               ),
             ),
           ),
-        ]),
+        ),
       ),
-    );
-  }
-
-  Widget _chip(IconData icon, String label) {
-    final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
-      decoration: BoxDecoration(
-        color: c.primaryContainer,
-        borderRadius: AppRadius.all(AppRadius.pill),
-        border: Border.all(color: c.primary.withValues(alpha: 0.3)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: c.onPrimaryContainer, size: 14),
-        const SizedBox(width: AppSpace.xs - 2),
-        Text(label, style: context.text.labelMedium!.copyWith(color: c.onPrimaryContainer)),
-      ]),
     );
   }
 

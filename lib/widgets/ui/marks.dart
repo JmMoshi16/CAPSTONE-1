@@ -119,3 +119,22 @@ class UserAvatar extends StatelessWidget {
             style: AppType.numeral.copyWith(fontSize: size * 0.42, color: context.colors.onPrimaryContainer)),
       );
 }
+
+/// The app's wordmark: the recycling glyph on a forest tile, then "ECOReward". Used on the sign-in pages.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.md)),
+        child: Icon(Icons.recycling_rounded, color: c.onPrimary, size: 20),
+      ),
+      const SizedBox(width: AppSpace.sm),
+      Text('ECOReward', style: context.text.titleMedium!.copyWith(fontWeight: FontWeight.w700)),
+    ]);
+  }
+}

@@ -47,19 +47,19 @@ class NotificationService {
         : '';
     await _plugin.show(
       1, // one scan-points notification at a time is fine
-      '♻️ Points Credited!',
+      'Points credited',
       'You earned +$points pts$bonus for $wasteType waste. Keep it up!',
       _details(),
     );
   }
 
-  static Future<void> showBadgeUnlocked(String badgeIcon, String badgeLabel) async {
+  static Future<void> showBadgeUnlocked(String badgeLabel) async {
     // Use a unique ID per badge so multiple unlocks don't overwrite each other
     final id = 100 + badgeLabel.hashCode.abs() % 900;
     await _plugin.show(
       id,
-      '🏅 Badge Unlocked!',
-      '$badgeIcon $badgeLabel — Great work, eco warrior!',
+      'Badge unlocked',
+      '$badgeLabel — nice work.',
       _details(),
     );
   }

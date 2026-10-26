@@ -330,7 +330,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget _userCard(UserModel u, int rank) {
     final userLogs = _logCount(u.uid);
     final medalColors = [AdminColors.gold, Colors.grey.shade400, AppPalette.medalBronze];
-    final medalIcons = ['🥇', '🥈', '🥉'];
 
     return Tap(
       label: '${u.username}, ${u.lifetimePoints} points earned, ${u.points} to spend, open details',
@@ -353,7 +352,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           SizedBox(
             width: 28,
             child: rank < 3
-                ? Text(medalIcons[rank], style: const TextStyle(fontSize: 20))
+                ? Container(
+                    width: 24, height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: medalColors[rank], shape: BoxShape.circle),
+                    child: Text('${rank + 1}',
+                        style: AdminType.body.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                  )
                 : Text('${rank + 1}', style: AdminType.body.copyWith(color: AdminColors.textTertiary, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: AppSpace.xs),

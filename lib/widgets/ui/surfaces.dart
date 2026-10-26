@@ -176,28 +176,17 @@ class PointsPill extends StatelessWidget {
   }
 }
 
-/// Back arrow for gradient headers: 40 dp visible, 48 dp touch target, labelled "Back".
+/// Back arrow for page headers: a plain icon, 48 dp touch target, labelled "Back".
 class HeroBackButton extends StatelessWidget {
   const HeroBackButton({super.key, required this.onTap});
 
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => PressScale(
-        label: 'Back',
-        onTap: onTap,
-        child: Tooltip(
-          message: 'Back',
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: AppRadius.all(AppRadius.sm + 2),
-            ),
-            child: Icon(Icons.arrow_back_ios_new, color: context.colors.onHero, size: 16),
-          ),
-        ),
+  Widget build(BuildContext context) => IconButton(
+        tooltip: 'Back',
+        onPressed: onTap,
+        icon: Icon(Icons.arrow_back_rounded, color: context.colors.textPrimary),
       );
 }
 
