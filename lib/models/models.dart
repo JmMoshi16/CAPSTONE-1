@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// H-07: reads a Firestore Timestamp, DateTime or ISO string as UTC; anything else is null.
@@ -25,6 +27,9 @@ class UserModel {
   int streak;
   String? lastScanDate; // yyyy-MM-dd
   List<String> badges;
+  /// Small JPEG (about 256 px) chosen in Edit profile; null = show the initial. Never part of [toMap]: an account
+  /// is created without one, and only [FirebaseService.updateProfile] writes it.
+  Uint8List? photo;
 
   UserModel({
     required this.uid,
@@ -38,6 +43,7 @@ class UserModel {
     this.streak = 0,
     this.lastScanDate,
     this.badges = const [],
+    this.photo,
   }) : lifetimePoints = lifetimePoints ?? points;
 
   Map<String, dynamic> toMap() => {
@@ -67,6 +73,7 @@ class UserModel {
       streak: d['streak'] ?? 0,
       lastScanDate: d['lastScanDate'],
       badges: List<String>.from(d['badges'] ?? []),
+      photo: d['photo'] is Blob ? (d['photo'] as Blob).bytes : null,
     );
   }
 }

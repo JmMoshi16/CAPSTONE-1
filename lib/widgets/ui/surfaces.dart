@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../core/haptics.dart';
 import '../../core/tokens.dart';
 import 'press_scale.dart';
 
-/// Card surface: white with a soft shadow in light mode, a hairline border in dark mode.
-BoxDecoration cardDecoration(BuildContext context, {double radius = AppRadius.xl, Color? color, Color? borderColor}) {
+/// Card surface: one spec everywhere, a flat surface with a hairline border and a 16 px radius. Depth comes from
+/// the page background, not shadows (shadows are kept for things that float: sheets, the nav bar).
+BoxDecoration cardDecoration(BuildContext context, {double radius = AppRadius.lg, Color? color, Color? borderColor}) {
   final c = context.colors;
   return BoxDecoration(
     color: color ?? c.surface,
     borderRadius: AppRadius.all(radius),
-    border: borderColor != null
-        ? Border.all(color: borderColor, width: 1.5)
-        : (c.isDark ? Border.all(color: c.border) : null),
-    boxShadow: AppShadows.of(context, AppShadows.e1),
+    border: Border.all(color: borderColor ?? c.border, width: borderColor != null ? 1.5 : 1),
   );
 }
 
@@ -200,4 +199,95 @@ class HeroBackButton extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// A titled group of settings rows on one card (iOS / Revolut style list).
+class SettingsGroup extends StatelessWidget {
+  const SettingsGroup({super.key, this.title, required this.children});
+
+  final String? title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0) rows.add(Divider(height: 1, thickness: 1, indent: 56, color: c.border));
+      rows.add(children[i]);
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (title != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpace.xs, 0, AppSpace.xs, AppSpace.xs),
+          child: Semantics(header: true, child: Text(title!.toUpperCase(),
+              style: context.text.labelSmall!.copyWith(letterSpacing: 1.0, color: c.textSecondary))),
+        ),
+      Material(
+        color: c.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.all(AppRadius.lg), side: BorderSide(color: c.border)),
+        child: Column(children: rows),
+      ),
+    ]);
+  }
+}
+
+/// One settings row: icon, title, optional value or subtitle, and a chevron when it opens something.
+/// [trailing] replaces the chevron (e.g. a switch). [destructive] colours it for sign-out.
+class SettingsRow extends StatelessWidget {
+  const SettingsRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.value,
+    this.trailing,
+    this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? value;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.text;
+    final fg = destructive ? c.danger : c.textPrimary;
+    return InkWell(
+      onTap: onTap == null ? null : () { AppHaptics.tap(); onTap!(); },
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm),
+          child: Row(children: [
+            Icon(icon, size: 22, color: destructive ? c.danger : c.textSecondary),
+            const SizedBox(width: AppSpace.md),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(title, style: t.bodyLarge!.copyWith(color: fg, fontWeight: FontWeight.w500)),
+                if (subtitle != null) Text(subtitle!, style: t.bodySmall),
+              ]),
+            ),
+            if (value != null) ...[
+              const SizedBox(width: AppSpace.xs),
+              Flexible(child: Text(value!, style: t.bodyMedium!.copyWith(color: c.textSecondary),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right)),
+            ],
+            if (trailing != null) ...[const SizedBox(width: AppSpace.xs), trailing!]
+            else if (onTap != null && !destructive) ...[
+              const SizedBox(width: AppSpace.xxs),
+              Icon(Icons.chevron_right_rounded, color: c.textTertiary),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
 }

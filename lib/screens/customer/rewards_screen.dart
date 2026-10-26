@@ -28,6 +28,9 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
   void showMyCodes() => _tabController.animateTo(1);
 
+  /// From Home's reward strip: the same detail-and-redeem flow as tapping the reward here.
+  void openReward(Reward reward) => _redeem(reward);
+
   /// Swipe left / right on the grid: next / previous category.
   void _swipeCategory(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;

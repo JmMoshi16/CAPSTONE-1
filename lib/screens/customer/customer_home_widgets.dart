@@ -1,21 +1,12 @@
 part of 'customer_home_screen.dart';
 
-// ── Hero Header Card ──────────────────────────────────────────────────────────
-class _HeroHeaderCard extends StatelessWidget {
+// ── Header: greeting, avatar, notifications (on the page background, no gradient) ──
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.user, required this.pending, required this.onProfile, required this.onBell});
+
   final UserModel user;
-  final int myRank, pendingRedemptions, lifetimePoints, streak;
-  final int points;                     // spendable balance, counted up when it changes
-  final bool countFromZero;
-  final VoidCallback onBell, onProfile, onRankInfo, onLeaderboard;
-  /// The page's scroll position: the header content drifts slower than the page (parallax).
-  final ScrollController? scroll;
-  const _HeroHeaderCard({
-    this.scroll,
-    required this.onRankInfo, required this.onLeaderboard,
-    required this.user, required this.myRank, required this.pendingRedemptions,
-    required this.lifetimePoints, required this.points, required this.countFromZero, required this.streak,
-    required this.onBell, required this.onProfile,
-  });
+  final int pending;
+  final VoidCallback onProfile, onBell;
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -28,519 +19,273 @@ class _HeroHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
-    final lv = getLevel(lifetimePoints);
-    final rk = getRank(lifetimePoints);
-    final multiplier = streakMultiplier(streak);
-    final reduced = AppMotion.reduced(context);
-    // Parallax: decorations move at half the scroll speed, content at 30 % and fades.
-    Widget drift(double factor, Widget child, {bool fade = false}) => scroll == null || reduced
-        ? child
-        : AnimatedBuilder(
-            animation: scroll!,
-            child: child,
-            builder: (_, kid) {
-              final off = scroll!.hasClients ? scroll!.offset.clamp(0.0, 400.0) : 0.0;
-              final moved = Transform.translate(offset: Offset(0, off * factor), child: kid);
-              if (!fade) return moved;
-              final o = (1 - off / 320).clamp(0.0, 1.0);
-              return o > 0.99 ? moved : Opacity(opacity: o, child: moved);
-            },
-          );
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: heroDecoration(context,
-          radius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxxl))),
-      child: Stack(children: [
-        Positioned.fill(child: drift(0.5, Stack(children: [
-        Positioned(top: -40, right: -40,
-          child: Container(width: 160, height: 160,
-            decoration: BoxDecoration(shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05)))),
-        Positioned(bottom: 20, left: -30,
-          child: Container(width: 110, height: 110,
-            decoration: BoxDecoration(shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04)))),
-
-        ]))),
-        drift(0.3, fade: true, SafeArea(bottom: false, child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xxl),
-          child: Column(children: [
-
-            // ── Top row: avatar / name / bell ──────────────────────────────
-            Row(children: [
-              Tap(label: 'Open profile', tooltip: true,
-                onTap: onProfile,
-                child: Hero(
-                  tag: 'avatar-${user.uid}',
-                  flightShuttleBuilder: heroMaterialFlight,
-                  child: Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                    ),
-                    child: Center(child: Text(
-                      user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                      style: t.titleLarge!.copyWith(color: c.onHero),
-                    )),
-                  ),
-                ),
+    return Row(children: [
+      Tap(label: 'Open profile', onTap: onProfile, child: UserAvatar(name: user.username, photo: user.photo, size: 44)),
+      const SizedBox(width: AppSpace.sm),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_greeting, style: t.bodySmall),
+        Text(user.username, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge),
+      ])),
+      Tap(
+        label: pending > 0 ? 'Notifications, $pending reward codes waiting' : 'Notifications',
+        tooltip: true,
+        onTap: onBell,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: c.surface, shape: BoxShape.circle, border: Border.all(color: c.border)),
+            child: Icon(Icons.notifications_none_rounded, color: c.textPrimary, size: 22),
+          ),
+          if (pending > 0)
+            Positioned(
+              top: -2, right: -2,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.xxs),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: c.danger, borderRadius: AppRadius.all(AppRadius.pill),
+                    border: Border.all(color: c.background, width: 2)),
+                child: Text('$pending', style: t.labelSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
               ),
-              const SizedBox(width: AppSpace.sm),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_greeting, style: t.labelSmall!.copyWith(color: c.onHeroMuted)),
-                Text(user.username, overflow: TextOverflow.ellipsis,
-                    style: t.titleMedium!.copyWith(color: c.onHero)),
-              ])),
-              Tap(label: pendingRedemptions > 0 ? 'Notifications, $pendingRedemptions pending' : 'Notifications', tooltip: true,
-                onTap: onBell,
-                child: _WiggleBell(active: pendingRedemptions > 0, child: Stack(clipBehavior: Clip.none, children: [
-                  Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                    ),
-                    child: Icon(Icons.notifications_rounded, color: c.onHero, size: 20),
-                  ),
-                  if (pendingRedemptions > 0)
-                    Positioned(top: -2, right: -2,
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(color: c.danger, shape: BoxShape.circle),
-                        alignment: Alignment.center,
-                        child: Text('$pendingRedemptions',
-                            style: t.labelSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                      )),
-                ])),
-              ),
-            ]),
-
-            const SizedBox(height: AppSpace.xl),
-
-            // ── Points display (centered, no box) ──────────────────────────
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  gradient: const RadialGradient(colors: AppPalette.coin, stops: [0.0, 0.5, 1.0]),
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: AppPalette.coin[1].withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 4))],
-                ),
-                child: const Icon(Icons.stars_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: AppSpace.md - 2),
-              Flexible(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: AnimatedCount(
-                      points,
-                      fromZero: countFromZero,
-                      format: NumberFormat('#,###').format,
-                      style: AppType.numeral.copyWith(color: c.onHero),
-                    ),
-                  ),
-                  Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: AppSpace.xs, children: [
-                    Text('points', style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
-                    if (multiplier > 1.0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          borderRadius: AppRadius.all(AppRadius.md),
-                          border: Border.all(color: c.heroAccent.withValues(alpha: 0.6)),
-                        ),
-                        child: Text(
-                          streak >= 7 ? '🔥 2× Bonus' : '🔥 1.5× Bonus',
-                          style: t.labelSmall!.copyWith(color: c.heroAccent, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                  ]),
-                ]),
-              ),
-            ]),
-
-            const SizedBox(height: AppSpace.lg),
-
-            // ── Rank + Level pills ─────────────────────────────────────────
-            Wrap(alignment: WrapAlignment.center, spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-              _pill(context, '${lv.emoji} Lv ${lv.level} ${lv.title}', onRankInfo, 'Level ${lv.level} ${lv.title}, explain levels'),
-              _pill(context, '${rk.icon} ${rk.label}', onRankInfo, '${rk.label} rank, explain ranks'),
-              if (myRank > 0) _pill(context, '🏆 #$myRank', onLeaderboard, 'Leaderboard position $myRank, open leaderboard'),
-            ]),
-          ]),
-        ))),
-      ]),
-    );
+            ),
+        ]),
+      ),
+    ]);
   }
-
-  Widget _pill(BuildContext context, String label, VoidCallback onTap, String semantics) =>
-      Tap(label: semantics, onTap: onTap, child: _pillBody(context, label));
-
-  Widget _pillBody(BuildContext context, String label) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xxs + 1),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.13),
-      borderRadius: AppRadius.all(AppRadius.pill),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-    ),
-    child: Text(label, style: context.text.labelSmall!.copyWith(color: context.colors.onHero)),
-  );
 }
 
+// ── Balance card: the one place points, tier and the next reward live (Starbucks pattern) ──
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.user, required this.rewards, required this.countFromZero, required this.onTap});
 
-
-// ── Rank / level ring card ────────────────────────────────────────────────────
-class _RingCard extends StatelessWidget {
-  final double progress;
-  final Color color;
-  final Widget center;
-  final String title, subtitle;
-  final bool fromZero;
+  final UserModel user;
+  final List<Reward> rewards;
+  final bool countFromZero;
   final VoidCallback onTap;
-  const _RingCard({
-    required this.progress, required this.color, required this.center,
-    required this.title, required this.subtitle, required this.fromZero, required this.onTap,
-  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
+    final rank = getRank(user.lifetimePoints);
+    final level = getLevel(user.lifetimePoints);
+    final open = rewards.where((r) => r.isActive && r.stock != 0).toList()
+      ..sort((a, b) => a.pointsCost.compareTo(b.pointsCost));
+    final next = open.where((r) => r.pointsCost > user.points).firstOrNull;
+    final ready = open.where((r) => r.pointsCost <= user.points).length;
+    final goal = next == null
+        ? (ready > 0 ? 'You can redeem $ready reward${ready == 1 ? '' : 's'} now' : 'Scan at the bin to earn points')
+        : '${next.pointsCost - user.points} pts to ${next.title}';
+    final progress = next == null ? (ready > 0 ? 1.0 : 0.0) : (user.points / next.pointsCost).clamp(0.0, 1.0);
+
     return Tap(
-      label: '$title, ${(progress * 100).round()} percent, $subtitle. Explain ranks and levels',
+      label: '${user.points} points. ${rank.label} member, level ${level.level}. $goal. Explain ranks and levels',
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(AppSpace.sm),
-        decoration: cardDecoration(context, radius: AppRadius.lg + 2),
-        child: Row(children: [
-          RepaintBoundary(
-            child: AnimatedProgressRing(
-              progress: progress,
-              size: 52,
-              stroke: 6,
-              color: color,
-              fromZero: fromZero,
-              child: center,
-            ),
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpace.lg),
+        decoration: heroDecoration(context, radius: AppRadius.all(AppRadius.xl)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text('Points balance', style: t.labelMedium!.copyWith(color: c.onHeroMuted)),
+            const Spacer(),
+            Icon(rankIconData(rank.label), size: 16, color: c.onHero),
+            const SizedBox(width: AppSpace.xxs),
+            Flexible(child: Text('${rank.label} · Level ${level.level}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: t.labelMedium!.copyWith(color: c.onHero))),
+            Icon(Icons.chevron_right_rounded, size: 18, color: c.onHeroMuted),
+          ]),
+          const SizedBox(height: AppSpace.xs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: AnimatedCount(user.points, fromZero: countFromZero, format: NumberFormat('#,###').format,
+                style: AppType.numeral.copyWith(color: c.onHero)),
           ),
-          const SizedBox(width: AppSpace.sm - 2),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: t.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700, fontSize: 13)),
-              const SizedBox(height: 2),
-              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.labelSmall),
-            ]),
-          ),
+          const SizedBox(height: AppSpace.md),
+          AnimatedBar(progress: progress, color: c.heroAccent, height: 6, fromZero: countFromZero),
+          const SizedBox(height: AppSpace.xs),
+          Text(goal, style: t.bodySmall!.copyWith(color: c.onHero)),
         ]),
       ),
     );
   }
 }
 
-// ── Animated streak flame ─────────────────────────────────────────────────────
-/// The streak flame flickers gently while a streak is alive; still otherwise and with
-/// reduced motion.
-class _Flame extends StatefulWidget {
-  const _Flame({required this.active});
-  final bool active;
-  @override
-  State<_Flame> createState() => _FlameState();
-}
+// ── Rewards strip: what the points can buy (affordable first, else the closest) ──
+class _RewardStrip extends StatelessWidget {
+  const _RewardStrip({required this.rewards, required this.points, required this.onOpen});
 
-class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+  final List<Reward> rewards;
+  final int points;
+  final ValueChanged<Reward> onOpen;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(_Flame old) {
-    super.didUpdateWidget(old);
-    _sync();
-  }
-
-  void _sync() {
-    if (widget.active && !AppMotion.reduced(context)) {
-      if (!_c.isAnimating) _c.repeat(reverse: true);
-    } else {
-      _c.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (_, __) {
-            final v = Curves.easeInOut.transform(_c.value);
-            return Transform.rotate(
-              angle: (v - 0.5) * 0.14,
-              alignment: Alignment.bottomCenter,
-              child: Transform.scale(
-                scale: 1 + 0.12 * v,
-                alignment: Alignment.bottomCenter,
-                child: Opacity(
-                  opacity: widget.active ? 1 : 0.45,
-                  child: const Text('🔥', style: TextStyle(fontSize: 20)),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-}
-
-// ── Weekly Goal Bar ───────────────────────────────────────────────────────────
-class _WeeklyGoalBar extends StatelessWidget {
-  final int scanCount;
-  final int weeklyGoal;
-  final bool fromZero;
-  const _WeeklyGoalBar({required this.scanCount, required this.weeklyGoal, this.fromZero = true});
+  static IconData icon(String cat) => switch (cat) {
+        'Coffee' => Icons.coffee_rounded,
+        'Food' => Icons.lunch_dining_rounded,
+        'Discount' => Icons.sell_rounded,
+        _ => Icons.redeem_rounded,
+      };
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
-    final progress = (scanCount / weeklyGoal).clamp(0.0, 1.0);
-    final done = scanCount >= weeklyGoal;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.sm),
-      decoration: cardDecoration(context, radius: AppRadius.lg - 2),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const ExcludeSemantics(child: Text('🎯', style: TextStyle(fontSize: 13))),
-          const SizedBox(width: AppSpace.xs - 2),
-          Expanded(child: Text('7-day goal', style: t.labelMedium)),
-          Text(
-            done ? '✅ Goal reached!' : '$scanCount / $weeklyGoal scans',
-            style: t.labelSmall!.copyWith(
-              color: done ? c.success : c.textSecondary,
-              fontWeight: done ? FontWeight.w700 : FontWeight.w600,
+    final scale = AppLayout.textScale(context).clamp(1.0, 1.5);
+    return SizedBox(
+      height: 112 * scale,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+        itemCount: rewards.length,
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpace.sm),
+        itemBuilder: (_, i) {
+          final r = rewards[i];
+          final short = r.pointsCost - points;
+          final color = AppPalette.categories[r.category] ?? AppPalette.forest;
+          return Tap(
+            label: '${r.title}, ${r.pointsCost} points${short > 0 ? ', $short more needed' : ', ready to redeem'}',
+            onTap: () => onOpen(r),
+            child: Container(
+              width: 168 * scale,
+              padding: const EdgeInsets.all(AppSpace.md),
+              decoration: cardDecoration(context),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Medallion(icon: icon(r.category), color: color, size: 36),
+                const Spacer(),
+                Text(r.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall),
+                const SizedBox(height: AppSpace.xxs),
+                Text(short > 0 ? '${r.pointsCost} pts · $short to go' : '${r.pointsCost} pts · Redeem',
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: t.labelMedium!.copyWith(color: short > 0 ? c.textSecondary : c.primary)),
+              ]),
             ),
-          ),
-        ]),
-        const SizedBox(height: AppSpace.xs - 2),
-        AnimatedBar(progress: progress, color: done ? c.success : c.primary, height: 6, fromZero: fromZero),
-      ]),
+          );
+        },
+      ),
     );
   }
 }
 
-// ── Floating Nav Bar ──────────────────────────────────────────────────────────
-class _FloatingNavBar extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onTap;
-  final VoidCallback onScan;
-  final VoidCallback onScanWithLight;
-  const _FloatingNavBar({required this.selectedIndex, required this.onTap, required this.onScan,
-      required this.onScanWithLight});
+// ── This week: streak and the 7-day goal in one row ──
+class _WeekCard extends StatelessWidget {
+  const _WeekCard({required this.streak, required this.scansThisWeek, required this.fromZero, required this.onTap});
 
-  static const _slotOfTab = [0, 1, 3, 4];   // slot 2 is the scan button
+  final int streak, scansThisWeek;
+  final bool fromZero;
+  final VoidCallback onTap;
+  static const goal = 10;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final slot = _slotOfTab[selectedIndex];
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 68),
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: AppRadius.all(AppRadius.pill),
-            border: c.isDark ? Border.all(color: c.border) : null,
-            boxShadow: AppShadows.of(context, AppShadows.e3),
-          ),
-          child: Stack(alignment: Alignment.center, children: [
-            // Indicator that slides between tabs.
-            Positioned.fill(
-              child: AnimatedAlign(
-                alignment: Alignment(-1 + slot * 0.5, 0),
-                duration: AppMotion.of(context, AppMotion.medium),
-                curve: AppMotion.emphasized,
-                child: FractionallySizedBox(
-                  widthFactor: 1 / 5,
-                  child: Center(
-                    child: Container(
-                      width: 60, height: 52,
-                      decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.lg)),
-                    ),
+    final t = context.text;
+    final multiplier = streakMultiplier(streak);
+    final done = scansThisWeek >= goal;
+    return Tap(
+      label: '${streak > 0 ? '$streak day streak' : 'No streak yet'}. $scansThisWeek of $goal scans this week. Streak details',
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpace.md),
+        decoration: cardDecoration(context),
+        child: Row(children: [
+          Medallion(icon: Icons.local_fire_department_rounded, color: streak > 0 ? c.warning : c.textTertiary, size: 40),
+          const SizedBox(width: AppSpace.md),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(child: Text(streak > 0 ? '$streak-day streak' : 'Start a streak', style: t.titleSmall)),
+              if (multiplier > 1) ...[
+                const SizedBox(width: AppSpace.xs),
+                PointsPill('${multiplier == 2 ? '2' : '1.5'}× points', color: c.warning),
+              ],
+            ]),
+            const SizedBox(height: AppSpace.xs),
+            AnimatedBar(progress: (scansThisWeek / goal).clamp(0.0, 1.0), color: done ? c.success : c.primary,
+                height: 6, fromZero: fromZero),
+            const SizedBox(height: AppSpace.xxs),
+            Text(done ? 'Weekly goal reached' : '$scansThisWeek of $goal scans this week', style: t.bodySmall),
+          ])),
+          const SizedBox(width: AppSpace.xs),
+          Icon(Icons.chevron_right_rounded, color: c.textTertiary),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Bottom navigation: docked, labelled, one indicator shape (Material 3 / iOS tab bar) ──
+class _BottomNav extends StatelessWidget {
+  const _BottomNav({required this.selectedIndex, required this.onTap, required this.onScan, required this.onScanWithLight});
+
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+  final VoidCallback onScan, onScanWithLight;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(color: c.surface, border: Border(top: BorderSide(color: c.border))),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(children: [
+            _item(context, Icons.home_rounded, Icons.home_outlined, 'Home', 0),
+            _item(context, Icons.redeem_rounded, Icons.redeem_outlined, 'Rewards', 1),
+            Expanded(
+              child: Tap(
+                label: 'Scan the QR code at the bin',
+                onTap: onScan,
+                onLongPress: onScanWithLight,
+                longPressHint: 'scan with the flashlight on',
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(
+                    width: 52, height: 32,
+                    decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.pill)),
+                    child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 20),
                   ),
-                ),
+                  const SizedBox(height: AppSpace.xxs),
+                  Text('Scan', style: context.text.labelSmall!.copyWith(color: c.primary, fontWeight: FontWeight.w700)),
+                ]),
               ),
             ),
-            Row(children: [
-              _navItem(context, Icons.home_rounded, Icons.home_outlined, 'Home', 0),
-              _navItem(context, Icons.card_giftcard_rounded, Icons.card_giftcard_outlined, 'Rewards', 1),
-              Expanded(
-                // heightFactor 1: size to the button, not to all the height the bottom-bar slot allows.
-                child: Center(
-                  heightFactor: 1,
-                  child: Tap(label: 'Scan QR code', tooltip: true,
-                    onTap: onScan,
-                    onLongPress: onScanWithLight,
-                    longPressHint: 'scan with the flashlight on',
-                    child: _Breathing(
-                      color: c.primary,
-                      child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 26),
-                    ),
-                  ),
-                ),
-              ),
-              _navItem(context, Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Impact', 2),
-              _navItem(context, Icons.person_rounded, Icons.person_outlined, 'Profile', 3),
-            ]),
+            _item(context, Icons.insights_rounded, Icons.insights_outlined, 'Activity', 2),
+            _item(context, Icons.person_rounded, Icons.person_outline_rounded, 'Profile', 3),
           ]),
         ),
       ),
     );
   }
 
-  Widget _navItem(BuildContext context, IconData active, IconData inactive, String label, int index) {
+  Widget _item(BuildContext context, IconData active, IconData inactive, String label, int index) {
     final c = context.colors;
     final selected = selectedIndex == index;
-    final fg = selected ? c.primary : c.textTertiary;
     return Expanded(
-      child: Tap(label: label, selected: selected,
+      child: Tap(
+        label: label,
+        selected: selected,
         onTap: () => onTap(index),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            NavIconMorph(selected: selected, active: active, inactive: inactive, color: fg),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: AppMotion.of(context, AppMotion.fast),
-              style: context.text.labelSmall!.copyWith(color: fg,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600),
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          AnimatedContainer(
+            duration: AppMotion.of(context, AppMotion.medium),
+            curve: AppMotion.standard,
+            width: 52, height: 32,
+            decoration: BoxDecoration(
+              color: selected ? c.primaryContainer : Colors.transparent,
+              borderRadius: AppRadius.all(AppRadius.pill),
             ),
-          ]),
-        ),
+            child: Icon(selected ? active : inactive, color: selected ? c.onPrimaryContainer : c.textSecondary, size: 22),
+          ),
+          const SizedBox(height: AppSpace.xxs),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: context.text.labelSmall!.copyWith(
+                  color: selected ? c.textPrimary : c.textSecondary,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
+        ]),
       ),
     );
   }
-}
-
-// ── Breathing scan button ─────────────────────────────────────────────────────
-/// The centre Scan button breathes slowly (scale and glow) so it feels alive; still with
-/// reduced motion. Paints on its own layer.
-class _Breathing extends StatefulWidget {
-  const _Breathing({required this.color, required this.child});
-  final Color color;
-  final Widget child;
-  @override
-  State<_Breathing> createState() => _BreathingState();
-}
-
-class _BreathingState extends State<_Breathing> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _c..stop()..value = 0;
-    } else if (!_c.isAnimating) {
-      _c.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _c,
-          child: widget.child,
-          builder: (_, child) {
-            final v = Curves.easeInOut.transform(_c.value);
-            return Transform.scale(
-              scale: 1 + 0.05 * v,
-              child: Container(
-                width: 54, height: 54,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: widget.color,
-                  shape: BoxShape.circle,
-                  boxShadow: AppShadows.of(context, [
-                    BoxShadow(color: widget.color.withValues(alpha: 0.30 + 0.20 * v), blurRadius: 10 + 10 * v,
-                        spreadRadius: 1 + 3 * v, offset: const Offset(0, 4)),
-                  ]),
-                ),
-                child: child,
-              ),
-            );
-          },
-        ),
-      );
-}
-
-// ── Bell wiggle ───────────────────────────────────────────────────────────────
-/// A short wiggle (400 ms) every 5 s while there are pending codes. Off with reduced motion.
-class _WiggleBell extends StatefulWidget {
-  const _WiggleBell({required this.active, required this.child});
-  final bool active;
-  final Widget child;
-  @override
-  State<_WiggleBell> createState() => _WiggleBellState();
-}
-
-class _WiggleBellState extends State<_WiggleBell> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: AppMotion.slow);
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (mounted && widget.active && !AppMotion.reduced(context)) _c.forward(from: 0);
-    });
-    // First wiggle shortly after the screen settles.
-    Future.delayed(AppMotion.slow * 2, () {
-      if (mounted && widget.active && !AppMotion.reduced(context)) _c.forward(from: 0);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _c,
-          child: widget.child,
-          builder: (_, child) => Transform.rotate(
-            // Damped swing: about ±14 degrees, settling to rest.
-            angle: math.sin(_c.value * math.pi * 4) * 0.25 * (1 - _c.value),
-            alignment: Alignment.topCenter,
-            child: child,
-          ),
-        ),
-      );
 }
 
 // ── Offline banner ────────────────────────────────────────────────────────────

@@ -1,99 +1,53 @@
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../services/sound_service.dart';
+import '../../services/appearance.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
-import '../../core/gamification.dart';
 import '../../widgets/ui.dart';
 import '../login_screen.dart';
 import 'leaderboard_screen.dart';
 import 'badges_screen.dart';
-import 'info_sheets.dart';
+import 'edit_profile_screen.dart';
+import 'account_sheets.dart';
 
+/// Profile: who you are, three numbers that each open their screen, your badges, and grouped settings.
 class CustomerProfileScreen extends StatefulWidget {
   final UserModel user;
   final List<WasteLog> logs;
+  final int myRank;                       // leaderboard position, 0 = not ranked yet
   final VoidCallback onUpdated;
-  /// True when opened from the Home avatar, so the avatar flies in (Hero).
-  final bool heroAvatar;
-  /// Opens the Rewards tab from the points chip (spend your points).
   final VoidCallback? onOpenRewards;
+  final VoidCallback? onOpenHistory;
   const CustomerProfileScreen({super.key, required this.user, required this.logs, required this.onUpdated,
-      this.heroAvatar = false, this.onOpenRewards});
+      this.myRank = 0, this.onOpenRewards, this.onOpenHistory});
   @override
   State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
 }
 
 class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late final _userCtrl = TextEditingController(text: widget.user.username);
-  bool _editing = false;
-  bool _saving  = false;
-  int  _myRank  = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRank();
-  }
-
-  Future<void> _loadRank() async {
-    try {
-      final r = await FirebaseService.getUserRank(widget.user.uid).timeout(const Duration(seconds: 10));
-      if (mounted) setState(() => _myRank = r);
-    } catch (_) {
-      // Rank is optional on this screen; the chip simply stays hidden.
-    }
-  }
-
-  Future<void> _refresh() async {
-    widget.onUpdated();
-    await _loadRank();
-  }
-
-  @override
-  void dispose() { _userCtrl.dispose(); super.dispose(); }
-
-  Map<String, dynamic> get _rank {
-    final r = getRank(widget.user.lifetimePoints);
-    return {'label': r.label, 'color': r.color, 'icon': r.icon, 'next': r.next, 'nextPts': r.nextPts};
-  }
-
-  double get _rankProgress => rankProgress(widget.user.lifetimePoints);
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
-    final newUsername = _userCtrl.text.trim();
-    try {
-      await FirebaseService.updateUsername(widget.user.uid, newUsername);
-      widget.user.username = newUsername; // only after the write succeeded
+  Future<void> _editProfile() async {
+    final saved = await Navigator.push<bool>(
+        context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: widget.user)));
+    if (saved == true && mounted) {
+      setState(() {});
       widget.onUpdated();
-      if (mounted) {
-        setState(() => _editing = false);
-        AppSnackbar.success(context, 'Profile updated');
-      }
-    } catch (_) {
-      if (mounted) {
-        AppSnackbar.error(context, 'Could not update your profile. Check your connection and try again.');
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      AppSnackbar.success(context, 'Profile updated');
     }
   }
 
-  Future<void> _logout() async {
+  Future<void> _signOut() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: const Text('Sign out?'),
+        content: const Text('You can sign in again any time with your email and password.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: ctx.colors.textSecondary))),
-          AppButton(label: 'Logout', kind: AppButtonKind.danger, expand: false, height: 48,
-              onPressed: () => Navigator.pop(ctx, true)),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Sign out', style: TextStyle(color: ctx.colors.danger))),
         ],
       ),
     );
@@ -108,618 +62,189 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   void _openLeaderboard() => Navigator.push(context, MaterialPageRoute(
       builder: (_) => LeaderboardScreen(currentUid: widget.user.uid, me: widget.user)));
 
+  void _openBadges() => Navigator.push(context, MaterialPageRoute(builder: (_) => BadgesScreen(user: widget.user)));
+
+  static String _monthYear(DateTime d) {
+    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${m[d.month - 1]} ${d.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
-    final bio = widget.logs.where((l) => l.wasteType == 'Biodegradable').length;
-    final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
-    final res = widget.logs.where((l) => l.wasteType == 'Residual').length;
-    final rank      = _rank;
-    final rankColor = rank['color'] as Color;
+    final user = widget.user;
+    final rank = getRank(user.lifetimePoints);
+    final level = getLevel(user.lifetimePoints);
 
-    // FIX 8: Use actual rank info instead of computed level
-    final rankInfo   = getRank(widget.user.lifetimePoints);
-    final streak     = effectiveStreak(widget.user.streak, widget.user.lastScanDate, DateTime.now());
-    final winRate    = widget.logs.isEmpty ? 0 : ((rec + bio) / widget.logs.length * 100).round();
-    final daysSince  = DateTime.now().difference(widget.user.createdAt).inDays;
+    Widget gap([double h = AppSpace.xl]) => SliverToBoxAdapter(child: SizedBox(height: h));
+    Widget padded(Widget child) => SliverToBoxAdapter(
+        child: Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg), child: child));
 
-    // This screen has no coloured header, so the status-bar icons follow the theme.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
         body: EcoRefresh(
-          onRefresh: _refresh,
+          onRefresh: () async => widget.onUpdated(),
           child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+                    child: Text('Profile', style: t.headlineMedium),
+                  ),
+                ),
+              ),
+              gap(AppSpace.lg),
 
-            // ── Top bar ──────────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Points chip — taps to leaderboard
-                      PressScale(
-                        label: '${widget.user.points} points, open rewards',
-                        onTap: widget.onOpenRewards ?? _openLeaderboard,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md - 2, vertical: AppSpace.xs),
-                          decoration: cardDecoration(context, radius: AppRadius.pill,
-                              borderColor: c.primary.withValues(alpha: 0.3)),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(
-                              width: 20, height: 20,
-                              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                              child: Icon(Icons.stars_rounded, size: 13, color: c.onPrimary),
+              // ── Identity ──
+              padded(Column(children: [
+                Tap(label: 'Edit profile photo', onTap: _editProfile,
+                    child: UserAvatar(name: user.username, photo: user.photo, size: 96)),
+                const SizedBox(height: AppSpace.md),
+                Text(user.username, style: t.headlineSmall, textAlign: TextAlign.center),
+                const SizedBox(height: AppSpace.xxs),
+                Text('Member since ${_monthYear(user.createdAt)}', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+                const SizedBox(height: AppSpace.sm),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  RankMark(lifetimePoints: user.lifetimePoints, size: 24),
+                  const SizedBox(width: AppSpace.xs),
+                  Flexible(child: Text('${rank.label} member · Level ${level.level} ${level.title}',
+                      style: t.labelLarge, textAlign: TextAlign.center)),
+                ]),
+                const SizedBox(height: AppSpace.md),
+                OutlinedButton.icon(
+                  onPressed: _editProfile,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Edit profile'),
+                ),
+              ])),
+              gap(),
+
+              // ── Numbers: each opens the screen it summarises ──
+              padded(Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: cardDecoration(context),
+                child: Material(
+                  color: Colors.transparent,
+                  child: IntrinsicHeight(
+                    child: Row(children: [
+                      _stat('${user.points}', 'Points', 'Open rewards', widget.onOpenRewards),
+                      VerticalDivider(width: 1, thickness: 1, color: c.border),
+                      _stat('${user.scanCount}', 'Scans', 'Open scan history', widget.onOpenHistory),
+                      VerticalDivider(width: 1, thickness: 1, color: c.border),
+                      _stat(widget.myRank > 0 ? '#${widget.myRank}' : '—', 'Leaderboard', 'Open leaderboard',
+                          _openLeaderboard),
+                    ]),
+                  ),
+                ),
+              )),
+              gap(),
+
+              // ── Achievements ──
+              padded(SectionHeader(title: 'Achievements', actionLabel: 'See all', onAction: _openBadges)),
+              gap(AppSpace.sm),
+              padded(Tap(
+                label: '${user.badges.length} badges earned, see all badges',
+                onTap: _openBadges,
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: cardDecoration(context),
+                  child: user.badges.isEmpty
+                      ? Row(children: [
+                          BadgeMark(id: 'first_scan', color: c.primary, earned: false, size: 40),
+                          const SizedBox(width: AppSpace.md),
+                          Expanded(child: Text('Scan your first item to earn a badge.', style: t.bodyMedium)),
+                          Icon(Icons.chevron_right_rounded, color: c.textTertiary),
+                        ])
+                      : Row(children: [
+                          for (final id in user.badges.take(5)) ...[
+                            Tooltip(
+                              message: FirebaseService.getBadgeInfo(id)['label'] as String,
+                              child: BadgeMark(id: id, color: c.primary, size: 40),
                             ),
                             const SizedBox(width: AppSpace.xs),
-                            AnimatedCount(widget.user.points, suffix: ' pts', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-                          ]),
-                        ),
-                      ),
-                      PressScale(
-                        label: 'Logout',
-                        onTap: _logout,
-                        child: Tooltip(
-                          message: 'Logout',
-                          child: Container(
-                            width: 44, height: 44,
-                            decoration: cardDecoration(context, radius: AppRadius.md),
-                            child: Icon(Icons.logout_rounded, color: c.danger, size: 20),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Avatar + name ─────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, 0),
-                child: Column(children: [
-                  _DashedAvatar(
-                    initial: widget.user.username.isNotEmpty ? widget.user.username[0].toUpperCase() : 'U',
-                    rankIcon: rank['icon'] as String,
-                    rankColor: rankColor,
-                    heroTag: widget.heroAvatar ? 'avatar-${widget.user.uid}' : null,
-                  ),
-                  const SizedBox(height: AppSpace.md - 2),
-                  Text(widget.user.username, style: t.headlineSmall, textAlign: TextAlign.center),
-                  const SizedBox(height: AppSpace.xxs),
-                  // There are no @handles in the app, so show something real instead.
-                  Text(
-                    'Member since ${_monthYear(widget.user.createdAt)}',
-                    style: t.bodyMedium!.copyWith(color: c.textSecondary),
-                  ),
-                  if (_myRank > 0)
-                    TextButton(
-                      onPressed: _openLeaderboard,
-                      child: Text('🏆  Rank #$_myRank'),
-                    ),
-                  const SizedBox(height: AppSpace.xs),
-                  // ── Edit profile button ──
-                  PressScale(
-                    onTap: () => setState(() {
-                      _editing = !_editing;
-                      if (!_editing) _userCtrl.text = widget.user.username;
-                    }),
-                    child: AnimatedContainer(
-                      duration: AppMotion.of(context, AppMotion.medium),
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm - 2),
-                      decoration: BoxDecoration(
-                        color: _editing ? c.dangerContainer : c.primaryContainer,
-                        borderRadius: AppRadius.all(AppRadius.pill),
-                        border: Border.all(
-                          color: (_editing ? c.danger : c.primary).withValues(alpha: 0.35),
-                        ),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(_editing ? Icons.close_rounded : Icons.edit_rounded,
-                            color: _editing ? c.danger : c.primary, size: 16),
-                        const SizedBox(width: AppSpace.xs - 2),
-                        Text(_editing ? 'Cancel' : 'Edit Profile',
-                            style: t.labelMedium!.copyWith(
-                                color: _editing ? c.danger : c.primary, fontWeight: FontWeight.w700, fontSize: 13)),
-                      ]),
-                    ),
-                  ),
-                ]),
-              ),
-            ),
-
-            // ── 3-stat row (Eco Rate · Rank · Days) ──────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, 0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpace.md + 2),
-                  decoration: cardDecoration(context),
-                  child: Row(children: [
-                    Expanded(child: Tap(
-                      label: 'Eco Rate $winRate%, what this means',
-                      onTap: () => showEcoRateSheet(context, bio: bio, rec: rec, res: res),
-                      child: _statPill('$winRate%', 'Eco Rate', Icons.recycling_rounded, c.success,
-                          count: winRate, suffix: '%', info: true),
-                    )),
-                    _divider(),
-                    // FIX 8: Show rank (icon + label) with rank color
-                    Expanded(child: _statPill('${rankInfo.icon} ${rankInfo.label}', 'Rank',
-                        Icons.military_tech_rounded, c.ink(rankInfo.color))),
-                    _divider(),
-                    Expanded(child: _statPill('$daysSince', 'Days', Icons.calendar_today_rounded, c.info, count: daysSince)),
-                  ]),
-                ),
-              ),
-            ),
-
-            // ── "Keep it up!" streak banner ───────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpace.md),
-                  decoration: cardDecoration(context),
-                  child: Row(children: [
-                    ExcludeSemantics(
-                      child: SizedBox(
-                        width: 56,
-                        height: 40,
-                        child: Stack(
-                          children: List.generate(3, (i) => Positioned(
-                            left: i * 16.0,
-                            child: Container(
-                              width: 32, height: 32,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: [c.success, c.gold, c.info][i].withValues(alpha: 0.2),
-                                border: Border.all(color: c.surface, width: 2),
-                              ),
-                              child: Center(child: Text(['♻', '🌿', '🔥'][i], style: const TextStyle(fontSize: 13))),
-                            ),
-                          )),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpace.sm),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(streak > 0 ? 'Keep it up!' : 'Start your streak!', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 2),
-                      Text(
-                        streak > 0
-                            ? '$streak day${streak > 1 ? 's' : ''} in a row — you\'re here!'
-                            : 'Scan waste today to begin your streak',
-                        style: t.bodySmall,
-                      ),
-                      const SizedBox(height: AppSpace.xs),
-                      Row(children: List.generate(7, (i) => Container(
-                        width: 10, height: 10,
-                        margin: const EdgeInsets.only(right: AppSpace.xxs + 1),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: i < streak ? c.primary : c.surfaceAlt,
-                          border: i < streak ? null : Border.all(color: c.border),
-                        ),
-                      ))),
-                    ])),
-                    const SizedBox(width: AppSpace.sm),
-                    Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.lg - 2)),
-                      child: const Center(child: ExcludeSemantics(child: Text('🏆', style: TextStyle(fontSize: 26)))),
-                    ),
-                  ]),
-                ),
-              ),
-            ),
-
-            // ── Badges banner ────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, 0),
-                child: PressScale(
-                  scale: 0.98,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => BadgesScreen(user: widget.user))),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpace.md),
-                    decoration: BoxDecoration(
-                      color: c.primaryContainer,
-                      borderRadius: AppRadius.all(AppRadius.xl),
-                      border: Border.all(color: c.primary.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(children: [
-                      ExcludeSemantics(
-                        child: SizedBox(
-                          width: 56, height: 40,
-                          child: Stack(
-                            children: List.generate(2, (i) => Positioned(
-                              left: i * 20.0,
-                              child: Container(
-                                width: 36, height: 36,
-                                decoration: BoxDecoration(
-                                  color: c.surface,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: c.primaryContainer, width: 2),
-                                ),
-                                child: Center(child: Text(['🌱', '♻️'][i], style: const TextStyle(fontSize: 16))),
-                              ),
-                            )),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpace.sm),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Your badges', style: t.titleSmall!.copyWith(
-                            color: c.onPrimaryContainer, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.user.badges.isEmpty
-                              ? 'Earn badges by scanning waste!'
-                              : '${widget.user.badges.length} badge${widget.user.badges.length > 1 ? 's' : ''} earned — tap to see all',
-                          style: t.bodySmall!.copyWith(color: c.onPrimaryContainer),
-                        ),
-                      ])),
-                      Icon(Icons.chevron_right_rounded, color: c.onPrimaryContainer),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Divider label ─────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl + 4, AppSpace.lg, AppSpace.sm),
-                child: Row(children: [
-                  Container(width: 4, height: 16, decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(2))),
-                  const SizedBox(width: AppSpace.sm - 2),
-                  Text('Your Stats', style: t.titleMedium),
-                ]),
-              ),
-            ),
-
-            // ── Progress to next rank ─────────────────────────────────────────
-            if (rank['next'] != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpace.md),
-                    decoration: cardDecoration(context),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: AppSpace.xs, runSpacing: AppSpace.xxs, children: [
-                        Icon(Icons.military_tech_rounded, color: c.ink(rankColor), size: 20),
-                        Text('Progress to ${rank['next']}', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-                        Text('${widget.user.lifetimePoints} / ${rank['nextPts']} lifetime pts',
-                            style: t.labelMedium!.copyWith(color: c.ink(rankColor), fontWeight: FontWeight.w700)),
-                      ]),
-                      const SizedBox(height: AppSpace.sm),
-                      AnimatedBar(progress: _rankProgress, color: rankColor),
-                      const SizedBox(height: AppSpace.xs - 2),
-                      Text('${(rank['nextPts'] as int) - widget.user.lifetimePoints} more points to reach ${rank['next']}',
-                          style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
-                    ]),
-                  ),
-                ),
-              ),
-
-            // ── Waste breakdown ───────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpace.md),
-                  decoration: cardDecoration(context),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Icon(Icons.pie_chart_rounded, color: c.primary, size: 18),
-                      const SizedBox(width: AppSpace.xs),
-                      Text('Waste Breakdown', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-                    ]),
-                    const SizedBox(height: AppSpace.md - 2),
-                    if (widget.logs.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-                        child: Center(
-                          child: Text('No scans yet — start recycling to see your breakdown!',
-                              textAlign: TextAlign.center, style: t.bodySmall),
-                        ),
-                      )
-                    else ...[
-                      _wasteBar('Biodegradable', bio, widget.logs.length, c.bio, wasteIcon('Biodegradable')),
-                      const SizedBox(height: AppSpace.sm - 2),
-                      _wasteBar('Recyclable',    rec, widget.logs.length, c.rec, wasteIcon('Recyclable')),
-                      const SizedBox(height: AppSpace.sm - 2),
-                      _wasteBar('Residual',      res, widget.logs.length, c.res, wasteIcon('Residual')),
-                    ],
-                  ]),
-                ),
-              ),
-            ),
-
-            // ── Preferences ──────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.sm),
-                // Material (not a coloured Container) so the switch row's ripple stays visible.
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: AppRadius.all(AppRadius.xl),
-                    boxShadow: AppShadows.of(context, AppShadows.e1),
-                  ),
-                  child: Material(
-                  color: c.surface,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppRadius.all(AppRadius.xl),
-                    side: c.isDark ? BorderSide(color: c.border) : BorderSide.none,
-                  ),
-                  child: SwitchListTile(
-                    secondary: IconBadge(icon: Icons.music_note_rounded, color: c.primary, size: 34),
-                    title: Text('Sound effects', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-                    subtitle: Text('Soft sounds when you scan, earn points or unlock a badge', style: t.bodySmall),
-                    value: AppSounds.enabled,
-                    onChanged: (v) async {
-                      AppHaptics.tap();
-                      await AppSounds.setEnabled(v);
-                      if (mounted) setState(() {});
-                      if (v) AppSounds.play(AppSound.success);   // a preview, so the user hears what they turned on
-                    },
-                  ),
-                )),
-              ),
-            ),
-
-            // ── Account info / edit form ──────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: cardDecoration(context),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, AppSpace.xs),
-                        child: Row(children: [
-                          IconBadge(icon: Icons.person_outline_rounded, color: c.primary, size: 34),
-                          const SizedBox(width: AppSpace.sm - 2),
-                          Text('Account Info', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15)),
+                          ],
+                          const Spacer(),
+                          Text('${user.badges.length}', style: t.titleMedium),
+                          Icon(Icons.chevron_right_rounded, color: c.textTertiary),
                         ]),
-                      ),
-                      const Divider(height: 1),
-                      TextFormField(
-                        controller: _userCtrl,
-                        enabled: _editing,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        onChanged: (_) => setState(() {}),
-                        style: t.bodyLarge,
-                        decoration: InputDecoration(
-                          labelText: 'Username',
-                          prefixIcon: Icon(Icons.person_outline_rounded,
-                              color: _editing ? c.primary : c.textTertiary, size: 20),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
-                          filled: _editing,
-                          fillColor: _editing ? c.primaryContainer.withValues(alpha: 0.4) : null,
-                          // Live feedback while editing (the 3-character rule is unchanged).
-                          helperText: _editing ? '${_userCtrl.text.trim().length} characters · at least 3' : null,
-                          suffixIcon: _editing && _userCtrl.text.trim().length >= 3
-                              ? Icon(Icons.check_circle_rounded, color: c.success)
-                              : null,
-                        ),
-                        validator: (v) => v!.trim().length < 3 ? 'Min 3 characters' : null,
-                      ),
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.md - 2),
-                        child: Row(children: [
-                          Icon(Icons.email_outlined, color: c.textTertiary, size: 20),
-                          const SizedBox(width: AppSpace.sm),
-                          Expanded(child: Text(widget.user.email,
-                              style: t.bodyMedium!.copyWith(color: c.textSecondary), overflow: TextOverflow.ellipsis)),
-                        ]),
-                      ),
-                    ]),
+                ),
+              )),
+              gap(),
+
+              // ── Settings ──
+              padded(SettingsGroup(title: 'Account', children: [
+                SettingsRow(icon: Icons.person_outline_rounded, title: 'Edit profile',
+                    subtitle: 'Photo and username', onTap: _editProfile),
+                SettingsRow(icon: Icons.password_rounded, title: 'Change password',
+                    onTap: () => confirmPasswordReset(context, user.email)),
+                SettingsRow(icon: Icons.alternate_email_rounded, title: 'Email', value: user.email),
+              ])),
+              gap(AppSpace.lg),
+              padded(SettingsGroup(title: 'Preferences', children: [
+                // Hidden where this build has no sound player (iPhone), instead of a switch that does nothing.
+                if (AppSounds.available)
+                  SettingsRow(
+                    icon: Icons.volume_up_outlined,
+                    title: 'Sound effects',
+                    trailing: Switch(
+                      value: AppSounds.enabled,
+                      onChanged: (v) async {
+                        AppHaptics.tap();
+                        await AppSounds.setEnabled(v);
+                        if (mounted) setState(() {});
+                        if (v) AppSounds.play(AppSound.success);
+                      },
+                    ),
                   ),
+                SettingsRow(icon: Icons.notifications_none_rounded, title: 'Notifications',
+                    subtitle: 'Points credited and reward reminders',
+                    onTap: () => AppSettings.openAppSettings(type: AppSettingsType.notification)),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: Appearance.mode,
+                  builder: (_, mode, __) => SettingsRow(icon: Icons.contrast_rounded, title: 'Appearance',
+                      value: Appearance.label(mode), onTap: () => showAppearanceSheet(context)),
                 ),
-              ),
-            ),
-
-            if (_editing)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md - 2, AppSpace.lg, 0),
-                  child: AppButton(label: 'Save Changes', height: 54, loading: _saving, onPressed: _save),
-                ),
-              ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
-          ],
-        )),
+              ])),
+              gap(AppSpace.lg),
+              padded(SettingsGroup(title: 'Help & legal', children: [
+                SettingsRow(icon: Icons.help_outline_rounded, title: 'How ECOReward works',
+                    onTap: () => showHowItWorksSheet(context)),
+                SettingsRow(icon: Icons.privacy_tip_outlined, title: 'Privacy', onTap: () => showPrivacySheet(context)),
+              ])),
+              gap(AppSpace.lg),
+              padded(SettingsGroup(children: [
+                SettingsRow(icon: Icons.logout_rounded, title: 'Sign out', destructive: true, onTap: _signOut),
+              ])),
+              gap(),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  String _monthYear(DateTime d) {
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${m[d.month - 1]} ${d.year}';
-  }
-
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-
-  Widget _statPill(String value, String label, IconData icon, Color color,
-          {int? count, String suffix = '', bool info = false}) =>
-      Column(children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: AppSpace.xs - 2),
-        if (count != null)
-          AnimatedCount(count, suffix: suffix, fromZero: true,
-              style: context.text.titleSmall!.copyWith(fontFamily: AppType.displayFamily, fontWeight: FontWeight.w700, fontSize: 16))
-        else
-          Text(value, style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 2),
-        if (info)
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(label, style: context.text.labelSmall),
-            const SizedBox(width: 2),
-            Icon(Icons.info_outline_rounded, size: 12, color: context.colors.textSecondary),
-          ])
-        else
-          Text(label, style: context.text.labelSmall),
-      ]);
-
-  Widget _divider() => Container(width: 1, height: 40, color: context.colors.border);
-
-  Widget _wasteBar(String label, int count, int total, Color color, IconData icon) {
-    final c = context.colors;
-    final pct = total == 0 ? 0.0 : count / total;
-    return Row(children: [
-      IconBadge(icon: icon, color: color, size: 28),
-      const SizedBox(width: AppSpace.sm - 2),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label, style: context.text.labelMedium!.copyWith(fontWeight: FontWeight.w500)),
-          Text('$count', style: context.text.labelMedium!.copyWith(color: c.ink(color), fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: AppSpace.xxs),
-        AnimatedBar(progress: pct, color: color, height: 6),
-      ])),
-    ]);
-  }
-}
-
-// ── Dashed ring avatar ────────────────────────────────────────────────────────
-class _DashedAvatar extends StatelessWidget {
-  final String initial;
-  final String rankIcon;
-  final Color rankColor;
-  final String? heroTag;
-  const _DashedAvatar({required this.initial, required this.rankIcon, required this.rankColor, this.heroTag});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        _TurningRing(
-          color: rankColor,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpace.xs - 2),
-            child: _hero(Container(
-              width: 88, height: 88,
-              decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
-              child: Center(
-                child: Text(initial, style: AppType.numeral.copyWith(color: c.onPrimaryContainer, fontSize: 36)),
-              ),
-            )),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(AppSpace.xxs),
-          decoration: BoxDecoration(
-            color: rankColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: c.background, width: 2),
-          ),
-          child: Text(rankIcon, style: const TextStyle(fontSize: 12)),
-        ),
-      ],
-    );
-  }
-}
-
-extension on _DashedAvatar {
-  Widget _hero(Widget child) =>
-      heroTag == null ? child : Hero(tag: heroTag!, flightShuttleBuilder: heroMaterialFlight, child: child);
-}
-
-/// The dashed ring around the avatar, in the rank's colour, turning slowly (one turn every
-/// 12 s; still with reduced motion). Only the ring repaints, on its own layer.
-class _TurningRing extends StatefulWidget {
-  const _TurningRing({required this.color, required this.child});
-  final Color color;
-  final Widget child;
-  @override
-  State<_TurningRing> createState() => _TurningRingState();
-}
-
-class _TurningRingState extends State<_TurningRing> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 12));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _c.stop();
-    } else if (!_c.isAnimating) {
-      _c.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Stack(alignment: Alignment.center, children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: RotationTransition(
-              turns: _c,
-              child: CustomPaint(painter: _DashedCirclePainter(color: widget.color)),
+  Widget _stat(String value, String label, String hint, VoidCallback? onTap) => Expanded(
+        child: Semantics(
+          button: onTap != null,
+          label: '$label $value, $hint',
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: onTap == null ? null : () { AppHaptics.tap(); onTap(); },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
+              child: Column(children: [
+                FittedBox(fit: BoxFit.scaleDown,
+                    child: Text(value, style: AppType.numeral.copyWith(fontSize: 26, color: context.colors.textPrimary))),
+                const SizedBox(height: AppSpace.xxs),
+                Text(label, style: context.text.bodySmall),
+              ]),
             ),
           ),
         ),
-        widget.child,
-      ]);
-}
-
-class _DashedCirclePainter extends CustomPainter {
-  final Color color;
-  const _DashedCirclePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 1;
-    const dashCount = 24;
-    const dashAngle = 3.14159 * 2 / dashCount;
-    const gapFraction = 0.4;
-
-    for (int i = 0; i < dashCount; i++) {
-      // Fading tail, so the turning reads like a comet around the avatar.
-      paint.color = color.withValues(alpha: 0.2 + 0.8 * i / dashCount);
-      final startAngle = i * dashAngle;
-      const sweepAngle = dashAngle * (1 - gapFraction);
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle, sweepAngle, false, paint,
       );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedCirclePainter old) => old.color != color;
 }

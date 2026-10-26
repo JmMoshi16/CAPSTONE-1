@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/models.dart';
@@ -150,6 +151,22 @@ class FirebaseService {
     await _db.runTransaction((tx) async {
       final u = UserModel.fromDoc(await tx.get(userRef));
       tx.update(userRef, {'username': username});
+      tx.set(_db.collection('profiles').doc(uid), _profileMirror(
+          username: username, points: u.points, lifetimePoints: u.lifetimePoints, badges: u.badges));
+    });
+  }
+
+  /// Edit profile: the display name and, optionally, the photo ([removePhoto] deletes it). Only these fields are
+  /// written; the public profiles/{uid} copy gets the name but never the photo (the leaderboard stays photo-free).
+  static Future<void> updateProfile(String uid, {required String username, Uint8List? photo, bool removePhoto = false}) async {
+    final userRef = _db.collection('users').doc(uid);
+    await _db.runTransaction((tx) async {
+      final u = UserModel.fromDoc(await tx.get(userRef));
+      tx.update(userRef, {
+        'username': username,
+        if (photo != null) 'photo': Blob(photo),
+        if (removePhoto) 'photo': FieldValue.delete(),
+      });
       tx.set(_db.collection('profiles').doc(uid), _profileMirror(
           username: username, points: u.points, lifetimePoints: u.lifetimePoints, badges: u.badges));
     });

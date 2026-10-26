@@ -42,8 +42,8 @@ class AppSpace {
   static const double xxl = 32;
   static const double xxxl = 40;
 
-  /// Bottom padding for scrolling content so the floating nav bar never covers it.
-  static const double navClearance = 112;
+  /// Bottom padding at the end of scrolling content.
+  static const double navClearance = 24;   // the tab bar is docked, so it never covers content
 
   /// Minimum touch target (Material / WCAG 2.5.5).
   static const double touch = 48;

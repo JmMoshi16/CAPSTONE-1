@@ -47,11 +47,10 @@ void main() {
     await _done(tester);
   });
 
-  testWidgets('Home "Your impact" tile uses the same count', (tester) async {
+  testWidgets('Home shows no CO₂ or weight figures either', (tester) async {
     final user = UserModel(uid: 'u', username: 'Ana', email: 'a@x.com', role: 'customer', points: 60,
         createdAt: DateTime(2026));
     await _pump(tester, homeTabPreview(user: user, logs: _logs));
-    expect(find.text('5 recyclable or compostable', skipOffstage: false), findsOneWidget);
     _noUnsupportedFigures();
     await _done(tester);
   });

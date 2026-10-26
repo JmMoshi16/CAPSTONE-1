@@ -70,7 +70,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Your Impact', style: t.headlineSmall!.copyWith(color: c.onHero)),
+                        Text('Your activity', style: t.headlineSmall!.copyWith(color: c.onHero)),
                         const SizedBox(height: AppSpace.xs - 2),
                         Text('Your recycling contribution', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
                         const SizedBox(height: AppSpace.md),

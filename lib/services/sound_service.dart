@@ -14,8 +14,13 @@ class AppSounds {
   static const _channel = MethodChannel('ecoreward/sounds');
   static bool _loaded = false;
   static bool _enabled = true;
+  static bool _available = false;   // the native player exists (Android); iPhone has none yet
 
   static bool get enabled => _enabled;
+
+  /// False where this build has no sound player (iPhone), so Profile hides the switch instead of showing one
+  /// that does nothing.
+  static bool get available => _available;
 
   static String _asset(AppSound s) => 'assets/sounds/${s.name}.wav';
 
@@ -23,6 +28,7 @@ class AppSounds {
     try {
       _enabled = (await SharedPreferences.getInstance()).getBool(_key) ?? true;
       await _channel.invokeMethod<void>('load', AppSound.values.map(_asset).toList());
+      _available = true;
     } catch (_) {}
     _loaded = true;
   }
@@ -35,7 +41,7 @@ class AppSounds {
   }
 
   /// Whether a sound would actually play (callers fall back to the system click otherwise).
-  static bool get active => _loaded && _enabled;
+  static bool get active => _loaded && _enabled && _available;
 
   static Future<void> play(AppSound s) async {
     if (!active) return;

@@ -25,9 +25,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSCameraUsageDescription</key>
-	<string>ECOReward uses the camera to scan the QR code on the bin, so your points can be added.</string>
+	<string>ECOReward uses the camera to scan the QR code on the bin, and to take your profile photo if you choose to.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ECOReward can save receipts you choose to keep.</string>
+	<string>Choose a photo from your library for your ECOReward profile.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

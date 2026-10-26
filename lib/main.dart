@@ -8,6 +8,7 @@ import 'widgets/ui.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 import 'services/sound_service.dart';
+import 'services/appearance.dart';
 import 'models/models.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
@@ -26,6 +27,7 @@ void main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
+  await Appearance.load();   // a few ms; avoids a light-to-dark flash at launch
   runApp(const ECORewardApp());
 
   // Run non-critical tasks in the background AFTER the app is visible
@@ -40,15 +42,18 @@ class ECORewardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ECOReward Bin',
-      debugShowCheckedModeBanner: false,
-      // Customer screens follow the phone's light/dark setting; admin screens are always dark.
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      // Auth gate: a still launch screen while the saved session is checked, then home or login.
-      home: const _AuthGate(),
+    // Customer screens follow Profile > Appearance (default: the phone's setting); admin screens are always dark.
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: Appearance.mode,
+      builder: (_, mode, __) => MaterialApp(
+        title: 'ECOReward Bin',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: mode,
+        // Auth gate: a still launch screen while the saved session is checked, then home or login.
+        home: const _AuthGate(),
+      ),
     );
   }
 }
