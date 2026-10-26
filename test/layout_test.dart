@@ -29,6 +29,7 @@ import 'package:ecoreward_bin/screens/customer/scan_history_screen.dart';
 import 'package:ecoreward_bin/screens/login_screen.dart';
 import 'package:ecoreward_bin/screens/register_screen.dart';
 import 'package:ecoreward_bin/screens/splash_screen.dart';
+import 'package:ecoreward_bin/widgets/ui/skeleton.dart';
 
 /// The app's own bundled fonts (DM Sans body, Fraunces headings): measure with what ships.
 Future<void> _loadAppFonts() async {
@@ -105,6 +106,7 @@ final Map<String, Widget Function()> _customerScreens = {
   'Register': () => const RegisterScreen(),
   'Home': () => homeTabPreview(user: _user, logs: _logs, rewards: _rewards, redemptions: _redemptions, myRank: 3),
   'Home (new user, offline)': () => homeTabPreview(user: _newUser, offline: true),
+  'Home (loading)': () => const Scaffold(body: HomeSkeleton()),
   'Rewards': () => RewardsScreen(user: _user, rewards: _rewards, onRedeemed: () {}),
   'Impact': () => ImpactScreen(logs: _logs),
   'Impact (empty)': () => ImpactScreen(logs: const [], onScan: () {}),
@@ -117,10 +119,8 @@ final Map<String, Widget Function()> _customerScreens = {
   'Success (badges + rank-up)': () =>
       successScreenPreview(points: 23, basePoints: 15, newBadges: ['first_scan', 'streak_7'], lifetimeBefore: 190),
   'Staff code': () => StaffCodeScreen(redemption: _redemptions.first),
-  'Reward detail (can redeem)': () => RewardDetailScreen(reward: _rewards[0], user: _user, heroTag: 't1',
-      icon: Icons.coffee_rounded, color: const Color(0xFF795548)),
-  'Reward detail (locked)': () => RewardDetailScreen(reward: _rewards[1], user: _user, heroTag: 't2',
-      icon: Icons.fastfood_rounded, color: const Color(0xFFFF7043)),
+  'Reward detail (can redeem)': () => RewardDetailScreen(reward: _rewards[0], user: _user, heroTag: 't1'),
+  'Reward detail (locked)': () => RewardDetailScreen(reward: _rewards[1], user: _user, heroTag: 't2'),
 };
 
 final Map<String, Widget Function()> _adminScreens = {

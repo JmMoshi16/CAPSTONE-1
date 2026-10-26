@@ -6,7 +6,6 @@ import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../core/gamification.dart';
-import '../../widgets/eco_animations.dart';
 import '../../widgets/ui.dart';
 import 'qr_scanner_screen.dart';
 import 'rewards_screen.dart';
@@ -91,12 +90,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ),
       );
     }
-    if (_user == null) {
-      // The real layout in grey, with the brand loader in the header (first launch / cold start).
-      return const Scaffold(body: HomeSkeleton(center: EcoLoader(size: 72, semanticLabel: 'Loading')));
-    }
-
-    final screens = [
+    final loading = _user == null;
+    // While the first data loads: Home's silhouette, with the real nav bar already in place.
+    final screens = loading ? const <Widget>[] : [
       _HomeTab(
         user: _user!, logs: _logs, rewards: _rewards, myRank: _myRank,
         redemptions: _redemptions,
@@ -123,7 +119,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     // Docked tab bar (no body swipe: it fought the iOS back gesture and the charts).
     return Scaffold(
-      body: FadeIndexedStack(index: _selectedIndex, children: screens),
+      body: AnimatedSwitcher(
+        duration: AppMotion.of(context, AppMotion.medium),
+        child: loading
+            ? const HomeSkeleton(key: ValueKey('loading'))
+            : FadeIndexedStack(key: const ValueKey('ready'), index: _selectedIndex, children: screens),
+      ),
       bottomNavigationBar: _BottomNav(
         selectedIndex: _selectedIndex,
         onTap: (i) { AppHaptics.tap(); setState(() => _selectedIndex = i); },
@@ -381,8 +382,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
 
         Widget group(String label) => Padding(
               padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xs),
-              child: Semantics(header: true, child: Text(label.toUpperCase(),
-                  style: ctx.text.labelSmall!.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w800))),
+              child: Semantics(header: true, child: Text(label, style: ctx.text.titleSmall)),
             );
 
         // Swipe either way to dismiss (remembered on this phone).
@@ -638,7 +638,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
             const SizedBox(width: AppSpace.md),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(log.wasteType, style: t.titleSmall),
-              Text(DateFormat('MMM d · h:mm a').format(log.timestamp), style: t.bodySmall),
+              Text(DateFormat('MMM d, h:mm a').format(log.timestamp), style: t.bodySmall),
             ])),
             Text('+${log.pointsAwarded} pts', style: t.titleSmall!.copyWith(color: c.success)),
           ]),

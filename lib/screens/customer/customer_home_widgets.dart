@@ -120,13 +120,6 @@ class _RewardStrip extends StatelessWidget {
   final int points;
   final ValueChanged<Reward> onOpen;
 
-  static IconData icon(String cat) => switch (cat) {
-        'Coffee' => Icons.coffee_rounded,
-        'Food' => Icons.lunch_dining_rounded,
-        'Discount' => Icons.sell_rounded,
-        _ => Icons.redeem_rounded,
-      };
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -142,22 +135,26 @@ class _RewardStrip extends StatelessWidget {
         itemBuilder: (_, i) {
           final r = rewards[i];
           final short = r.pointsCost - points;
-          final color = AppPalette.categories[r.category] ?? AppPalette.forest;
+          final price = r.pointsCost <= 0 ? 'Free' : '${r.pointsCost} pts';
           return Tap(
-            label: '${r.title}, ${r.pointsCost} points${short > 0 ? ', $short more needed' : ', ready to redeem'}',
+            label: '${r.title}, $price${short > 0 ? ', $short more points needed' : ', ready to redeem'}',
             onTap: () => onOpen(r),
             child: Container(
               width: 168 * scale,
               padding: const EdgeInsets.all(AppSpace.md),
               decoration: cardDecoration(context),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Medallion(icon: icon(r.category), color: color, size: 36),
+                RewardArt(title: r.title, category: r.category, size: 36),
                 const Spacer(),
                 Text(r.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall),
                 const SizedBox(height: AppSpace.xxs),
-                Text(short > 0 ? '${r.pointsCost} pts · $short to go' : '${r.pointsCost} pts · Redeem',
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: t.labelMedium!.copyWith(color: short > 0 ? c.textSecondary : c.primary)),
+                Row(children: [
+                  Expanded(child: Text(price, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: t.labelMedium!.copyWith(color: c.textSecondary))),
+                  Text(short > 0 ? '$short to go' : 'Redeem',
+                      style: t.labelMedium!.copyWith(color: short > 0 ? c.textSecondary : c.primary,
+                          fontWeight: FontWeight.w700)),
+                ]),
               ]),
             ),
           );
@@ -213,7 +210,8 @@ class _WeekCard extends StatelessWidget {
   }
 }
 
-// ── Bottom navigation: docked, labelled, one indicator shape (Material 3 / iOS tab bar) ──
+// ── Bottom navigation: docked and labelled. The selected tab gets a pill; Scan is an action, not a tab,
+// so it is a round button with an ordinary label and never looks selected. ──
 class _BottomNav extends StatelessWidget {
   const _BottomNav({required this.selectedIndex, required this.onTap, required this.onScan, required this.onScanWithLight});
 
@@ -240,13 +238,18 @@ class _BottomNav extends StatelessWidget {
                 onLongPress: onScanWithLight,
                 longPressHint: 'scan with the flashlight on',
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(
-                    width: 52, height: 32,
-                    decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.pill)),
-                    child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 20),
+                  SizedBox(
+                    height: _iconSlot,
+                    child: Center(
+                      child: Container(
+                        width: _iconSlot, height: _iconSlot,
+                        decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                        child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 20),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: AppSpace.xxs),
-                  Text('Scan', style: context.text.labelSmall!.copyWith(color: c.primary, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text('Scan', style: context.text.labelSmall!.copyWith(color: c.textSecondary, fontWeight: FontWeight.w600)),
                 ]),
               ),
             ),
@@ -258,6 +261,9 @@ class _BottomNav extends StatelessWidget {
     );
   }
 
+  /// Height of the icon row, shared by the tabs and the Scan button so every label sits on one line.
+  static const _iconSlot = 40.0;
+
   Widget _item(BuildContext context, IconData active, IconData inactive, String label, int index) {
     final c = context.colors;
     final selected = selectedIndex == index;
@@ -267,17 +273,27 @@ class _BottomNav extends StatelessWidget {
         selected: selected,
         onTap: () => onTap(index),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          AnimatedContainer(
-            duration: AppMotion.of(context, AppMotion.medium),
-            curve: AppMotion.standard,
-            width: 52, height: 32,
-            decoration: BoxDecoration(
-              color: selected ? c.primaryContainer : Colors.transparent,
-              borderRadius: AppRadius.all(AppRadius.pill),
+          SizedBox(
+            height: _iconSlot,
+            child: Center(
+              child: AnimatedContainer(
+                duration: AppMotion.of(context, AppMotion.medium),
+                curve: AppMotion.standard,
+                width: 52, height: 32,
+                decoration: BoxDecoration(
+                  color: selected ? c.primaryContainer : Colors.transparent,
+                  borderRadius: AppRadius.all(AppRadius.pill),
+                ),
+                // Outline to filled icon as a quick cross-fade.
+                child: AnimatedSwitcher(
+                  duration: AppMotion.of(context, AppMotion.fast),
+                  child: Icon(selected ? active : inactive, key: ValueKey(selected),
+                      color: selected ? c.onPrimaryContainer : c.textSecondary, size: 22),
+                ),
+              ),
             ),
-            child: Icon(selected ? active : inactive, color: selected ? c.onPrimaryContainer : c.textSecondary, size: 22),
           ),
-          const SizedBox(height: AppSpace.xxs),
+          const SizedBox(height: 2),
           Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: context.text.labelSmall!.copyWith(
                   color: selected ? c.textPrimary : c.textSecondary,

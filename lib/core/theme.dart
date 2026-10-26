@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 // Colours, spacing and type live in tokens.dart; this file keeps the rank and level rules.
 
+/// The kiosk's bin symbols: leaf, recycle, bin.
 IconData wasteIcon(String type) {
   switch (type) {
-    case 'Biodegradable': return Icons.compost_rounded;
+    case 'Biodegradable': return Icons.eco_rounded;
     case 'Recyclable':    return Icons.recycling_rounded;
     default:              return Icons.delete_outline_rounded;
   }

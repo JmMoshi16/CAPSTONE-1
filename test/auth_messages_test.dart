@@ -18,6 +18,15 @@ void main() {
       expect(loginErrorMessage('too-many-requests'), contains('Too many'));
       expect(loginErrorMessage('user-disabled'), contains('disabled'));
     });
+    test('a blocked secure connection says so (it used to fall through to "Could not sign in")', () {
+      // Exactly what Firebase Auth reported on the emulator when Norton's HTTPS scanning replaced the certificate.
+      const fromLog = 'internal-error An internal error has occurred. '
+          '[ java.security.cert.CertPathValidatorException:Trust anchor for certification path not found. ]';
+      expect(loginErrorMessage(fromLog), blockedConnectionMessage);
+      expect(loginErrorMessage('HandshakeException: Handshake error in client (OS Error: CERTIFICATE_VERIFY_FAILED)'),
+          blockedConnectionMessage);
+      expect(registerErrorMessage(fromLog), blockedConnectionMessage);
+    });
     test('anything else never leaks raw exception text', () {
       final msg = loginErrorMessage('PlatformException(ERROR_INTERNAL, internal stack trace...)');
       expect(msg, 'Could not sign in. Please try again.');

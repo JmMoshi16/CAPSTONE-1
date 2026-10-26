@@ -1,7 +1,7 @@
 // ECOReward Bin brand animations (Lottie).
 //
 // Requires:  lottie: ^3.1.2   (pubspec.yaml)
-// Assets:    assets/animations/{loader,success,idle}.json
+// Assets:    assets/animations/{splash,loader,success,idle}.json
 //
 // Every widget respects the system "Remove animations" setting
 // (MediaQuery.disableAnimations): it shows the finished frame instead of moving.
@@ -22,12 +22,14 @@ class EcoAnimations {
   static const loader = 'assets/animations/loader.json';   // 1.5 s, loops
   static const success = 'assets/animations/success.json'; // 1.2 s, plays once
   static const idle = 'assets/animations/idle.json';       // 4.0 s, loops
+  static const splash = 'assets/animations/splash.json';   // 4.0 s, plays once (bean -> leaf -> cup-bin)
 
   /// Optional: call once at startup so the first animation shows instantly.
   static Future<void> precache() async {
     await Future.wait([
       AssetLottie(loader).load(),
       AssetLottie(success).load(),
+      AssetLottie(splash).load(),
     ]);
   }
 }
@@ -60,6 +62,50 @@ class EcoLoader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The brand story, played once: a coffee bean becomes a leaf growing out of the cafe's cup-bin, then holds
+/// on the finished symbol. The file's last 0.8 s is left for an app name drawn by Flutter, so it stops before.
+/// With "Remove animations" on, the finished symbol shows straight away.
+class EcoBrandIntro extends StatefulWidget {
+  const EcoBrandIntro({super.key, this.size = 132});
+  final double size;
+
+  @override
+  State<EcoBrandIntro> createState() => _EcoBrandIntroState();
+}
+
+class _EcoBrandIntroState extends State<EcoBrandIntro> with SingleTickerProviderStateMixin {
+  static const _symbolDone = 0.8;   // 3.2 s of 4.0 s
+  late final AnimationController _c = AnimationController(vsync: this);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _start(LottieComposition comp) {
+    _c.duration = comp.duration;
+    if (_reduceMotion(context)) {
+      _c.value = _symbolDone;
+    } else {
+      _c.animateTo(_symbolDone);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: Lottie.asset(
+          EcoAnimations.splash,
+          controller: _c,
+          width: widget.size,
+          height: widget.size,
+          onLoaded: _start,
+          errorBuilder: (_, __, ___) =>
+              Image.asset('assets/icons/app_icon.png', width: widget.size * .6, height: widget.size * .6),
+        ),
+      );
 }
 
 /// Plays the green disc + checkmark once, then calls [onCompleted].

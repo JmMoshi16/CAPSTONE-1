@@ -5,10 +5,9 @@ import '../../models/models.dart';
 import '../../widgets/ui.dart';
 import '../../widgets/eco_animations.dart';
 import 'dart:async';
+import 'account_sheets.dart';
 import 'reward_detail_screen.dart';
-
-/// Category accent colours (decorative; text drawn in them goes through `colors.ink`).
-const _catColors = AppPalette.categories;
+import 'reward_row.dart';
 
 class RewardsScreen extends StatefulWidget {
   final UserModel user;
@@ -134,13 +133,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     // The detail page explains cost vs balance and asks for a press-and-hold to confirm
     // (it also shows how many points are missing, instead of a snackbar).
     final confirm = await Navigator.push<bool>(context, MaterialPageRoute(
-      builder: (_) => RewardDetailScreen(
-        reward: reward,
-        user: widget.user,
-        heroTag: _rewardHeroTag(reward),
-        icon: _catIcon(reward.category),
-        color: _catColors[reward.category] ?? AppPalette.forest,
-      ),
+      builder: (_) => RewardDetailScreen(reward: reward, user: widget.user, heroTag: _rewardHeroTag(reward)),
     ));
 
     if (confirm != true) return;
@@ -246,16 +239,23 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         kind: color == c.danger ? SnackKind.error : color == c.success ? SnackKind.success : SnackKind.info);
   }
 
+  /// Codes that can still be shown at the counter (the My codes tab counts these, not the history).
+  int get _usableCodes {
+    final now = DateTime.now();
+    return _redemptions.where((r) => r.status == 'pending' && !now.isAfter(r.expiresAt)).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.text;
+    final codes = _usableCodes;
     return Scaffold(
       body: Stack(children: [
       NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
-            expandedHeight: AppLayout.headerHeight(context, 184, perScale: 130),
+            expandedHeight: AppLayout.headerHeight(context, 140, perScale: 100),
             pinned: true,
             backgroundColor: c.background,
             surfaceTintColor: Colors.transparent,
@@ -266,22 +266,28 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                 child: SafeArea(
                   child: Padding(
                     // Bottom padding = the tab bar, which sits on top of this background.
-                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, kTextTabBarHeight),
+                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xs, AppSpace.xs, kTextTabBarHeight),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Rewards', style: t.headlineMedium),
-                        const SizedBox(height: AppSpace.xxs),
-                        Text('Spend your points at the counter', style: t.bodyMedium!.copyWith(color: c.textSecondary)),
-                        const SizedBox(height: AppSpace.md - 2),
-                        Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xs, children: [
-                          _headerPill(Icons.stars_rounded, c.ink(c.gold), widget.user.points, bold: true),
-                          Tap(
-                            label: '${_redemptions.length} redeemed, open My Codes',
-                            onTap: showMyCodes,
-                            child: _headerPill(Icons.receipt_long_rounded, c.textSecondary, _redemptions.length),
+                        Row(children: [
+                          Expanded(child: Text('Rewards', style: t.headlineMedium)),
+                          IconButton(
+                            tooltip: 'How rewards work',
+                            onPressed: () => showHowItWorksSheet(context),
+                            icon: Icon(Icons.help_outline_rounded, color: c.textSecondary),
                           ),
                         ]),
+                        Semantics(
+                          label: 'You have ${widget.user.points} points to spend',
+                          excludeSemantics: true,
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                            AnimatedCount(widget.user.points,
+                                style: t.titleLarge!.copyWith(fontFamily: AppType.displayFamily, color: c.primary)),
+                            Flexible(child: Text(' pts to spend', maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: t.bodyMedium!.copyWith(color: c.textSecondary))),
+                          ]),
+                        ),
                       ],
                     ),
                   ),
@@ -296,8 +302,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
               unselectedLabelColor: c.textSecondary,
               dividerColor: c.border,
               tabs: [
-                Tab(text: 'Available (${_rewards.length})'),
-                Tab(text: 'My Codes (${_redemptions.length})'),
+                const Tab(text: 'Available'),
+                Tab(text: codes > 0 ? 'My codes ($codes)' : 'My codes'),
               ],
             ),
           ),
@@ -314,29 +320,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     );
   }
 
-  /// [count] animates when it changes (e.g. after redeeming); bold = the points pill.
-  Widget _headerPill(IconData icon, Color iconColor, int count, {bool bold = false}) {
-    final c = context.colors;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: bold ? 0 : AppSpace.md - 2, vertical: AppSpace.xs),
-      decoration: bold
-          ? null
-          : BoxDecoration(
-              color: c.surface,
-              borderRadius: AppRadius.all(AppRadius.pill),
-              border: Border.all(color: c.border),
-            ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: iconColor, size: 16),
-        const SizedBox(width: AppSpace.xs - 2),
-        AnimatedCount(count, suffix: bold ? ' pts available' : ' redeemed', style: context.text.labelMedium!.copyWith(
-            color: bold ? c.textPrimary : c.textSecondary, fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
-      ]),
-    );
-  }
-
   Widget _buildAvailable() {
-    if (_loadingRewards) return const _RewardsGridSkeleton();
+    if (_loadingRewards) return const _RewardsListSkeleton();
     if (_rewardsError) {
       return _refreshable(_loadRewards, ErrorState(
         title: "Couldn't load rewards",
@@ -354,89 +339,121 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       ));
     }
 
-    // Taller cards when the user enlarges text, so nothing is clipped.
-    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
-
-    return GestureDetector(
-      onHorizontalDragEnd: _swipeCategory,
-      child: EcoRefresh(
-      onRefresh: _loadRewards,
-      child: CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        // Category filter chips
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 56,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xxs),
-              itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: AppSpace.xs),
-              itemBuilder: (_, i) {
-                final cat = _categories[i];
-                return AppChip(
-                  label: cat,
-                  semanticLabel: '$cat rewards',
-                  icon: cat == 'All' ? null : _catIcon(cat),
-                  selected: _selectedCategory == cat,
-                  onTap: () => setState(() {
-                    _swipeForward = _categories.indexOf(cat) >= _categories.indexOf(_selectedCategory);
-                    _selectedCategory = cat;
-                  }),
-                );
-              },
-            ),
-          ),
-        ),
-
-        // Rewards grid or empty state
-        if (_filteredRewards.isEmpty)
-          SliverFillRemaining(
+    final groups = groupRewards(_filteredRewards, widget.user.points);
+    final menu = _filteredRewards.isEmpty
+        ? Padding(
+            padding: const EdgeInsets.only(top: AppSpace.xxl),
             child: EmptyState(
-              icon: _catIcon(_selectedCategory),
+              icon: rewardIconData('', _selectedCategory),
               title: 'No $_selectedCategory rewards yet',
               actionLabel: 'Show all rewards',
               onAction: () => setState(() => _selectedCategory = 'All'),
               dense: true,
             ),
           )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xxs, AppSpace.md, AppSpace.navClearance),
-            sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: AppLayout.columns(context), crossAxisSpacing: AppSpace.sm, mainAxisSpacing: AppSpace.sm,
-                childAspectRatio: 0.74 / textScale,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                // A category change slides the cards in from the swipe direction.
-                (_, i) => TweenAnimationBuilder<double>(
-                  key: ValueKey('$_selectedCategory#$i'),
-                  tween: Tween(begin: 0, end: 1),
-                  duration: AppMotion.of(context, AppMotion.medium),
-                  curve: AppMotion.standard,
-                  builder: (_, v, child) => Opacity(
-                    opacity: v,
-                    child: Transform.translate(offset: Offset((1 - v) * (_swipeForward ? 40 : -40), 0), child: child),
-                  ),
-                  child: _AnimatedRewardCard(
-                    reward: _filteredRewards[i],
-                    index: i,
-                    onTap: () => _redeem(_filteredRewards[i]),
-                    onPeek: () => _peekReward(_filteredRewards[i]),
-                    user: widget.user,
-                    catIcon: _catIcon,
-                    animate: _animateCards,
-                    heroTag: _rewardHeroTag(_filteredRewards[i]),
-                  ),
-                ),
-                childCount: _filteredRewards.length,
+        : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (groups.ready.isNotEmpty) _menuSection('Ready to redeem', groups.ready),
+            if (groups.saving.isNotEmpty)
+              _menuSection(groups.ready.isEmpty ? 'Rewards to work towards' : 'Keep saving', groups.saving),
+            if (groups.soldOut.isNotEmpty) _menuSection('Sold out', groups.soldOut),
+          ]);
+
+    return GestureDetector(
+      onHorizontalDragEnd: _swipeCategory,
+      child: EcoRefresh(
+        onRefresh: _loadRewards,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: AppSpace.navClearance),
+          children: [
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                itemCount: _categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: AppSpace.xs),
+                itemBuilder: (_, i) {
+                  final cat = _categories[i];
+                  return AppChip(
+                    label: cat,
+                    semanticLabel: '$cat rewards',
+                    icon: cat == 'All' ? null : rewardIconData('', cat),
+                    selected: _selectedCategory == cat,
+                    onTap: () => setState(() {
+                      _swipeForward = _categories.indexOf(cat) >= _categories.indexOf(_selectedCategory);
+                      _selectedCategory = cat;
+                    }),
+                  );
+                },
               ),
             ),
-          ),
-      ],
-    )));
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                  // First visit: the menu rises in once. A category change slides it from the side you moved to.
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: _animateCards ? 0 : 1, end: 1),
+                    duration: AppMotion.of(context, AppMotion.slow),
+                    curve: AppMotion.standard,
+                    builder: (_, v, child) => Opacity(
+                      opacity: v,
+                      child: Transform.translate(offset: Offset(0, (1 - v) * 16), child: child),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.of(context, AppMotion.medium),
+                      layoutBuilder: (current, previous) =>
+                          Stack(alignment: Alignment.topCenter, children: [...previous, if (current != null) current]),
+                      transitionBuilder: (child, a) => FadeTransition(
+                        opacity: a,
+                        child: SlideTransition(
+                          position: Tween(begin: Offset(_swipeForward ? 0.06 : -0.06, 0), end: Offset.zero).animate(a),
+                          child: child,
+                        ),
+                      ),
+                      child: KeyedSubtree(key: ValueKey(_selectedCategory), child: menu),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// One group of the menu: a heading, then its rewards as rows on one surface.
+  Widget _menuSection(String title, List<Reward> items) {
+    final c = context.colors;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpace.xxs, AppSpace.lg, AppSpace.xxs, AppSpace.sm),
+        child: Semantics(header: true, child: Text(title, style: context.text.titleMedium)),
+      ),
+      Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: cardDecoration(context),
+        child: Material(
+          color: Colors.transparent,
+          child: Column(children: [
+            for (var i = 0; i < items.length; i++) ...[
+              // Inset to the text column: picture (56) plus the gaps either side.
+              if (i > 0) Divider(height: 1, thickness: 1, indent: AppSpace.md * 2 + 56, color: c.border),
+              RewardRow(
+                reward: items[i],
+                points: widget.user.points,
+                heroTag: _rewardHeroTag(items[i]),
+                onTap: () => _redeem(items[i]),
+                onLongPress: () => _peekReward(items[i]),
+              ),
+            ],
+          ]),
+        ),
+      ),
+    ]);
   }
 
   /// Makes a centred state (empty / error) pull-to-refresh-able.
@@ -640,11 +657,11 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
           padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.md),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              IconBadge(icon: _catIcon(reward.category), color: _catColors[reward.category] ?? c.primary, size: 52, filled: true),
+              RewardArt(title: reward.title, category: reward.category, size: 52),
               const SizedBox(width: AppSpace.md),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(reward.title, style: t.titleLarge),
-                Text('${reward.pointsCost} pts', style: t.titleSmall!.copyWith(color: c.primary)),
+                Text(rewardPrice(reward.pointsCost), style: t.titleSmall!.copyWith(color: c.primary)),
               ])),
             ]),
             const SizedBox(height: AppSpace.sm),
@@ -745,208 +762,6 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
           Text(v, style: ctx.text.titleSmall),
         ]),
       );
-
-  IconData _catIcon(String cat) {
-    switch (cat) {
-      case 'Coffee': return Icons.coffee_rounded;
-      case 'Food': return Icons.fastfood_rounded;
-      case 'Discount': return Icons.local_offer_rounded;
-      default: return Icons.card_giftcard_rounded;
-    }
-  }
-}
-
-// ── Animated Reward Card ──────────────────────────────────────────────────────
-class _AnimatedRewardCard extends StatefulWidget {
-  final Reward reward;
-  final int index;
-  final VoidCallback onTap;
-  /// Long-press: a quick peek without leaving the grid.
-  final VoidCallback onPeek;
-  final UserModel user;
-  final IconData Function(String) catIcon;
-  final bool animate;
-  final String heroTag;
-  const _AnimatedRewardCard({required this.reward, required this.index, required this.onTap, required this.user,
-      required this.catIcon, required this.animate, required this.heroTag, required this.onPeek});
-  @override
-  State<_AnimatedRewardCard> createState() => _AnimatedRewardCardState();
-}
-
-class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-  late Animation<double> _fade;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl  = AnimationController(vsync: this, duration: AppMotion.slow);
-    _scale = Tween<double>(begin: 0.9, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.spring));
-    _fade  = CurvedAnimation(parent: _ctrl, curve: AppMotion.standard);
-    if (!widget.animate) {
-      _ctrl.value = 1;
-      return;
-    }
-    final delay = AppMotion.stagger * widget.index;
-    Future.delayed(AppMotion.fast + (delay > AppMotion.slow ? AppMotion.slow : delay), () { if (mounted) _ctrl.forward(); });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) _ctrl.value = 1;
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  Widget _maybeShine({required bool locked, required Widget child}) => child;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final t = context.text;
-    final isSoldOut = widget.reward.stock == 0;
-    final isLowStock = widget.reward.stock > 0 && widget.reward.stock <= 5;
-    final canAfford = widget.user.points >= widget.reward.pointsCost && !isSoldOut;
-    final progress  = (widget.user.points / widget.reward.pointsCost).clamp(0.0, 1.0);
-    final catColor = _catColors[widget.reward.category] ?? c.primary;
-
-    return FadeTransition(
-      opacity: _fade,
-      child: ScaleTransition(
-        scale: _scale,
-        child: PressScale(
-          label: '${widget.reward.title}, ${widget.reward.pointsCost} points${isSoldOut ? ', sold out' : ''}',
-          // FIX 10: Disable tap for sold-out rewards
-          onTap: isSoldOut ? null : widget.onTap,
-          onLongPress: widget.onPeek,
-          longPressHint: 'peek at this reward',
-          scale: 0.97,
-          child: Container(
-            clipBehavior: Clip.antiAlias,
-            // Affordable rewards get a brand-coloured hairline.
-            decoration: cardDecoration(context, borderColor: canAfford ? c.primary.withValues(alpha: 0.5) : null),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // FIX 10: Image area with sold-out overlay
-              _maybeShine(locked: !canAfford && !isSoldOut, child: Stack(children: [
-                Container(
-                  height: 88,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: (canAfford || isLowStock)
-                          ? [catColor.withValues(alpha: 0.8), catColor]
-                          : [c.surfaceAlt, c.border],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Stack(children: [
-                    Center(child: HeroMode(
-                      enabled: !AppMotion.reduced(context),
-                      child: Hero(
-                        tag: widget.heroTag,
-                        flightShuttleBuilder: heroMaterialFlight,
-                        child: Icon(widget.catIcon(widget.reward.category),
-                            color: (canAfford || isLowStock) ? Colors.white : c.textTertiary, size: 40),
-                      ),
-                    )),
-                    if (canAfford)
-                      Positioned(top: AppSpace.xs, right: AppSpace.xs,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: AppRadius.all(AppRadius.sm + 2)),
-                          child: Text('Redeem', style: t.labelSmall!.copyWith(color: AppPalette.forest, fontWeight: FontWeight.w700)),
-                        )),
-                    Positioned(bottom: AppSpace.xs, left: AppSpace.xs,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: AppRadius.all(AppRadius.sm)),
-                        child: Text(widget.reward.category, style: t.labelSmall!.copyWith(color: Colors.white)),
-                      )),
-                  ]),
-                ),
-                // FIX 10: Sold-out overlay banner
-                if (isSoldOut)
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      alignment: Alignment.center,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs - 2),
-                        decoration: BoxDecoration(color: AppPalette.soldOut, borderRadius: AppRadius.all(AppRadius.sm)),
-                        child: Text('SOLD OUT',
-                            style: t.labelMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
-                      ),
-                    ),
-                  ),
-              ])),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpace.sm - 2),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(widget.reward.title,
-                        style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700,
-                            color: isSoldOut ? c.textTertiary : c.textPrimary),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(widget.reward.description, style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    // FIX 10: Low stock warning label
-                    if (isLowStock)
-                      Text('Only ${widget.reward.stock} left!',
-                          style: t.labelSmall!.copyWith(color: c.warning, fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    if (!canAfford && !isSoldOut) ...[
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Flexible(child: Text('${widget.user.points}/${widget.reward.pointsCost}', style: t.labelSmall,
-                            maxLines: 1, overflow: TextOverflow.fade, softWrap: false)),
-                        const SizedBox(width: AppSpace.xxs),
-                        Flexible(child: Text('${((1 - progress) * widget.reward.pointsCost).round()} more', style: t.labelSmall,
-                            maxLines: 1, overflow: TextOverflow.fade, softWrap: false)),
-                      ]),
-                      const SizedBox(height: 3),
-                      ClipRRect(
-                        borderRadius: AppRadius.all(4),
-                        child: LinearProgressIndicator(value: progress, backgroundColor: c.surfaceAlt,
-                            valueColor: AlwaysStoppedAnimation(catColor), minHeight: 4),
-                      ),
-                      const SizedBox(height: AppSpace.xs - 2),
-                    ],
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
-                      decoration: BoxDecoration(
-                        color: canAfford ? c.primary : c.surfaceAlt,
-                        borderRadius: AppRadius.all(AppRadius.sm + 2),
-                      ),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(
-                          isSoldOut ? Icons.block_rounded : Icons.stars_rounded,
-                          color: canAfford ? AppPalette.coin[1] : c.textTertiary,
-                          size: 14,
-                        ),
-                        const SizedBox(width: AppSpace.xxs),
-                        Flexible(child: Text(
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          isSoldOut ? 'Sold Out' : '${widget.reward.pointsCost} pts',
-                          style: t.labelMedium!.copyWith(
-                            color: canAfford ? c.onPrimary : c.textSecondary,
-                            fontWeight: FontWeight.w700,
-                          )),
-                        ),
-                      ]),
-                    ),
-                  ]),
-                ),
-              ),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Redemption code shown as two groups of four ("ABCD EFGH") so staff can read it aloud.
@@ -954,43 +769,43 @@ class _AnimatedRewardCardState extends State<_AnimatedRewardCard> with SingleTic
 String spacedCode(String code) =>
     code.length == 8 ? '${code.substring(0, 4)} ${code.substring(4)}' : code;
 
-// ── Rewards grid skeleton ─────────────────────────────────────────────────────
-class _RewardsGridSkeleton extends StatelessWidget {
-  const _RewardsGridSkeleton();
+// ── Rewards list skeleton ─────────────────────────────────────────────────────
+/// The menu's silhouette: chips, a heading, then rows (picture, two lines, price).
+class _RewardsListSkeleton extends StatelessWidget {
+  const _RewardsListSkeleton();
 
   @override
   Widget build(BuildContext context) => Skeleton(
         label: 'Loading rewards',
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.md),
-          child: Column(children: [
+        child: ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, 0),
+          children: [
             const Row(children: [
-              SkeletonBox(width: 56, height: 32, radius: AppRadius.pill),
+              SkeletonBox(width: 56, height: 34, radius: AppRadius.pill),
               SizedBox(width: AppSpace.xs),
-              SkeletonBox(width: 88, height: 32, radius: AppRadius.pill),
+              SkeletonBox(width: 92, height: 34, radius: AppRadius.pill),
               SizedBox(width: AppSpace.xs),
-              SkeletonBox(width: 72, height: 32, radius: AppRadius.pill),
+              SkeletonBox(width: 76, height: 34, radius: AppRadius.pill),
             ]),
-            const SizedBox(height: AppSpace.md),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: AppLayout.columns(context),
-                crossAxisSpacing: AppSpace.sm,
-                mainAxisSpacing: AppSpace.sm,
-                childAspectRatio: 0.74,
-                physics: const NeverScrollableScrollPhysics(),
-                children: List.generate(4, (_) => const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SkeletonBox(height: 88, radius: AppRadius.xl),
-                  SizedBox(height: AppSpace.sm),
-                  SkeletonBox(width: 110, height: 14),
-                  SizedBox(height: AppSpace.xs),
-                  SkeletonBox(width: 80, height: 12),
-                  Spacer(),
-                  SkeletonBox(height: 32, radius: AppRadius.sm + 2),
-                ])),
+            const SizedBox(height: AppSpace.xl),
+            const SkeletonBox(width: 140, height: 16),
+            const SizedBox(height: AppSpace.sm),
+            for (var i = 0; i < 4; i++)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
+                child: Row(children: [
+                  SkeletonBox(width: 56, height: 56, radius: AppRadius.lg),
+                  SizedBox(width: AppSpace.md),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SkeletonBox(width: 150, height: 14),
+                    SizedBox(height: AppSpace.xs),
+                    SkeletonBox(width: 110, height: 12),
+                  ])),
+                  SkeletonBox(width: 52, height: 20),
+                ]),
               ),
-            ),
-          ]),
+          ],
         ),
       );
 }

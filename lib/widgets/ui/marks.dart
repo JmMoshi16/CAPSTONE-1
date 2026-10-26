@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/tokens.dart';
+import 'motion.dart';
 
 // Drawn marks for rank, level and badges, in place of emoji: emoji render differently on every phone and read
 // as placeholder art. The data (labels, colours, thresholds) stays in core/theme.dart and the badge rules.
@@ -120,21 +121,67 @@ class UserAvatar extends StatelessWidget {
       );
 }
 
-/// The app's wordmark: the recycling glyph on a forest tile, then "ECOReward". Used on the sign-in pages.
-class BrandMark extends StatelessWidget {
-  const BrandMark({super.key});
+// ── Rewards ──────────────────────────────────────────────────────────────────
+
+/// Words in a reward's name that pick a more specific picture than its category does.
+final _rewardIcons = <(RegExp, IconData)>[
+  (RegExp(r'\btea\b|matcha|\bchai\b'), Icons.emoji_food_beverage_rounded),
+  (RegExp(r'\biced\b|frapp|shake|smoothie|juice|soda|lemonade|cold brew'), Icons.local_drink_rounded),
+  (RegExp(r'cake|pastr|croissant|bread|muffin|waffle|donut|doughnut'), Icons.bakery_dining_rounded),
+  (RegExp(r'cookie|brownie'), Icons.cookie_rounded),
+  (RegExp(r'ice ?cream|sundae|gelato'), Icons.icecream_rounded),
+  (RegExp(r'fries|burger|sandwich|takoyaki|meal'), Icons.lunch_dining_rounded),
+  (RegExp(r'pasta|noodle|ramen'), Icons.ramen_dining_rounded),
+  (RegExp(r'%|discount|\boff\b'), Icons.percent_rounded),
+];
+
+/// A reward's icon: from its name when a word gives it away (matcha, fries, croissant), else its category.
+IconData rewardIconData(String title, String category) {
+  final name = title.toLowerCase();
+  for (final (words, icon) in _rewardIcons) {
+    if (words.hasMatch(name)) return icon;
+  }
+  return switch (category) {
+    'Coffee' => Icons.coffee_rounded,
+    'Food' => Icons.restaurant_rounded,
+    'Discount' => Icons.sell_rounded,
+    _ => Icons.redeem_rounded,
+  };
+}
+
+/// A reward category's accent (decorative; text in it goes through `colors.ink`).
+Color rewardColor(String category) => AppPalette.categories[category] ?? AppPalette.forest;
+
+/// A reward's picture: its icon on the category's tint, the same on Home, in Rewards and on the detail page.
+/// [heroTag] lets the picture fly into the detail page; [muted] greys it out (sold out).
+class RewardArt extends StatelessWidget {
+  const RewardArt({super.key, required this.title, required this.category, this.size = 56, this.heroTag,
+      this.muted = false});
+
+  final String title, category;
+  final double size;
+  final String? heroTag;
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.md)),
-        child: Icon(Icons.recycling_rounded, color: c.onPrimary, size: 20),
+    final accent = muted ? c.textTertiary : rewardColor(category);
+    Widget art = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: c.isDark ? 0.22 : 0.12),
+        borderRadius: AppRadius.all(size * 0.28),
       ),
-      const SizedBox(width: AppSpace.sm),
-      Text('ECOReward', style: context.text.titleMedium!.copyWith(fontWeight: FontWeight.w700)),
-    ]);
+      child: Icon(rewardIconData(title, category), size: size * 0.5, color: muted ? c.textTertiary : c.ink(accent)),
+    );
+    if (heroTag != null) {
+      art = HeroMode(
+        enabled: !AppMotion.reduced(context),
+        child: Hero(tag: heroTag!, flightShuttleBuilder: heroMaterialFlight, child: art),
+      );
+    }
+    return ExcludeSemantics(child: art);
   }
 }

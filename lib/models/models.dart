@@ -15,6 +15,13 @@ DateTime? firestoreTime(dynamic v) {
 /// Display fields only: a missing date shows as "now" rather than breaking the list.
 DateTime localTime(dynamic v) => (firestoreTime(v) ?? DateTime.now()).toLocal();
 
+/// A whole number from Firestore, however it was stored: an int, a double (`50.0` from a console edit) or a
+/// numeric string. A plain `as int` threw on a double, and the old reward parser turned `50.0` into a free reward.
+int? asInt(dynamic v) {
+  final n = v is num ? v : v is String ? num.tryParse(v.trim()) : null;
+  return n != null && n.isFinite ? n.round() : null;   // NaN / infinity count as missing
+}
+
 class UserModel {
   final String uid;
   String username;
@@ -66,11 +73,11 @@ class UserModel {
       username: d['username'] ?? '',
       email: d['email'] ?? '',
       role: d['role'] ?? 'customer',
-      points: d['points'] ?? 0,
-      lifetimePoints: d['lifetimePoints'] as int?,   // older docs: falls back to points
+      points: asInt(d['points']) ?? 0,
+      lifetimePoints: asInt(d['lifetimePoints']),   // older docs: falls back to points
       createdAt: localTime(d['createdAt']),
-      scanCount: d['scanCount'] ?? 0,
-      streak: d['streak'] ?? 0,
+      scanCount: asInt(d['scanCount']) ?? 0,
+      streak: asInt(d['streak']) ?? 0,
       lastScanDate: d['lastScanDate'],
       badges: List<String>.from(d['badges'] ?? []),
       photo: d['photo'] is Blob ? (d['photo'] as Blob).bytes : null,
@@ -112,8 +119,8 @@ class WasteLog {
       id: doc.id,
       userId: d['userId'] ?? '',
       wasteType: d['wasteType'] ?? '',
-      pointsEarned: d['pointsEarned'] ?? 0,
-      pointsAwarded: d['pointsAwarded'] as int?,   // older logs: falls back to base
+      pointsEarned: asInt(d['pointsEarned']) ?? 0,
+      pointsAwarded: asInt(d['pointsAwarded']),   // older logs: falls back to base
       timestamp: localTime(d['timestamp']),
       binId: d['binId'] ?? '',
     );
@@ -156,13 +163,11 @@ class Reward {
       id: doc.id,
       title: d['title'] ?? '',
       description: d['description'] ?? '',
-      pointsCost: (d['pointsCost'] ?? 0) is int
-          ? (d['pointsCost'] ?? 0) as int
-          : int.tryParse('${d['pointsCost']}') ?? 0,
+      pointsCost: asInt(d['pointsCost']) ?? 0,
       category: d['category'] ?? 'Other',
       isActive: isActiveVal == true || isActiveVal == 'true',
       // Firestore docs without stock field default to -1 (unlimited)
-      stock: (d['stock'] is int) ? d['stock'] as int : -1,
+      stock: asInt(d['stock']) ?? -1,
     );
   }
 }
@@ -212,7 +217,7 @@ class Redemption {
       userEmail: d['userEmail'] ?? '',
       rewardId: d['rewardId'] ?? '',
       rewardTitle: d['rewardTitle'] ?? '',
-      pointsUsed: d['pointsUsed'] ?? 0,
+      pointsUsed: asInt(d['pointsUsed']) ?? 0,
       redeemedAt: localTime(d['redeemedAt']),
       status: d['status'] ?? 'pending',
       redemptionCode: d['redemptionCode'] ?? '',
@@ -248,8 +253,8 @@ class ProfileModel {
     return ProfileModel(
       uid: doc.id,
       username: d['username'] ?? '',
-      points: d['points'] ?? 0,
-      lifetimePoints: d['lifetimePoints'] as int?,
+      points: asInt(d['points']) ?? 0,
+      lifetimePoints: asInt(d['lifetimePoints']),
       badges: List<String>.from(d['badges'] ?? []),
     );
   }

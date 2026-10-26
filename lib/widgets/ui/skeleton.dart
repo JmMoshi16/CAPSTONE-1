@@ -37,7 +37,8 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final c = context.colors;
     final base = c.surfaceAlt;
-    final highlight = c.isDark ? c.border : c.surface;
+    // A soft, slanted sheen: a full-height bright band read as a rendering glitch.
+    final highlight = Color.lerp(base, c.isDark ? c.border : c.surface, 0.55)!;
     return Semantics(
       label: widget.label,
       liveRegion: true,
@@ -50,8 +51,10 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
             shaderCallback: (rect) {
               final dx = (_ctrl.value * 2 - 1) * rect.width;
               return LinearGradient(
+                begin: const Alignment(-1, -0.35),
+                end: const Alignment(1, 0.35),
                 colors: [base, highlight, base],
-                stops: const [0.35, 0.5, 0.65],
+                stops: const [0.38, 0.5, 0.62],
                 transform: _Slide(dx),
               ).createShader(rect);
             },
@@ -115,57 +118,53 @@ class SkeletonList extends StatelessWidget {
       );
 }
 
-/// Home while the first data loads: header block, two progress bars, the main button,
-/// four stat tiles and the quick-access grid, in the real layout.
+/// Home while the first data loads: the real screen's silhouette (header, balance card, Scan button, the
+/// reward strip, the week card), so nothing jumps when the content fades in.
 class HomeSkeleton extends StatelessWidget {
-  const HomeSkeleton({super.key, this.center});
-
-  /// Shown in the middle of the header block (e.g. the brand loader).
-  final Widget? center;
+  const HomeSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) => Stack(children: [
-        Skeleton(
-          label: 'Loading your home screen',
+  Widget build(BuildContext context) => Skeleton(
+        label: 'Loading your home screen',
+        child: SafeArea(
+          bottom: false,
           child: ListView(
             physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            children: [
-              const SkeletonBox(height: 260, radius: 0),
-              Padding(
-                padding: const EdgeInsets.all(AppSpace.lg),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const SkeletonBox(width: 180, height: 12),
-                  const SizedBox(height: AppSpace.xs),
-                  const SkeletonBox(height: 8),
-                  const SizedBox(height: AppSpace.md),
-                  const SkeletonBox(width: 150, height: 12),
-                  const SizedBox(height: AppSpace.xs),
-                  const SkeletonBox(height: 8),
-                  const SizedBox(height: AppSpace.lg),
-                  const SkeletonBox(height: 56, radius: AppRadius.lg),
-                  const SizedBox(height: AppSpace.sm),
-                  const SkeletonBox(height: 52, radius: AppRadius.lg),
-                  const SizedBox(height: AppSpace.lg),
-                  Row(children: [
-                    for (var i = 0; i < 4; i++) ...[
-                      if (i > 0) const SizedBox(width: AppSpace.sm - 2),
-                      const Expanded(child: SkeletonBox(height: 92, radius: AppRadius.lg)),
-                    ],
-                  ]),
-                  const SizedBox(height: AppSpace.lg),
-                  const Row(children: [
-                    Expanded(child: SkeletonBox(height: 110, radius: AppRadius.xl)),
-                    SizedBox(width: AppSpace.sm),
-                    Expanded(child: SkeletonBox(height: 110, radius: AppRadius.xl)),
-                  ]),
-                ]),
-              ),
+            padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+            children: const [
+              Row(children: [
+                SkeletonBox(width: 44, height: 44, radius: 22),
+                SizedBox(width: AppSpace.sm),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SkeletonBox(width: 84, height: 10),
+                  SizedBox(height: AppSpace.xs),
+                  SkeletonBox(width: 140, height: 16),
+                ])),
+                SkeletonBox(width: 44, height: 44, radius: 22),
+              ]),
+              SizedBox(height: AppSpace.lg),
+              SkeletonBox(height: 156, radius: AppRadius.xl),
+              SizedBox(height: AppSpace.md),
+              SkeletonBox(height: 52, radius: AppRadius.lg),
+              SizedBox(height: AppSpace.xl),
+              SkeletonBox(width: 150, height: 16),
+              SizedBox(height: AppSpace.sm),
+              // Two reward cards and the edge of a third, as the strip scrolls sideways.
+              Row(children: [
+                Expanded(flex: 10, child: SkeletonBox(height: 112, radius: AppRadius.lg)),
+                SizedBox(width: AppSpace.sm),
+                Expanded(flex: 10, child: SkeletonBox(height: 112, radius: AppRadius.lg)),
+                SizedBox(width: AppSpace.sm),
+                Expanded(flex: 3, child: SkeletonBox(height: 112, radius: AppRadius.lg)),
+              ]),
+              SizedBox(height: AppSpace.xl),
+              SkeletonBox(width: 100, height: 16),
+              SizedBox(height: AppSpace.sm),
+              SkeletonBox(height: 84, radius: AppRadius.lg),
             ],
           ),
         ),
-        if (center != null) Positioned(left: 0, right: 0, top: 0, height: 260, child: Center(child: center)),
-      ]);
+      );
 }
 
 /// Leaderboard while loading: a three-step podium, then rows.

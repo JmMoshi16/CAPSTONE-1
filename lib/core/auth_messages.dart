@@ -1,12 +1,22 @@
-// User-facing auth error text (audit M-17). Pure Dart; pass FirebaseAuthException.code, or
-// the exception's toString() for anything else. Never shows raw exception text.
+// User-facing auth error text (audit M-17). Pure Dart; pass a FirebaseAuthException's code and message,
+// or the exception's toString() for anything else. Never shows raw exception text.
 
 bool _has(String err, List<String> codes) => codes.any(err.contains);
 
 bool isNetworkError(String err) =>
     _has(err, ['network-request-failed', 'network', 'unavailable', 'Could not reach Firestore']);
 
+/// Something between the phone and Firebase (a network filter, a captive portal, HTTPS-scanning antivirus on
+/// the computer running an emulator) replaced the server's certificate, so the connection was refused.
+/// Firebase reports it as an "internal error" with the certificate failure only in the message.
+bool isBlockedConnection(String err) =>
+    _has(err, ['CertPathValidator', 'Trust anchor', 'CERTIFICATE_VERIFY_FAILED', 'SSLHandshake']);
+
+const blockedConnectionMessage = 'This network is blocking a secure connection to ECOReward. '
+    'Try mobile data or another Wi-Fi.';
+
 String loginErrorMessage(String err) {
+  if (isBlockedConnection(err)) return blockedConnectionMessage;
   if (isNetworkError(err)) return 'No internet connection. Please try again.';
   if (_has(err, ['too-many-requests'])) return 'Too many attempts. Please wait a moment and try again.';
   if (_has(err, ['user-disabled'])) return 'This account has been disabled. Contact the cafe staff.';
@@ -19,6 +29,7 @@ String loginErrorMessage(String err) {
 }
 
 String registerErrorMessage(String err) {
+  if (isBlockedConnection(err)) return blockedConnectionMessage;
   if (isNetworkError(err)) return 'No internet connection. Please try again.';
   if (_has(err, ['email-already-in-use'])) return 'An account already exists for this email. Try signing in.';
   if (_has(err, ['weak-password'])) return 'Choose a stronger password (at least 6 characters).';

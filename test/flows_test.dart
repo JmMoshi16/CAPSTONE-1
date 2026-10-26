@@ -105,7 +105,7 @@ void main() {
     Future<void> open(WidgetTester tester, Reward r, int points) async {
       await tester.pumpWidget(_app(Builder(builder: (ctx) => Scaffold(body: Center(child: TextButton(
             onPressed: () => Navigator.push<bool>(ctx, MaterialPageRoute(builder: (_) => RewardDetailScreen(
-                reward: r, user: _user('customer', points: points), heroTag: 'h', icon: Icons.coffee, color: Colors.brown))),
+                reward: r, user: _user('customer', points: points), heroTag: 'h'))),
             child: const Text('open')))))));
       await tester.tap(find.text('open'));
       await tester.pump();

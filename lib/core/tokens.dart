@@ -171,6 +171,9 @@ class AppType {
 
   static TextTheme textTheme(Color primary, Color secondary) => TextTheme(
         displayLarge: display.copyWith(color: primary),
+        // Sign-in page titles; left undefined it fell back to Material's thin 36 sp sans.
+        displaySmall: TextStyle(fontFamily: displayFamily, fontSize: 30, fontWeight: FontWeight.w700, height: 1.15,
+            letterSpacing: -0.3, color: primary),
         headlineMedium: TextStyle(fontFamily: displayFamily, fontSize: 26, fontWeight: FontWeight.w700, height: 1.15, color: primary),
         headlineSmall: TextStyle(fontFamily: displayFamily, fontSize: 22, fontWeight: FontWeight.w700, height: 1.2, color: primary),
         titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: primary),
@@ -198,6 +201,8 @@ class AppColors extends ThemeExtension<AppColors> {
   final List<Color> hero;                // gradient behind white header text
   final Color onHero, onHeroMuted;       // text on [hero]
   final Color heroAccent;                // highlight text on [hero] (streak bonus)
+  // Waste types wear the physical bin colours (green / blue / black), as on the kiosk screen, so the
+  // bin, the kiosk and the app agree. Residual is charcoal, not red: red here means an error.
   final Color bio, rec, res;             // waste-type accents (icons, bars)
   final Color bioFill, recFill, resFill; // solid fills that carry white text
 
@@ -240,8 +245,8 @@ class AppColors extends ThemeExtension<AppColors> {
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xE6FFFFFF),
     heroAccent: Color(0xFFFFD08A),
-    bio: Color(0xFF7CB342), rec: Color(0xFF0288D1), res: Color(0xFFE53935),
-    bioFill: Color(0xFF33691E), recFill: Color(0xFF01579B), resFill: Color(0xFFC62828),
+    bio: Color(0xFF247A52), rec: Color(0xFF2B6CB0), res: Color(0xFF4A4440),
+    bioFill: Color(0xFF1B5E3F), recFill: Color(0xFF1F5A94), resFill: Color(0xFF3A3532),
   );
 
   static const dark = AppColors(
@@ -270,8 +275,8 @@ class AppColors extends ThemeExtension<AppColors> {
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xDDFFFFFF),
     heroAccent: Color(0xFFFFD08A),
-    bio: Color(0xFFA5D67A), rec: Color(0xFF6CC7F5), res: Color(0xFFFF8A80),
-    bioFill: Color(0xFF33691E), recFill: Color(0xFF01579B), resFill: Color(0xFFC62828),
+    bio: Color(0xFF7FCB9C), rec: Color(0xFF7DB7EE), res: Color(0xFFC9C1BA),
+    bioFill: Color(0xFF1B5E3F), recFill: Color(0xFF1F5A94), resFill: Color(0xFF3A3532),
   );
 
   bool get isDark => brightness == Brightness.dark;

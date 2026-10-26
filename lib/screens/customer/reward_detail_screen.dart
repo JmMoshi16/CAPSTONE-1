@@ -2,24 +2,15 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 
-/// One reward, opened from its card (the icon flies in). Redeeming is a press-and-hold,
+/// One reward, opened from its row (the picture flies in). Redeeming is a press-and-hold,
 /// so it can't happen by accident; the page returns `true` when the user confirmed.
 /// Redemption itself (and its rules) stays in RewardsScreen / FirebaseService.
 class RewardDetailScreen extends StatelessWidget {
-  const RewardDetailScreen({
-    super.key,
-    required this.reward,
-    required this.user,
-    required this.heroTag,
-    required this.icon,
-    required this.color,
-  });
+  const RewardDetailScreen({super.key, required this.reward, required this.user, required this.heroTag});
 
   final Reward reward;
   final UserModel user;
   final String heroTag;
-  final IconData icon;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -28,43 +19,25 @@ class RewardDetailScreen extends StatelessWidget {
     final soldOut = reward.stock == 0;
     final canAfford = user.points >= reward.pointsCost && !soldOut;
     final missing = reward.pointsCost - user.points;
-    final progress = reward.pointsCost == 0 ? 1.0 : user.points / reward.pointsCost;
+    final progress = reward.pointsCost <= 0 ? 1.0 : user.points / reward.pointsCost;
+    final color = rewardColor(reward.category);
 
     return Scaffold(
       body: CustomScrollView(slivers: [
         SliverAppBar(
           pinned: true,
           expandedHeight: AppLayout.headerHeight(context, 230, perScale: 40),
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          leading: IconButton(
-            tooltip: 'Back',
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-            onPressed: () => Navigator.pop(context, false),
-          ),
+          // A quiet band in the category's tint; the picture from the row grows into it.
+          backgroundColor: c.background,
+          surfaceTintColor: Colors.transparent,
+          leading: HeroBackButton(onTap: () => Navigator.pop(context, false)),
           flexibleSpace: FlexibleSpaceBar(
-            background: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color.lerp(color, Colors.black, 0.15)!, color],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                ),
-              ),
+            background: ColoredBox(
+              color: Color.alphaBlend(color.withValues(alpha: c.isDark ? 0.16 : 0.08), c.background),
               child: SafeArea(
                 child: Center(
-                  child: Hero(
-                    tag: heroTag,
-                    flightShuttleBuilder: heroMaterialFlight,
-                    child: Container(
-                      width: 104, height: 104,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 2),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 52),
-                    ),
-                  ),
+                  child: RewardArt(title: reward.title, category: reward.category, size: 112, heroTag: heroTag,
+                      muted: soldOut),
                 ),
               ),
             ),
@@ -107,7 +80,7 @@ class RewardDetailScreen extends StatelessWidget {
                       const SizedBox(width: AppSpace.md),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         _line(context, 'Your balance', '${user.points} pts'),
-                        _line(context, 'Cost', '${reward.pointsCost} pts', strong: true),
+                        _line(context, 'Cost', reward.pointsCost <= 0 ? 'Free' : '${reward.pointsCost} pts', strong: true),
                         const Divider(height: AppSpace.md),
                         if (canAfford)
                           _line(context, 'After redeeming', '${user.points - reward.pointsCost} pts')

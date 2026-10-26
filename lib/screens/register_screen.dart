@@ -67,7 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     } catch (e) {
       if (mounted) {
         _shakeKey.currentState?.shake(haptic: false);
-        AppSnackbar.error(context, registerErrorMessage(e is FirebaseAuthException ? e.code : e.toString()));
+        AppSnackbar.error(context, registerErrorMessage(e is FirebaseAuthException ? '${e.code} ${e.message}' : e.toString()));
         setState(() => _loading = false);
       }
     }

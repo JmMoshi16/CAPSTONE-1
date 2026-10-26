@@ -69,20 +69,27 @@ class AppChip extends StatelessWidget {
       onTap: onTap,
       selected: selected,
       label: semanticLabel ?? label,
-      child: AnimatedContainer(
-        duration: AppMotion.of(context, AppMotion.fast),
-        curve: AppMotion.standard,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xs),
-        decoration: BoxDecoration(
-          color: selected ? c.primary : c.surface,
-          borderRadius: AppRadius.all(AppRadius.pill),
-          border: Border.all(color: selected ? c.primary : c.border),
+      // Centred at its own size: a list that hands the chip a fixed 48 dp height (the touch target) used to
+      // stretch the pill, so a short label such as "All" became a circle.
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: AnimatedContainer(
+          duration: AppMotion.of(context, AppMotion.fast),
+          curve: AppMotion.standard,
+          constraints: const BoxConstraints(minWidth: 56),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xs),
+          decoration: BoxDecoration(
+            color: selected ? c.primary : c.surface,
+            borderRadius: AppRadius.all(AppRadius.pill),
+            border: Border.all(color: selected ? c.primary : c.border),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (icon != null) ...[Icon(icon, size: 16, color: fg), const SizedBox(width: AppSpace.xxs)],
+            Text(label, style: context.text.labelMedium!.copyWith(
+                color: fg, fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
+          ]),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon != null) ...[Icon(icon, size: 16, color: fg), const SizedBox(width: AppSpace.xxs)],
-          Text(label, style: context.text.labelMedium!.copyWith(
-              color: fg, fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
-        ]),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
 import '../models/models.dart';
 import '../services/firebase_service.dart';
+import '../widgets/eco_animations.dart';
 import '../widgets/ui.dart';
 import 'customer/customer_home_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
@@ -74,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     } catch (e) {
       if (mounted) {
         _shakeKey.currentState?.shake(haptic: false);   // the error snackbar buzzes
-        _snack(loginErrorMessage(e is FirebaseAuthException ? e.code : e.toString()), context.colors.danger);
+        _snack(loginErrorMessage(e is FirebaseAuthException ? '${e.code} ${e.message}' : e.toString()), context.colors.danger);
         setState(() => _loading = false);
       }
     }
@@ -135,11 +136,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     key: _formKey,
                     child: AutofillGroup(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        const Align(alignment: Alignment.centerLeft, child: BrandMark()),
-                        const SizedBox(height: AppSpace.xxl),
-                        Text('Sign in', style: t.displaySmall),
+                        // The app's one brand moment: the coffee bean becomes a leaf in the cup-bin, once.
+                        const Center(child: EcoBrandIntro(size: 132)),
+                        const SizedBox(height: AppSpace.sm),
+                        Semantics(
+                          header: true,
+                          child: Text('ECOReward', textAlign: TextAlign.center,
+                              style: t.displaySmall!.copyWith(color: c.primary)),
+                        ),
                         const SizedBox(height: AppSpace.xs),
-                        Text('Earn points every time you sort your waste at the bin.',
+                        Text('Sign in to collect points for everything you sort at the bin.', textAlign: TextAlign.center,
                             style: t.bodyLarge!.copyWith(color: c.textSecondary)),
                         const SizedBox(height: AppSpace.xxl),
 

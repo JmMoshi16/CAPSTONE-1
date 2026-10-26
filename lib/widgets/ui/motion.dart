@@ -158,8 +158,6 @@ Widget heroMaterialFlight(BuildContext _, Animation<double> __, HeroFlightDirect
         BuildContext from, BuildContext to) =>
     Material(type: MaterialType.transparency, child: (to.widget as Hero).child);
 
-/// Nav-bar icon that morphs when selected: the filled icon pops in (scale + a small turn)
-/// and sits slightly larger; reduced motion swaps it without movement.
 /// Whether a list item should play its entrance stagger: only on the first visit to [key]
 /// in this app session, and only for items built in the first second the list is shown,
 /// so rows scrolled back into view, refreshes and searches appear without replaying it.
@@ -175,6 +173,8 @@ class EntranceGate {
   }
 }
 
+/// Nav-bar icon that morphs when selected: the filled icon pops in (scale + a small turn)
+/// and sits slightly larger; reduced motion swaps it without movement.
 class NavIconMorph extends StatelessWidget {
   const NavIconMorph({super.key, required this.selected, required this.active, required this.inactive,
       required this.color, this.size = 22});
