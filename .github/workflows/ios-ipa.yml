@@ -1,0 +1,38 @@
+# Unsigned iPhone build for sideloading (KSign, Sideloadly, AltStore): they sign the .ipa with your own
+# certificate. iOS apps can only be built on macOS, so GitHub builds it on a Mac runner (free for public repos).
+# Download: GitHub -> Actions -> ios-ipa -> the latest run -> Artifacts -> ECOReward-unsigned-ipa (a .zip
+# that contains ECOReward-unsigned.ipa).
+name: ios-ipa
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['lib/**', 'ios/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock', '.github/workflows/ios-ipa.yml']
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.2"
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Build the app without code signing
+        run: flutter build ios --release --no-codesign
+      - name: Package as an unsigned .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry ECOReward-unsigned.ipa Payload
+          ls -lh ECOReward-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ECOReward-unsigned-ipa
+          path: ECOReward-unsigned.ipa
+          retention-days: 14
