@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/app_theme.dart';
+import 'firebase_ios_options.dart';
 import 'widgets/ui.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
@@ -15,7 +17,8 @@ import 'screens/admin/admin_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  // iPhone has no google-services.json: it gets its settings in code. Android is unchanged.
+  await Firebase.initializeApp(options: defaultTargetPlatform == TargetPlatform.iOS ? iosFirebaseOptions : null);
   FirebaseService.init();
   // Login/register/scanner layouts are sized from screen height; landscape was never designed (audit M-14).
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
