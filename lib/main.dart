@@ -108,19 +108,13 @@ class _AuthGateState extends State<_AuthGate> {
             case _Restore.unreachable:
               return Scaffold(
                 body: SafeArea(
-                  child: Column(children: [
-                    Expanded(
-                      child: ErrorState(
-                        title: "Couldn't reach ECOReward",
-                        message: "You're still signed in. Check your connection and try again.",
-                        onRetry: _retry,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpace.lg),
-                      child: TextButton(onPressed: _useAnotherAccount, child: const Text('Sign in with another account')),
-                    ),
-                  ]),
+                  child: ErrorState(
+                    title: "Couldn't reach ECOReward",
+                    message: "You're still signed in. Check your connection and try again.",
+                    onRetry: _retry,
+                    secondaryLabel: 'Sign in with another account',
+                    onSecondary: _useAnotherAccount,
+                  ),
                 ),
               );
           }

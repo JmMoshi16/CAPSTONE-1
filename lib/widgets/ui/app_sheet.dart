@@ -32,10 +32,12 @@ class AppSheet {
     );
   }
 
-  /// Sheet sized to its content that moves above the keyboard (forms).
-  static Future<T?> showForm<T>(
+  /// Sheet sized to its content (quick actions, previews, prompts, forms): the same handle, an optional
+  /// title, then the content. It scrolls when taller than the screen and moves above the keyboard.
+  static Future<T?> showContent<T>(
     BuildContext context, {
-    required String title,
+    String? title,
+    EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.lg),
     required Widget Function(BuildContext) builder,
   }) {
     return showModalBottomSheet<T>(
@@ -43,16 +45,19 @@ class AppSheet {
       isScrollControlled: true,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.lg),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const _Handle(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpace.md),
-              child: Text(title, style: Theme.of(ctx).textTheme.titleLarge),
-            ),
-            builder(ctx),
-          ]),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: padding,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const _Handle(),
+              if (title != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpace.md),
+                  child: Text(title, style: Theme.of(ctx).textTheme.titleLarge),
+                ),
+              builder(ctx),
+            ]),
+          ),
         ),
       ),
     );

@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'tokens.dart';
 
-/// Admin palette (always dark). Text colours meet WCAG AA on [card] and [background].
+/// Staff console palette: ECOReward's dark forest, denser than the customer app but the same family.
+/// Forest-black surfaces, the brand mint as the accent, and the physical bins' colours for waste types.
+/// Text colours meet WCAG AA on [card] and [background] (test/contrast_test.dart).
 class AdminColors {
-  static const background = Color(0xFF0D1117);
-  static const card = Color(0xFF161B22);
-  static const cardAlt = Color(0xFF1C2330);
-  static const border = Color(0xFF30363D);
+  static const background = Color(0xFF0B110E);
+  static const card = Color(0xFF141B17);
+  static const cardAlt = Color(0xFF1B241F);
+  static const border = Color(0xFF2A352F);
 
-  static const textPrimary = Color(0xFFE6EDF3);
-  static const textSecondary = Color(0xFFADBAC7);  // 8.6:1 on card
-  static const textTertiary = Color(0xFF8B949E);   // 5.7:1 on card
+  static const textPrimary = Color(0xFFE8ECE9);
+  static const textSecondary = Color(0xFFA9B3AD);
+  static const textTertiary = Color(0xFF8A948E);
 
-  static const accent = Color(0xFF00E676);
-  static const accentDeep = Color(0xFF00C853);
-  static const onAccent = Color(0xFF04210F);       // dark text on the bright accent (12:1)
+  static const accent = AppPalette.mint;
+  static const accentDeep = Color(0xFF5FB98A);
+  static const onAccent = Color(0xFF0B2416);       // dark text on the mint accent
   static const blue = Color(0xFF58A6FF);
   static const purple = Color(0xFFB388FF);
   static const orange = Color(0xFFFFAB40);
@@ -21,18 +24,20 @@ class AdminColors {
   static const dangerFill = Color(0xFFDA3633);   // solid danger buttons with white text (4.6:1)
   static const gold = Color(0xFFE3B341);
 
-  // Avatar gradients for customer initials (white letter on each).
+  // Avatar gradients for customer initials, from the brand: forest, the recycling-bin blue, coffee and a
+  // deep champagne (white letter on each).
   static const avatarGradients = [
-    [Color(0xFF00E676), Color(0xFF00C853)],
-    [Color(0xFF00B0FF), Color(0xFF0081CB)],
-    [Color(0xFFFF6D00), Color(0xFFE65100)],
-    [Color(0xFFD500F9), Color(0xFF9C00D4)],
+    [AppPalette.forestLight, AppPalette.forest],
+    [Color(0xFF2B6CB0), Color(0xFF1F5A94)],
+    [Color(0xFF8A6448), AppPalette.coffee],
+    [Color(0xFF9A7432), Color(0xFF7A5A22)],
   ];
 
-  // Waste-type accents on dark surfaces (all above 7:1 on card).
-  static const bio = Color(0xFF8BC34A);
-  static const rec = Color(0xFF29B6F6);
-  static const res = Color(0xFFEF5350);
+  // Waste types wear the physical bins' colours, as in the customer app: green, blue, charcoal.
+  // Residual is never red; red means an error.
+  static const bio = Color(0xFF7FCB9C);
+  static const rec = Color(0xFF7DB7EE);
+  static const res = Color(0xFFC9C1BA);
 }
 
 /// Staff console type ramp. Denser than the customer app (a dashboard is scanned, not read), same
@@ -46,14 +51,20 @@ class AdminType {
   static const title = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);      // row titles
   static const stat = TextStyle(fontSize: 15, fontWeight: FontWeight.bold);       // numbers in stat cards
   static const heading = TextStyle(fontSize: 18, fontWeight: FontWeight.bold);    // screen and sheet titles
+  static const display = TextStyle(fontSize: 26, fontWeight: FontWeight.w800);    // big figures, codes to compare
 }
 
-// Older names, kept so admin screens read the same palette.
-const kAdminGreen = AdminColors.accent;
-const kAdminDGreen = AdminColors.accentDeep;
-const kAdminBlue = AdminColors.blue;
-const kAdminPurple = AdminColors.purple;
-const kAdminOrange = AdminColors.orange;
-const kAdminDark = AdminColors.background;
-const kAdminCard = AdminColors.card;
-const kAdminBorder = AdminColors.border;
+/// The ramp's sizes, for styles built at the call site (`TextStyle(fontSize: AdminSize.body, …)`).
+class AdminSize {
+  static const double caption = 11, label = 12, body = 13, title = 14, stat = 15, heading = 18, display = 26;
+}
+
+// Short names the staff screens use (one place, instead of a copy in every screen).
+const kGreen = AdminColors.accent;
+const kDarkGreen = AdminColors.accentDeep;
+const kBlue = AdminColors.blue;
+const kPurple = AdminColors.purple;
+const kOrange = AdminColors.orange;
+const kDark = AdminColors.background;
+const kCard = AdminColors.card;
+const kBorder = AdminColors.border;

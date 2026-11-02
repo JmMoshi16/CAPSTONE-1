@@ -5,11 +5,6 @@ import '../../models/models.dart';
 import '../../core/admin_theme.dart';
 import '../../widgets/ui.dart';
 
-const kGreen = kAdminGreen;
-const kDarkGreen = kAdminDGreen;
-const kDark = kAdminDark;
-const kCard = kAdminCard;
-const kBorder = kAdminBorder;
 
 
 class AdminRewardsScreen extends StatefulWidget {
@@ -72,8 +67,10 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       backgroundColor: kCard,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 20, right: 20, top: 20),
+        // Scrolls above the keyboard: on a small phone the form is taller than what is left.
+        builder: (ctx, setS) => SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom + MediaQuery.paddingOf(ctx).bottom,
+              left: 20, right: 20, top: 20),
           child: Form(
             key: formKey,
             // Inline validation: each field shows its message as soon as it has been touched.
@@ -86,14 +83,14 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 Center(child: Container(width: 40, height: 4,
                     decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: AppSpace.md),
-                Text(reward == null ? 'Add New Reward' : 'Edit Reward',
-                    style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text(reward == null ? 'Add new reward' : 'Edit reward',
+                    style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: AdminSize.heading)),
                 const SizedBox(height: AppSpace.md),
                 _field(titleCtrl, 'Title', Icons.title_rounded),
                 const SizedBox(height: 10),
                 _field(descCtrl, 'Description', Icons.description_rounded),
                 const SizedBox(height: 10),
-                _field(pointsCtrl, 'Points Cost', Icons.stars_rounded, keyboardType: TextInputType.number,
+                _field(pointsCtrl, 'Points cost', Icons.stars_rounded, keyboardType: TextInputType.number,
                     validator: (v) => (int.tryParse(v!.trim()) ?? 0) > 0 ? null : 'Enter a whole number above 0'),
                 const SizedBox(height: 10),
                 _field(stockCtrl, 'Stock (leave blank for unlimited)', Icons.inventory_2_rounded,
@@ -112,7 +109,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     prefixIcon: const Icon(Icons.category_rounded, color: kGreen, size: 20),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.07),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
                   ),
                   items: categories.map((c) => DropdownMenuItem(value: c,
                       child: Row(children: [
@@ -126,11 +123,11 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 // Active toggle
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpace.xxs),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(AppRadius.md)),
                   child: Row(children: [
                     const Icon(Icons.toggle_on_rounded, color: kGreen, size: 20),
                     const SizedBox(width: 10),
-                    const Expanded(child: Text('Active (visible to customers)', style: TextStyle(color: AdminColors.textSecondary, fontSize: 13))),
+                    const Expanded(child: Text('Active (visible to customers)', style: TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.body))),
                     Switch(value: isActive, onChanged: (v) => setS(() => isActive = v),
                         activeThumbColor: kGreen, activeTrackColor: kGreen.withValues(alpha: 0.3)),
                   ]),
@@ -175,12 +172,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                       }
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: kGreen,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)), elevation: 0),
                     child: saving
                         ? const SizedBox(width: 22, height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2.5, color: AdminColors.onAccent))
-                        : Text(reward == null ? 'Add Reward' : 'Save Changes',
-                            style: const TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+                        : Text(reward == null ? 'Add reward' : 'Save changes',
+                            style: const TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: AdminSize.stat)),
                   ),
                 ),
                 const SizedBox(height: AppSpace.lg),
@@ -207,12 +204,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       builder: (ctx) => AlertDialog(
         title: const Text('Hand over this reward?'),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: AdminSize.stat)),
           if (r.userEmail.isNotEmpty)
-            Text(r.userEmail, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
+            Text(r.userEmail, style: const TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.body)),
           const SizedBox(height: AppSpace.md),
           const Text("Check this matches the code on the customer's phone:",
-              style: TextStyle(color: AdminColors.textSecondary, fontSize: 13)),
+              style: TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.body)),
           const SizedBox(height: AppSpace.xs),
           Container(
             width: double.infinity,
@@ -220,9 +217,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
             decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AdminColors.border)),
             alignment: Alignment.center,
-            child: Text(_spaced(r.redemptionCode),
-                style: const TextStyle(color: AdminColors.textPrimary, fontFamily: 'monospace',
-                    fontWeight: FontWeight.w900, fontSize: 28, letterSpacing: 3)),
+            child: RedemptionCode(r.redemptionCode,
+                style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.w800, fontSize: AdminSize.display,
+                    letterSpacing: 3)),
           ),
           if (expired) ...[
             const SizedBox(height: AppSpace.sm),
@@ -235,7 +232,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 const Icon(Icons.timer_off_rounded, color: AdminColors.danger, size: 18),
                 const SizedBox(width: AppSpace.xs),
                 Expanded(child: Text('This code expired on ${_formatDate(r.expiresAt)}.',
-                    style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.w600, fontSize: 13))),
+                    style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.w600, fontSize: AdminSize.body))),
               ]),
             ),
           ],
@@ -262,7 +259,6 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   }
 
   /// "ABCD EFGH" for reading aloud; matching ignores spaces and case.
-  String _spaced(String code) => code.length == 8 ? '${code.substring(0, 4)} ${code.substring(4)}' : code;
 
   bool _matches(Redemption r) {
     final q = _codeQuery.replaceAll(' ', '').toUpperCase();
@@ -284,13 +280,13 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
             pinned: true,
             backgroundColor: kCard,
             automaticallyImplyLeading: false,
-            title: const Text('Rewards Manager', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
+            title: const Text('Rewards manager', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
             actions: [
               IconButton(
                 tooltip: 'Add reward',
                 icon: Container(
                   padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10),
+                  decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(color: kGreen.withValues(alpha: 0.3))),
                   child: const Icon(Icons.add_rounded, color: kGreen, size: 20),
                 ),
@@ -304,20 +300,20 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
               indicatorWeight: 3,
               labelColor: kGreen,
               unselectedLabelColor: AdminColors.textTertiary,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: AdminSize.body),
               tabs: [
                 Tab(text: 'Rewards (${widget.rewards.length})'),
-                Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Tab(child: FittedBox(fit: BoxFit.scaleDown, child: Row(mainAxisSize: MainAxisSize.min, children: [
                   const Text('Redemptions'),
                   if (pending > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AdminColors.orange, borderRadius: BorderRadius.circular(10)),
-                      child: Text('$pending', style: const TextStyle(color: AdminColors.textPrimary, fontSize: 11, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(color: AdminColors.orange, borderRadius: BorderRadius.circular(AppRadius.md)),
+                      child: Text('$pending', style: const TextStyle(color: AdminColors.textPrimary, fontSize: AdminSize.caption, fontWeight: FontWeight.bold)),
                     ),
                   ],
-                ])),
+                ]))),
               ],
             ),
           ),
@@ -331,13 +327,20 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   }
 
   Widget _buildRewards() {
-    if (widget.rewards.isEmpty) {
-      return EmptyState(
-        icon: Icons.card_giftcard_rounded,
-        title: 'No rewards yet',
-        message: 'Add the first reward customers can redeem.',
-        actionLabel: 'Add First Reward',
-        onAction: _showForm,
+    // Also when every reward is waiting on Undo. Scrollable, so it can be refreshed and never
+    // overflows when the keyboard (the add form) shrinks the page.
+    if (_visibleRewards.isEmpty) {
+      return EcoRefresh(
+        onRefresh: () async => widget.onChanged(),
+        child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
+          SliverFillRemaining(hasScrollBody: false, child: EmptyState(
+            icon: Icons.card_giftcard_rounded,
+            title: 'No rewards yet',
+            message: 'Add the first reward customers can redeem.',
+            actionLabel: 'Add first reward',
+            onAction: _showForm,
+          )),
+        ]),
       );
     }
 
@@ -353,7 +356,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
             color: kCard,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: r.isActive ? kGreen.withValues(alpha: 0.2) : kBorder),
           ),
           child: ListTile(
@@ -362,36 +365,37 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
               width: 48, height: 48,
               decoration: BoxDecoration(
                 color: r.isActive ? kGreen.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: r.isActive ? kGreen.withValues(alpha: 0.3) : kBorder),
               ),
               child: Icon(_catIcon(r.category), color: r.isActive ? kGreen : AdminColors.textTertiary, size: 22),
             ),
             title: Row(children: [
               Expanded(child: Text(r.title, style: TextStyle(color: r.isActive ? AdminColors.textPrimary : AdminColors.textTertiary,
-                  fontWeight: FontWeight.w600, fontSize: 14))),
+                  fontWeight: FontWeight.w600, fontSize: AdminSize.title))),
               if (!r.isActive)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                  child: const Text('Inactive', style: TextStyle(color: AdminColors.danger, fontSize: 11, fontWeight: FontWeight.bold)),
+                  decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                  child: const Text('Inactive', style: TextStyle(color: AdminColors.danger, fontSize: AdminSize.caption, fontWeight: FontWeight.bold)),
                 ),
             ]),
             subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const SizedBox(height: 2),
-              Text(r.description, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11),
+              Text(r.description, style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: AppSpace.xxs),
               Wrap(spacing: AppSpace.xs, runSpacing: AppSpace.xxs, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.stars_rounded, color: AdminColors.gold, size: 12),
                   const SizedBox(width: 3),
-                  Text('${r.pointsCost} pts', style: const TextStyle(color: AdminColors.gold, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Flexible(child: Text('${formatCount(r.pointsCost)} pts', overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AdminColors.gold, fontSize: AdminSize.caption, fontWeight: FontWeight.w600))),
                 ]),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(6)),
-                  child: Text(r.category, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                  child: Text(r.category, style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption)),
                 ),
               ]),
             ]),
@@ -401,7 +405,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 tooltip: true,
                 onTap: () => _showForm(reward: r),
                 child: Container(padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: AdminColors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
+                    decoration: BoxDecoration(color: AdminColors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md),
                         border: Border.all(color: AdminColors.blue.withValues(alpha: 0.2))),
                     child: const Icon(Icons.edit_outlined, color: AdminColors.blue, size: 16)),
               ),
@@ -410,23 +414,11 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                 label: 'Delete ${r.title}',
                 tooltip: true,
                 onTap: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: kCard,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: const Text('Delete Reward', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
-                      content: Text('Delete "${r.title}"?', style: const TextStyle(color: AdminColors.textSecondary)),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel', style: TextStyle(color: AdminColors.textSecondary))),
-                        ElevatedButton(onPressed: () => Navigator.pop(context, true),
-                            style: ElevatedButton.styleFrom(backgroundColor: AdminColors.dangerFill, elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                            child: const Text('Delete', style: TextStyle(color: AdminColors.textPrimary))),
-                      ],
-                    ),
-                  );
+                  final confirm = await showAppDialog(context,
+                      title: 'Delete "${r.title}"?',
+                      message: 'Customers will no longer see it. You can undo for a few seconds.',
+                      confirmLabel: 'Delete',
+                      destructive: true);
                   if (confirm != true || !mounted) return;
                   // Hide it at once and offer Undo; the delete runs only when the snackbar closes.
                   AppHaptics.primary();
@@ -453,7 +445,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                   }
                 },
                 child: Container(padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
+                    decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md),
                         border: Border.all(color: AdminColors.danger.withValues(alpha: 0.2))),
                     child: const Icon(Icons.delete_outline_rounded, color: AdminColors.danger, size: 16)),
               ),
@@ -507,10 +499,10 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
         TextField(
           onChanged: (v) => setState(() => _codeQuery = v),
           textCapitalization: TextCapitalization.characters,
-          style: const TextStyle(color: AdminColors.textPrimary, fontFamily: 'monospace', letterSpacing: 2),
+          style: AppType.code.copyWith(color: AdminColors.textPrimary),
           decoration: InputDecoration(
             hintText: 'Find a code, email or reward',
-            hintStyle: const TextStyle(color: AdminColors.textTertiary, letterSpacing: 0, fontFamily: 'Roboto'),
+            hintStyle: const TextStyle(color: AdminColors.textTertiary, letterSpacing: 0, fontWeight: FontWeight.w400),
             prefixIcon: const Icon(Icons.search_rounded, color: AdminColors.textTertiary),
             filled: true,
             fillColor: kDark,
@@ -548,12 +540,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   Widget _sectionHeader(String title, Color color, int count) => Row(children: [
         Container(width: 4, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: AppSpace.xs),
-        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: AdminSize.title)),
         const SizedBox(width: AppSpace.xs),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md)),
+          child: Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: AdminSize.caption)),
         ),
       ]);
 
@@ -578,18 +570,18 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           ),
           const SizedBox(width: AppSpace.sm),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
-            Text(r.userEmail.isNotEmpty ? r.userEmail : r.userId.substring(0, 8),
-                style: const TextStyle(color: AdminColors.textTertiary, fontSize: 12)),
+            Text(r.rewardTitle, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: AdminSize.title)),
+            Text(r.userEmail.isNotEmpty ? r.userEmail : r.userId.substring(0, r.userId.length.clamp(0, 8)),
+                style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.label)),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('-${r.pointsUsed} pts', style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text('-${r.pointsUsed} pts', style: const TextStyle(color: AdminColors.danger, fontWeight: FontWeight.bold, fontSize: AdminSize.body)),
             if (isExpired)
               Container(
                 margin: const EdgeInsets.only(top: AppSpace.xxs),
                 padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
                 decoration: BoxDecoration(color: AdminColors.danger.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                child: const Text('EXPIRED', style: TextStyle(color: AdminColors.danger, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1)),
+                child: const Text('EXPIRED', style: TextStyle(color: AdminColors.danger, fontWeight: FontWeight.w800, fontSize: AdminSize.caption, letterSpacing: 1)),
               ),
           ]),
         ]),
@@ -602,15 +594,14 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
             const Icon(Icons.confirmation_number_rounded, color: AdminColors.textTertiary, size: 16),
             const SizedBox(width: AppSpace.xs),
             Expanded(
-              child: Text(_spaced(r.redemptionCode),
-                  style: TextStyle(color: AdminColors.textPrimary, fontFamily: 'monospace', fontWeight: FontWeight.w800,
-                      fontSize: 18, letterSpacing: 2,
+              child: RedemptionCode(r.redemptionCode,
+                  style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.w800, fontSize: AdminSize.heading,
                       decoration: isExpired ? TextDecoration.lineThrough : null,
                       decorationColor: AdminColors.danger)),
             ),
             Text(isPending ? (isExpired ? 'Expired ${_formatDate(r.expiresAt)}' : 'Until ${_formatDate(r.expiresAt)}')
                     : _formatDate(r.redeemedAt),
-                style: TextStyle(color: isExpired ? AdminColors.danger : AdminColors.textTertiary, fontSize: 11)),
+                style: TextStyle(color: isExpired ? AdminColors.danger : AdminColors.textTertiary, fontSize: AdminSize.caption)),
           ]),
         ),
         if (isPending) ...[
@@ -624,7 +615,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                         side: BorderSide(color: AdminColors.danger.withValues(alpha: 0.6)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm + 2))),
                     icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                    label: const Text('Review expired code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    label: const Text('Review expired code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AdminSize.body)),
                   )
                 : ElevatedButton.icon(
                     onPressed: busy ? null : () => _markClaimed(r),
@@ -633,7 +624,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
                     icon: busy
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AdminColors.onAccent))
                         : const Icon(Icons.check_rounded, size: 18),
-                    label: Text(busy ? 'Saving…' : 'Mark as Claimed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    label: Text(busy ? 'Saving…' : 'Mark as Claimed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: AdminSize.body)),
                   ),
           ),
         ],
@@ -654,10 +645,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     AppSnackbar.success(context, 'Code ${r.redemptionCode} copied');
   }
 
-  String _formatDate(DateTime dt) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${months[dt.month - 1]} ${dt.day}';
-  }
+  String _formatDate(DateTime dt) => AppDates.day(dt);
 
   IconData _catIcon(String cat) {
     switch (cat) {
@@ -680,7 +668,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           prefixIcon: Icon(icon, color: kGreen, size: 20),
           filled: true,
           fillColor: Colors.white.withValues(alpha: 0.07),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
         ),
         validator: validator ?? (v) => v!.trim().isEmpty ? 'Required' : null,
       );

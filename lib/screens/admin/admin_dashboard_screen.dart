@@ -11,14 +11,6 @@ import '../../core/admin_theme.dart';
 import '../../widgets/ui.dart';
 import '../../core/app_theme.dart';
 
-const kGreen = kAdminGreen;
-const kDarkGreen = kAdminDGreen;
-const kBlue = kAdminBlue;
-const kPurple = kAdminPurple;
-const kOrange = kAdminOrange;
-const kDark = kAdminDark;
-const kCard = kAdminCard;
-const kBorder = kAdminBorder;
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -55,29 +47,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         setState(() { _logs = logs; _customers = customers; _rewards = rewards; _bins = bins; _loading = false; });
       }
     } catch (_) {
-      // Never show raw exception text; the error state explains what to do.
-      if (mounted) setState(() { _loading = false; _loadError = 'failed'; });
+      // Never show raw exception text. A failed refresh keeps the data on screen and says so;
+      // only a failed first load replaces it with the error state.
+      if (!mounted) return;
+      setState(() { _loading = false; if (firstLoad) _loadError = 'failed'; });
+      if (!firstLoad) AppSnackbar.error(context, "Couldn't refresh. Showing the last data loaded.");
     }
   }
 
   Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: kCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure?', style: TextStyle(color: AdminColors.textSecondary)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: AdminColors.textSecondary))),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: AdminColors.dangerFill, elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              child: const Text('Logout', style: TextStyle(color: AdminColors.textPrimary))),
-        ],
-      ),
-    );
+    final confirm = await showAppDialog(context,
+        title: 'Sign out?',
+        message: 'You can sign in again any time with your staff email and password.',
+        confirmLabel: 'Sign out',
+        destructive: true);
     if (confirm == true) {
       await FirebaseService.logout();
       if (mounted) {
@@ -100,6 +83,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     // Admin screens always use the dark admin theme (dialogs and sheets inherit it).
     return Theme(
       data: AppTheme.admin,
+      child: TabBackScope(
+      index: _selectedIndex,
+      onFirstTab: () => setState(() => _selectedIndex = 0),
       child: Scaffold(
       backgroundColor: kDark,
       extendBody: true,
@@ -110,6 +96,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   title: "Couldn't load the dashboard",
                   message: 'Check the connection, then try again. If it keeps failing, sign out and back in.',
                   onRetry: _loadData,
+                  secondaryLabel: 'Sign out',
+                  onSecondary: _logout,
                 )
               : GestureDetector(
                   onHorizontalDragEnd: (d) {
@@ -126,15 +114,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         selectedIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
       ),
-    ));
+    )));
   }
 }
 
 /// The dashboard tab without Firebase, for layout tests.
 @visibleForTesting
 Widget dashboardTabPreview({required List<WasteLog> logs, required List<UserModel> customers,
-        List<BinStatus>? bins}) =>
-    Scaffold(body: _DashboardTab(logs: logs, customers: customers, bins: bins, onRefresh: () {}, onLogout: () {},
+        List<BinStatus>? bins, Future<void> Function()? onRefresh}) =>
+    Scaffold(body: _DashboardTab(logs: logs, customers: customers, bins: bins, onRefresh: onRefresh ?? () {}, onLogout: () {},
         onOpenUsers: () {}));
 
 class _DashboardTab extends StatelessWidget {
@@ -232,17 +220,17 @@ class _DashboardTab extends StatelessWidget {
                   Row(children: [
                     Container(padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(gradient: const LinearGradient(colors: [kGreen, kDarkGreen]),
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(AppRadius.md)),
                         child: const Icon(Icons.admin_panel_settings_rounded, color: AdminColors.onAccent, size: 20)),
                     const SizedBox(width: AppSpace.sm),
                     const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Admin Dashboard', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 17)),
-                      Text('ECOReward Business Intelligence', style: TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+                      Text('Staff dashboard', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: AdminSize.heading)),
+                      Text('ECOReward Business Intelligence', style: TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption)),
                     ])),
                     Tap(label: 'Logout', tooltip: true, onTap: onLogout,
                         child: Container(padding: const EdgeInsets.all(AppSpace.sm - 1),
                             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.06),
-                                borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                                borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: kBorder)),
                             child: const Icon(Icons.logout_rounded, color: AdminColors.textTertiary, size: 18))),
                   ]),
                   const SizedBox(height: AppSpace.md),
@@ -255,7 +243,7 @@ class _DashboardTab extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(child: _statCard('${customers.length}', 'Customers', Icons.people_rounded, kBlue, onTap: onOpenUsers)),
                     const SizedBox(width: 10),
-                    Expanded(child: _statCard('$totalPoints', 'Pts Balance', Icons.stars_rounded, kOrange, onTap: onOpenUsers)),
+                    Expanded(child: _statCard('$totalPoints', 'Points held', Icons.stars_rounded, kOrange, onTap: onOpenUsers)),
                   ]),
                 ]),
               )),
@@ -270,25 +258,25 @@ class _DashboardTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               child: Container(
                 padding: const EdgeInsets.all(AppSpace.lg),
-                decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(24), border: Border.all(color: kBorder)),
+                decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(AppRadius.xxl), border: Border.all(color: kBorder)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Daily Waste Volume', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('7-day trend + Linear Regression forecast', style: TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+                      Text('Daily waste volume', style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: AdminSize.stat)),
+                      Text('Last 7 days, and the next 3 days expected from that trend', style: TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption)),
                     ])),
                     const SizedBox(width: AppSpace.xs),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: AppSpace.xxs),
-                        decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                        child: const Text('Last 7 days', style: TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600))),
+                        decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.xl)),
+                        child: const Text('Last 7 days', style: TextStyle(color: kGreen, fontSize: AdminSize.caption, fontWeight: FontWeight.w600))),
                   ]),
                   const SizedBox(height: AppSpace.sm),
                   Row(children: [
                     _legendDot(kGreen), const SizedBox(width: AppSpace.xxs),
-                    const Text('Actual', style: TextStyle(color: AdminColors.textSecondary, fontSize: 11)),
+                    const Text('Actual', style: TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.caption)),
                     const SizedBox(width: 14),
                     _legendDash(kBlue), const SizedBox(width: AppSpace.xxs),
-                    const Text('Predicted Growth', style: TextStyle(color: AdminColors.textSecondary, fontSize: 11)),
+                    const Text('Expected', style: TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.caption)),
                   ]),
                   const SizedBox(height: AppSpace.md),
                   Semantics(
@@ -316,7 +304,7 @@ class _DashboardTab extends StatelessWidget {
               child: Row(children: [
                 Expanded(child: _infoCard(
                   icon: Icons.access_time_rounded, color: kOrange,
-                  title: 'Peak Disposal Hours',
+                  title: 'Peak disposal hours',
                   value: _peakHour(),
                   sub: 'Highest activity window',
                   onTap: () {
@@ -332,8 +320,9 @@ class _DashboardTab extends StatelessWidget {
                 )),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(child: _infoCard(
-                  icon: Icons.category_rounded, color: kPurple,
-                  title: 'Most Common Waste',
+                  // In the bin's own colour, as everywhere else.
+                  icon: Icons.category_rounded, color: _typeColors[_mostCommonWaste()] ?? kPurple,
+                  title: 'Most common waste',
                   value: _mostCommonWaste(),
                   sub: 'Across all logged disposals',
                   onTap: () => _detail(context, 'Waste by type', [
@@ -353,7 +342,7 @@ class _DashboardTab extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Analytics Overview', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
+                const Text('Analytics overview', style: TextStyle(color: AdminColors.textSecondary, fontWeight: FontWeight.w600, fontSize: AdminSize.body)),
                 const SizedBox(height: AppSpace.sm),
                 GridView.count(
                   crossAxisCount: MediaQuery.sizeOf(context).width >= 700 ? 4 : 2,
@@ -366,7 +355,7 @@ class _DashboardTab extends StatelessWidget {
                   children: [
                     _biTile(
                       icon: Icons.show_chart_rounded, color: kGreen,
-                      title: 'Waste Trend',
+                      title: 'Waste trend',
                       value: '${diff >= 0 ? '+' : ''}$diff',
                       sub: 'forecast tomorrow vs today',
                       chart: _miniLineChart(actual, kGreen),
@@ -390,7 +379,7 @@ class _DashboardTab extends StatelessWidget {
                     ),
                     _biTile(
                       icon: Icons.pie_chart_rounded, color: kBlue,
-                      title: 'Waste Split',
+                      title: 'Waste split',
                       value: total > 0 ? '${(rec / total * 100).round()}%' : '0%',
                       sub: 'recyclable',
                       chart: _miniPieChart(bio, rec, res),
@@ -429,17 +418,17 @@ class _DashboardTab extends StatelessWidget {
 
   Widget _statCardBody(String v, String l, IconData icon, Color c) => Container(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.sm, horizontal: AppSpace.xs),
-        decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14),
+        decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(children: [
           Icon(icon, color: c, size: 18),
           const SizedBox(height: AppSpace.xxs),
           if (int.tryParse(v) != null)
-            AnimatedCount(int.parse(v), fromZero: true, duration: const Duration(milliseconds: 600),
-                style: const TextStyle(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold))
+            AnimatedCount(int.parse(v), fromZero: true, duration: AppMotion.flight, format: formatCount,
+                style: const TextStyle(color: AdminColors.textPrimary, fontSize: AdminSize.stat, fontWeight: FontWeight.bold))
           else
-            Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11), textAlign: TextAlign.center),
+            Text(v, style: const TextStyle(color: AdminColors.textPrimary, fontSize: AdminSize.stat, fontWeight: FontWeight.bold)),
+          Text(l, style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption), textAlign: TextAlign.center),
         ]),
       );
 
@@ -447,19 +436,19 @@ class _DashboardTab extends StatelessWidget {
       required String sub, required VoidCallback onTap}) =>
       Tap(label: '$title: $value, details', onTap: onTap, child: Container(
         padding: const EdgeInsets.all(AppSpace.md),
-        decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(20), border: Border.all(color: kBorder)),
+        decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(AppRadius.xl), border: Border.all(color: kBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Container(padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: Icon(icon, color: color, size: 16)),
             const SizedBox(width: AppSpace.xs),
-            Expanded(child: Text(title, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
+            Expanded(child: Text(title, style: const TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.caption, fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 10),
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: AdminSize.stat)),
           const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+          Text(sub, style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption)),
         ]),
       ));
 
@@ -471,19 +460,19 @@ class _DashboardTab extends StatelessWidget {
         onTap: onTap,
         child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(20), border: Border.all(color: kBorder)),
+        decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(AppRadius.xl), border: Border.all(color: kBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Icon(icon, color: color, size: 16),
             const SizedBox(width: 6),
             Flexible(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AdminColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
+                style: const TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.caption, fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 6),
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 22)),
+          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: AdminSize.display)),
           // One line: the full text is in the spoken label and the detail sheet.
           Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)),
+              style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption)),
           const Spacer(),
           SizedBox(height: 36, child: chart),
         ]),
@@ -599,7 +588,9 @@ class _TrendChartState extends State<_TrendChart> with SingleTickerProviderState
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
                 leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28,
-                    getTitlesWidget: (v, _) => Text('${v.toInt()}', style: const TextStyle(color: AdminColors.textTertiary, fontSize: 11)))),
+                    // Whole numbers only: the chart's top edge (e.g. 5.4) used to print a second "5".
+                    getTitlesWidget: (v, _) => v != v.roundToDouble() ? const SizedBox.shrink()
+                        : Text('${v.toInt()}', style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.caption)))),
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 1,
@@ -608,7 +599,7 @@ class _TrendChartState extends State<_TrendChart> with SingleTickerProviderState
                       if (i < 0 || i >= allDays.length) return const SizedBox.shrink();
                       return Padding(padding: const EdgeInsets.only(top: AppSpace.xxs),
                           child: Text(DateFormat('E').format(allDays[i]),
-                              style: TextStyle(color: i >= 7 ? kBlue : AdminColors.textTertiary, fontSize: 11)));
+                              style: TextStyle(color: i >= 7 ? kBlue : AdminColors.textTertiary, fontSize: AdminSize.caption)));
                     })),
               ),
               lineBarsData: [
@@ -667,8 +658,8 @@ void _detail(BuildContext context, String title, List<_DetailRow> rows, {String?
             padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Expanded(child: Text(r.label, style: const TextStyle(color: AdminColors.textSecondary, fontSize: 14))),
-                Text(r.value, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+                Expanded(child: Text(r.label, style: const TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.title))),
+                Text(r.value, style: const TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.bold, fontSize: AdminSize.title)),
               ]),
               if (r.fraction != null) ...[
                 const SizedBox(height: AppSpace.xxs),
@@ -679,7 +670,7 @@ void _detail(BuildContext context, String title, List<_DetailRow> rows, {String?
           ),
         if (note != null) ...[
           const SizedBox(height: AppSpace.md),
-          Text(note, style: const TextStyle(color: AdminColors.textTertiary, fontSize: 12, height: 1.4)),
+          Text(note, style: const TextStyle(color: AdminColors.textTertiary, fontSize: AdminSize.label, height: 1.4)),
         ],
       ],
     ),
@@ -706,7 +697,7 @@ class _AdminFloatingNav extends StatelessWidget {
         child: Container(
           height: 68,
           decoration: BoxDecoration(
-            color: kCard, borderRadius: BorderRadius.circular(36),
+            color: kCard, borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(color: kBorder),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
           ),
@@ -742,7 +733,7 @@ class _AdminFloatingNav extends StatelessWidget {
                       const SizedBox(height: 2),
                       AnimatedDefaultTextStyle(
                         duration: AppMotion.of(context, AppMotion.fast),
-                        style: TextStyle(fontSize: 11, color: fg, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+                        style: TextStyle(fontSize: AdminSize.caption, color: fg, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
                         child: Text(items[i].$3, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ]),

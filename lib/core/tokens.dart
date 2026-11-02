@@ -15,6 +15,10 @@ class AppPalette {
   static const coffee = Color(0xFF6B4A34);
   static const cream = Color(0xFFF5EDE0);
   static const coin = [Color(0xFFFFE566), Color(0xFFFFD700), Color(0xFFB8860B)]; // decorative points coin
+  // Champagne gold: the signature coin (EcoCoin). Decorative only; text never sits on it.
+  static const champagneLight = Color(0xFFF6E7BF);
+  static const champagne = Color(0xFFD9B76A);
+  static const champagneDeep = Color(0xFF9A7432);
 
   // Decorative accents (icons, fills, confetti). Text drawn in them goes through colors.ink().
   static const categories = {
@@ -25,10 +29,10 @@ class AppPalette {
   static const medalSilver = Color(0xFF9E9E9E);
   static const medalGold = Color(0xFFFFC107);
   static const medalBronze = Color(0xFFCD7F32);
+  static const medalInk = Color(0xFF1B1F1C);    // place numbers on the medals: 5:1 or better on all three
   static const confetti = [mint, Color(0xFF66BB6A), Color(0xFF29B6F6), Color(0xFFFF7043), Color(0xFFAB47BC)];
   static const confettiGold = [Color(0xFFFFD700), Color(0xFFFFE566), Color(0xFFFFB300)];
   static const goldWash = Color(0xFFFFF8E1);   // light background behind badge news
-  static const soldOut = Color(0xFF424242);     // white text 10:1
 }
 
 // ── Spacing: 4/8 grid ────────────────────────────────────────────────────────
@@ -61,15 +65,13 @@ class AppGradients {
     colors: [AppPalette.forest, Color(0xFF4E9A6B), AppPalette.mint],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
-  static const coffeeCream = LinearGradient(
-    colors: [AppPalette.coffee, Color(0xFFA57E5F), AppPalette.cream],
-    begin: Alignment.topLeft, end: Alignment.bottomRight,
-  );
-  static const SweepGradient ring = SweepGradient(colors: [AppPalette.mint, AppPalette.forest, AppPalette.mint]);
 }
 
 // ── Responsive helpers ───────────────────────────────────────────────────────
 class AppLayout {
+  /// Widest a customer page's content gets (tablets keep a phone-like column).
+  static const double readingWidth = 600;
+
   /// Current text scale (1.0 = default; users can raise it in system settings).
   static double textScale(BuildContext context) => MediaQuery.textScalerOf(context).scale(1);
 
@@ -81,9 +83,10 @@ class AppLayout {
     return base + perScale * (textScale(context).clamp(1.0, 2.0) - 1) * (narrow ? 2.3 : 1);
   }
 
-  /// Grid columns for card grids: 2 on phones, more on tablets ([minTile] = narrowest card).
+  /// Grid columns for card grids on customer pages: 2 on phones, more on wider pages ([minTile] = narrowest
+  /// card). Counted on the page's content width, which stops at [readingWidth].
   static int columns(BuildContext context, {double minTile = 180, int max = 5}) =>
-      (MediaQuery.sizeOf(context).width / minTile).floor().clamp(2, max);
+      (MediaQuery.sizeOf(context).width.clamp(0, readingWidth) / minTile).floor().clamp(2, max);
 }
 
 // ── Radii ────────────────────────────────────────────────────────────────────
@@ -93,7 +96,6 @@ class AppRadius {
   static const double lg = 16;
   static const double xl = 20;
   static const double xxl = 28;
-  static const double xxxl = 40;
   static const double pill = 999;
 
   static BorderRadius all(double r) => BorderRadius.circular(r);
@@ -106,7 +108,12 @@ class AppMotion {
   static const slow = Duration(milliseconds: 400);     // entrances, page-level changes
 
   static const countUp = Duration(milliseconds: 400);  // numbers counting up / bars filling
-  static const celebration = Duration(milliseconds: 1600); // confetti; the only motion allowed over 400 ms
+  static const celebration = Duration(milliseconds: 1600); // confetti
+  // The scan-success sequence and other deliberate moments run longer than 400 ms, on these named beats:
+  static const beat = Duration(milliseconds: 300);     // between steps of a celebration (rank card, then badges)
+  static const flight = Duration(milliseconds: 700);   // points flying into the balance, charts growing
+  static const linger = Duration(milliseconds: 900);   // a highlight that should be noticed (sheen, "Up to date")
+  static const hold = Duration(milliseconds: 1100);    // press-and-hold to confirm
   static const stagger = Duration(milliseconds: 50);   // delay between list items
   static const ambient = Duration(milliseconds: 1500); // looping hints (scan line, pulse)
   static const page = Duration(milliseconds: 300);     // page / tab / dialog-route transitions
@@ -159,7 +166,13 @@ class AppShadows {
 }
 
 // ── Typography ───────────────────────────────────────────────────────────────
-// Material 3 names; nothing smaller than 11 sp. Colours come from the theme.
+// Material 3 names; nothing smaller than 11 sp. Colours come from the theme. The roles:
+//   display large 44 / medium 34 / small 30  Fraunces: balances, the wordmark, sign-in titles
+//   headline medium 26 / small 22            Fraunces: page and section headings
+//   title large 18 / medium 16 / small 14    DM Sans: card titles, list rows
+//   body large 15 / medium 14 / small 12     DM Sans: running text
+//   label large 15 / medium 12 / small 11    DM Sans: buttons, chips, captions
+// Numbers that change or sit in columns use [numeral] or [tabular] so digits keep their width.
 class AppType {
   /// Headlines and big numbers: Fraunces, a soft café serif. Everything else: DM Sans.
   /// Both are bundled in assets/fonts (SIL OFL), never downloaded at runtime.
@@ -169,10 +182,24 @@ class AppType {
   static const display = TextStyle(fontFamily: displayFamily, fontSize: 44, fontWeight: FontWeight.w800,
       letterSpacing: -1.0, height: 1.05);
   static const numeral = TextStyle(fontFamily: displayFamily, fontSize: 44, fontWeight: FontWeight.w800,
-      letterSpacing: -1.0, height: 1.0, fontFeatures: [FontFeature.liningFigures()]);
+      letterSpacing: -1.0, height: 1.0, fontFeatures: [FontFeature.liningFigures(), FontFeature.tabularFigures()]);
+  /// The points balance on Home: the biggest number in the app.
+  static final balance = numeral.copyWith(fontSize: 56, letterSpacing: -1.5);
+  /// Stat figures in cards (Profile, Activity, Badges): the numeral at the size of a heading.
+  static final stat = numeral.copyWith(fontSize: 26, letterSpacing: -0.4);
+
+  /// Redemption codes: DM Sans with even-width digits and room between characters, so a code reads aloud
+  /// the same on every phone (a 'monospace' family is not bundled, and iOS has none by that name).
+  static const code = TextStyle(fontFamily: bodyFamily, fontWeight: FontWeight.w700, letterSpacing: 2,
+      fontFeatures: [FontFeature.tabularFigures(), FontFeature.liningFigures()]);
+
+  /// [s] with even-width digits, for points and counts that update or line up.
+  static TextStyle tabular(TextStyle s) => s.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 
   static TextTheme textTheme(Color primary, Color secondary) => TextTheme(
         displayLarge: display.copyWith(color: primary),
+        displayMedium: TextStyle(fontFamily: displayFamily, fontSize: 34, fontWeight: FontWeight.w700, height: 1.1,
+            letterSpacing: -0.5, color: primary),
         // Sign-in page titles; left undefined it fell back to Material's thin 36 sp sans.
         displaySmall: TextStyle(fontFamily: displayFamily, fontSize: 30, fontWeight: FontWeight.w700, height: 1.15,
             letterSpacing: -0.3, color: primary),

@@ -17,6 +17,24 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
+/// System back on any tab but the first returns to the first tab; on the first tab it leaves
+/// as usual. Wraps a screen whose tabs live in one route (customer Home, staff dashboard).
+class TabBackScope extends StatelessWidget {
+  const TabBackScope({super.key, required this.index, required this.onFirstTab, required this.child});
+  final int index;
+  final VoidCallback onFirstTab;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+        canPop: index == 0,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) onFirstTab();
+        },
+        child: child,
+      );
+}
+
 /// Tabs that keep their state: each tab is built the first time it is shown and then kept
 /// (offstage, with its animations paused) while another tab is visible. Switching uses a
 /// horizontal shared axis: the new tab slides in from the side you are moving towards while

@@ -170,9 +170,20 @@ class RewardArt extends StatelessWidget {
     Widget art = Container(
       width: size,
       height: size,
+      // Lit from the top left, with a hairline edge and (light mode) a soft shadow in its own colour.
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: c.isDark ? 0.22 : 0.12),
         borderRadius: AppRadius.all(size * 0.28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withValues(alpha: c.isDark ? 0.32 : 0.20), accent.withValues(alpha: c.isDark ? 0.14 : 0.07)],
+        ),
+        border: Border.all(color: accent.withValues(alpha: c.isDark ? 0.40 : 0.22)),
+        boxShadow: muted
+            ? null
+            : AppShadows.of(context, [
+                BoxShadow(color: accent.withValues(alpha: 0.18), blurRadius: size * 0.22, offset: Offset(0, size * 0.08)),
+              ]),
       ),
       child: Icon(rewardIconData(title, category), size: size * 0.5, color: muted ? c.textTertiary : c.ink(accent)),
     );

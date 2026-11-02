@@ -48,7 +48,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
     _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard));
-    _headerCtrl.forward();
+    // First visit of the session only; afterwards the page simply appears.
+    if (_entrance.play) {
+      _headerCtrl.forward();
+    } else {
+      _headerCtrl.value = 1;
+    }
     _load();
   }
 
@@ -98,13 +103,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
 
     final me = widget.me;
     final pinMe = !_loading && !_error && me != null && _myRank > 0 && !_users.any((u) => u.uid == me.uid);
-    return Scaffold(
+    return PageScaffold(
       // Outside the loaded top 20? Keep your own row visible at the bottom.
       bottomNavigationBar: pinMe ? _PinnedMe(me: me, rank: _myRank, delta: _rankDelta) : null,
       body: EcoRefresh(
         onRefresh: _load,
         child: CustomScrollView(
           slivers: [
+            const AppSliverHeader(title: 'Leaderboard'),
             SliverToBoxAdapter(
               child: FadeTransition(
                 opacity: _headerFade,
@@ -112,17 +118,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                   position: _headerSlide,
                   child: Container(
                     color: c.background,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.xs, AppSpace.lg, AppSpace.md),
-                        child: Column(children: [
-                          Row(children: [
-                            HeroBackButton(onTap: () => Navigator.pop(context)),
-                            const SizedBox(width: AppSpace.xs),
-                            Text('Leaderboard', style: t.headlineMedium),
-                          ]),
-                          const SizedBox(height: AppSpace.lg),
+                    child: Padding(
+                        padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.md),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           if (_myRank > 0)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.sm),
@@ -140,7 +138,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                             ),
                         ]),
                       ),
-                    ),
                   ),
                 ),
               ),
@@ -178,7 +175,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.xl, AppSpace.xl, AppSpace.xs),
-                    child: _Podium(users: _users.take(3).toList(), currentUid: widget.currentUid),
+                    child: _Podium(users: _users.take(3).toList(), currentUid: widget.currentUid,
+                        animate: _entrance.play),
                   ),
                 ),
               SliverPadding(
@@ -209,7 +207,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
 class _Podium extends StatefulWidget {
   final List<UserModel> users;
   final String currentUid;
-  const _Podium({required this.users, required this.currentUid});
+  final bool animate;
+  const _Podium({required this.users, required this.currentUid, required this.animate});
   @override
   State<_Podium> createState() => _PodiumState();
 }
@@ -227,6 +226,10 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
       _scales.add(Tween<double>(begin: 0.6, end: 1).animate(CurvedAnimation(parent: c, curve: AppMotion.spring)));
       // Order on screen is silver, gold, bronze; they rise bronze -> silver -> gold.
       const delays = [250, 520, 120];
+      if (!widget.animate) {
+        c.value = 1;
+        continue;
+      }
       Future.delayed(Duration(milliseconds: delays[i]), () { if (mounted) c.forward(); });
     }
   }
@@ -281,7 +284,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
                 width: 28, height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: colors[i], shape: BoxShape.circle),
-                child: Text('${places[i]}', style: t.labelMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                child: Text('${places[i]}', style: t.labelMedium!.copyWith(color: AppPalette.medalInk, fontWeight: FontWeight.w800)),
               ),
               const SizedBox(height: AppSpace.xxs),
               Container(
@@ -293,7 +296,7 @@ class _PodiumState extends State<_Podium> with TickerProviderStateMixin {
                 ),
                 child: Center(child: Text(
                   user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-                  style: t.titleLarge!.copyWith(color: c.ink(colors[i]), fontSize: 20),
+                  style: t.headlineSmall!.copyWith(color: c.ink(colors[i])),
                 )),
               ),
               const SizedBox(height: AppSpace.xs - 2),
@@ -394,7 +397,7 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Flexible(child: Text(widget.user.username, overflow: TextOverflow.ellipsis,
-                    style: t.titleSmall!.copyWith(fontSize: 13))),
+                    style: t.titleSmall)),
                 if (widget.isMe) ...[
                   const SizedBox(width: AppSpace.xs - 2),
                   Container(
@@ -408,7 +411,7 @@ class _AnimatedLeaderRowState extends State<_AnimatedLeaderRow> with SingleTicke
                   style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('${widget.user.lifetimePoints}', style: t.titleMedium!.copyWith(color: c.gold, fontSize: 15)),
+              Text('${widget.user.lifetimePoints}', style: AppType.tabular(t.titleMedium!).copyWith(color: c.gold)),
               Text('lifetime pts', style: t.labelSmall!.copyWith(fontWeight: FontWeight.w400)),
             ]),
           ]),

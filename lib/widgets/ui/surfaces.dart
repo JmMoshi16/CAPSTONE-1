@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/haptics.dart';
+import '../../core/tap.dart';
 import '../../core/tokens.dart';
-import 'press_scale.dart';
 
 /// Card surface: one spec everywhere, a flat surface with a hairline border and a 16 px radius. Depth comes from
 /// the page background, not shadows (shadows are kept for things that float: sheets, the nav bar).
@@ -13,16 +13,6 @@ BoxDecoration cardDecoration(BuildContext context, {double radius = AppRadius.lg
     border: Border.all(color: borderColor ?? c.border, width: borderColor != null ? 1.5 : 1),
   );
 }
-
-/// Gradient used behind white header text (meets 4.5:1 with [AppColors.onHero]).
-BoxDecoration heroDecoration(BuildContext context, {BorderRadius? radius}) => BoxDecoration(
-      gradient: LinearGradient(
-        colors: context.colors.hero,
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: radius,
-    );
 
 /// Section title with optional subtitle and a text action (48 dp target).
 class SectionHeader extends StatelessWidget {
@@ -65,10 +55,11 @@ class AppChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final fg = selected ? c.onPrimary : c.textSecondary;
-    return PressScale(
+    return Tap(
       onTap: onTap,
       selected: selected,
       label: semanticLabel ?? label,
+      scale: 0.96,
       // Centred at its own size: a list that hands the chip a fixed 48 dp height (the touch target) used to
       // stretch the pill, so a short label such as "All" became a circle.
       child: Center(
@@ -157,7 +148,7 @@ class AppListTile extends StatelessWidget {
       ]),
     );
     if (onTap == null) return row;
-    return PressScale(onTap: onTap, label: semanticLabel, scale: 0.98, child: row);
+    return Tap(onTap: onTap, label: semanticLabel ?? title, scale: 0.98, child: row);
   }
 }
 
@@ -181,20 +172,6 @@ class PointsPill extends StatelessWidget {
       child: Text(text, style: context.text.labelMedium!.copyWith(color: fg, fontWeight: FontWeight.w700)),
     );
   }
-}
-
-/// Back arrow for page headers: a plain icon, 48 dp touch target, labelled "Back".
-class HeroBackButton extends StatelessWidget {
-  const HeroBackButton({super.key, required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => IconButton(
-        tooltip: 'Back',
-        onPressed: onTap,
-        icon: Icon(Icons.arrow_back_rounded, color: context.colors.textPrimary),
-      );
 }
 
 /// A titled group of settings rows on one card (iOS / Revolut style list).
@@ -286,4 +263,40 @@ class SettingsRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Redemption code shown as two groups of four ("ABCD EFGH") so staff can read it aloud.
+/// Display only: the stored and copied code is unchanged.
+String spacedCode(String code) =>
+    code.length == 8 ? '${code.substring(0, 4)} ${code.substring(4)}' : code;
+
+/// A redemption code that is never cut off: it shrinks to fit a narrow space instead of ending
+/// in "…", because a partial code is useless at the counter.
+class RedemptionCode extends StatelessWidget {
+  const RedemptionCode(this.code, {super.key, this.style});
+  final String code;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(spacedCode(code), maxLines: 1, softWrap: false, style: AppType.code.merge(style)),
+      );
+}
+
+/// A customer page: a [Scaffold] whose body keeps a phone-like reading width ([maxWidth], centred) on tablets
+/// and wide windows instead of stretching. The app bar and the tab bar still span the screen.
+class PageScaffold extends Scaffold {
+  PageScaffold({
+    super.key,
+    super.appBar,
+    Widget? body,
+    super.bottomNavigationBar,
+    super.backgroundColor,
+    super.extendBody,
+    double maxWidth = AppLayout.readingWidth,
+  }) : super(body: body == null
+            ? null
+            : Center(child: ConstrainedBox(constraints: BoxConstraints(maxWidth: maxWidth), child: body)));
 }

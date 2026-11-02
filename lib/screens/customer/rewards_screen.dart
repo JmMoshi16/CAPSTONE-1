@@ -30,21 +30,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   /// From Home's reward strip: the same detail-and-redeem flow as tapping the reward here.
   void openReward(Reward reward) => _redeem(reward);
 
-  /// Swipe left / right on the grid: next / previous category.
-  void _swipeCategory(DragEndDetails d) {
-    final v = d.primaryVelocity ?? 0;
-    if (v.abs() < 250) return;
-    final cats = _categories;
-    final i = cats.indexOf(_selectedCategory);
-    final next = (i + (v < 0 ? 1 : -1)).clamp(0, cats.length - 1);
-    if (next == i) return;
-    AppHaptics.tap();
-    setState(() {
-      _swipeForward = v < 0;
-      _selectedCategory = cats[next];
-    });
-  }
-
+  /// Which way the menu slides when the category changes (towards the chip that was tapped).
   bool _swipeForward = true;
 
   /// Refreshes the live countdowns on My Codes (cheap: only while that tab shows).
@@ -92,6 +78,13 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
   void _retryHistory() {
     setState(() { _loadingHistory = true; _historyError = false; });
     _loadHistory();
+  }
+
+  /// Home reloads rewards after every scan and redemption; show its fresh list (stock, prices).
+  @override
+  void didUpdateWidget(RewardsScreen old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.rewards, widget.rewards) && widget.rewards.isNotEmpty) _rewards = widget.rewards;
   }
 
   @override
@@ -164,25 +157,19 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     }
   }
 
-  void _showRedemptionCode(Redemption r) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final c = ctx.colors;
-        final t = ctx.text;
-        return AlertDialog(
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
-              child: Icon(Icons.check_circle_rounded, color: c.success, size: 44),
-            ),
-            const SizedBox(height: AppSpace.md),
-            Text('Reward redeemed', style: t.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpace.xs - 2),
-            Text(r.rewardTitle, style: t.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
-            const SizedBox(height: AppSpace.lg),
-            Text('Your Redemption Code', style: t.labelSmall),
+  Future<void> _showRedemptionCode(Redemption r) async {
+    final c = context.colors;
+    final t = context.text;
+    final showStaff = await showAppDialog(context,
+        icon: Icons.check_circle_rounded,
+        iconColor: c.success,
+        title: 'Reward redeemed',
+        message: r.rewardTitle,
+        confirmLabel: 'Show to staff',
+        confirmIcon: Icons.fullscreen_rounded,
+        cancelLabel: 'Got it',
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Your code', style: t.labelSmall),
             const SizedBox(height: AppSpace.xs),
             FlipReveal(delay: const Duration(milliseconds: 250), child: Tap(label: 'Copy redemption code ${r.redemptionCode}',
               onTap: () {
@@ -198,11 +185,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                 ),
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(spacedCode(r.redemptionCode),
-                          style: t.headlineSmall!.copyWith(fontFamily: 'monospace', letterSpacing: 3, color: c.primary)),
-                    ),
+                    child: RedemptionCode(r.redemptionCode,
+                        style: TextStyle(fontSize: t.headlineSmall!.fontSize, letterSpacing: 3, color: c.primary)),
                   ),
                   const SizedBox(width: AppSpace.sm - 2),
                   Icon(Icons.copy_rounded, color: c.primary, size: 18),
@@ -212,25 +196,10 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             const SizedBox(height: AppSpace.sm - 2),
             Text('Show this code to the staff to claim your reward',
                 style: t.bodySmall, textAlign: TextAlign.center),
-          ]),
-          actions: [
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              AppButton(
-                label: 'Show to staff',
-                icon: Icons.fullscreen_rounded,
-                height: 48,
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r)));
-                },
-              ),
-              const SizedBox(height: AppSpace.xs),
-              AppButton.secondary(label: 'Got it!', height: 48, onPressed: () => Navigator.pop(ctx)),
-            ]),
-          ],
-        );
-      },
-    );
+          ]));
+    if (showStaff == true && mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r)));
+    }
   }
 
   void _showSnack(String msg, Color color) {
@@ -261,7 +230,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             surfaceTintColor: Colors.transparent,
             systemOverlayStyle: SystemUiOverlayStyle.light,
             automaticallyImplyLeading: false,
-            flexibleSpace: FlexibleSpaceBar(
+            flexibleSpace: HeroHeaderSpace(
+              title: 'Rewards',
               background: AuroraBackground(
                 child: SafeArea(
                   child: Padding(
@@ -281,11 +251,16 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                         Semantics(
                           label: 'You have ${widget.user.points} points to spend',
                           excludeSemantics: true,
-                          child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                            AnimatedCount(widget.user.points,
-                                style: t.headlineSmall!.copyWith(color: AppPalette.cream)),
-                            Flexible(child: Text(' pts to spend', maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: t.bodyMedium!.copyWith(color: c.onHeroMuted))),
+                          child: Row(children: [
+                            const EcoCoin(size: 26),
+                            const SizedBox(width: AppSpace.xs),
+                            Expanded(child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                              AnimatedCount(widget.user.points,
+                                  format: formatCount,
+                                  style: AppType.tabular(t.headlineSmall!).copyWith(color: AppPalette.cream)),
+                              Flexible(child: Text(' pts to spend', maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: t.bodyMedium!.copyWith(color: c.onHeroMuted))),
+                            ])),
                           ]),
                         ),
                       ],
@@ -308,10 +283,9 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             ),
           ),
         ],
+        // Swipe between Available and My codes like any tab bar; categories change with the chips.
         body: TabBarView(
           controller: _tabController,
-          // Horizontal swipes on the Available tab browse categories instead.
-          physics: const NeverScrollableScrollPhysics(),
           children: [_buildAvailable(), _buildHistory()],
         ),
       ),
@@ -358,9 +332,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             if (groups.soldOut.isNotEmpty) _menuSection('Sold out', groups.soldOut),
           ]);
 
-    return GestureDetector(
-      onHorizontalDragEnd: _swipeCategory,
-      child: EcoRefresh(
+    return EcoRefresh(
         onRefresh: _loadRewards,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -421,8 +393,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   /// One group of the menu: a heading, then its rewards as rows on one surface.
@@ -497,7 +468,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, AppSpace.navClearance),
       children: [
         if (pending.isNotEmpty) ...[
-          _sectionHeader('Pending Codes', Icons.hourglass_top_rounded, c.warning, pending.length),
+          _sectionHeader('Pending codes', Icons.hourglass_top_rounded, c.warning, pending.length),
           const SizedBox(height: AppSpace.sm - 2),
           ...pending.map((r) => _redemptionCard(r, isPending: true)),
           const SizedBox(height: AppSpace.lg),
@@ -544,8 +515,18 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         opacity: isExpired ? 0.6 : 1.0,
         child: Container(
           margin: const EdgeInsets.only(bottom: AppSpace.sm),
+          // A live ticket is the raised material (lit from above, like AppSurface); an expired one lies flat.
           decoration: ShapeDecoration(
-            color: isExpired ? c.surfaceAlt : c.surface,
+            color: isExpired ? c.surfaceAlt : null,
+            gradient: isExpired
+                ? null
+                : LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: c.isDark
+                        ? [Color.lerp(c.surface, Colors.white, 0.08)!, c.surface]
+                        : [Colors.white, Color.lerp(c.surface, c.background, 0.7)!],
+                  ),
             shape: TicketBorder(
               radius: AppRadius.lg + 2,
               stubFromRight: stub,
@@ -575,10 +556,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
                               decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: AppRadius.all(AppRadius.sm - 2)),
-                              child: Text(spacedCode(r.redemptionCode),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t.labelMedium!.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.w700,
-                                      letterSpacing: 2, color: c.primary)),
+                              child: RedemptionCode(r.redemptionCode,
+                                  style: TextStyle(fontSize: t.labelMedium!.fontSize, color: c.primary)),
                             ),
                           ),
                           Tap(label: 'Copy code', tooltip: true,
@@ -637,10 +616,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     );
   }
 
-  String _formatDate(DateTime dt) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-  }
+  String _formatDate(DateTime dt) => AppDates.dayYear(dt);
 
   String _rewardHeroTag(Reward r) => 'reward-${r.id ?? r.title}';
 
@@ -650,11 +626,12 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     final t = context.text;
     final soldOut = reward.stock == 0;
     final missing = reward.pointsCost - widget.user.points;
-    showModalBottomSheet<void>(
-      context: context,
+    AppSheet.showContent<void>(
+      context,
+      padding: EdgeInsets.zero,
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.md),
+          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xs, AppSpace.lg, AppSpace.md),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               RewardArt(title: reward.title, category: reward.category, size: 52),
@@ -685,12 +662,13 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
   /// Long-press on a ready code: the three things people do with it.
   void _codeQuickActions(Redemption r) {
-    showModalBottomSheet<void>(
-      context: context,
+    AppSheet.showContent<void>(
+      context,
+      padding: EdgeInsets.zero,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.xs),
+            padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xs, AppSpace.lg, AppSpace.xs),
             child: Text(r.rewardTitle, style: ctx.text.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ListTile(
@@ -739,8 +717,8 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         children: [
           Center(child: PointsPill(expired ? 'Expired' : 'Claimed', color: expired ? c.danger : c.success)),
           const SizedBox(height: AppSpace.md),
-          Center(child: Text(spacedCode(r.redemptionCode),
-              style: t.headlineSmall!.copyWith(fontFamily: 'monospace', letterSpacing: 3,
+          Center(child: RedemptionCode(r.redemptionCode,
+              style: TextStyle(fontSize: t.headlineSmall!.fontSize, letterSpacing: 3,
                   color: c.textTertiary, decoration: TextDecoration.lineThrough))),
           const SizedBox(height: AppSpace.lg),
           _detailRow(ctx, 'Redeemed', _formatDate(r.redeemedAt)),
@@ -763,11 +741,6 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         ]),
       );
 }
-
-/// Redemption code shown as two groups of four ("ABCD EFGH") so staff can read it aloud.
-/// Display only: the stored and copied code is unchanged.
-String spacedCode(String code) =>
-    code.length == 8 ? '${code.substring(0, 4)} ${code.substring(4)}' : code;
 
 // ── Rewards list skeleton ─────────────────────────────────────────────────────
 /// The menu's silhouette: chips, a heading, then rows (picture, two lines, price).
@@ -823,7 +796,6 @@ class StaffCodeScreen extends StatelessWidget {
     final t = context.text;
     const ink = Color(0xFF000000);
     final e = redemption.expiresAt;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -833,9 +805,11 @@ class StaffCodeScreen extends StatelessWidget {
         title: const Text('Show this to staff'),
       ),
       body: SafeArea(
-        child: Padding(
+        child: LayoutBuilder(builder: (context, box) => SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpace.xl),
-          child: Column(children: [
+          child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight - AppSpace.xl * 2),
+          child: IntrinsicHeight(child: Column(children: [
             const Spacer(),
             Text(redemption.rewardTitle, textAlign: TextAlign.center,
                 style: t.headlineSmall!.copyWith(color: ink)),
@@ -850,16 +824,14 @@ class StaffCodeScreen extends StatelessWidget {
                   border: Border.all(color: ink, width: 3),
                   borderRadius: AppRadius.all(AppRadius.xl),
                 ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(spacedCode(redemption.redemptionCode),
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 56, fontWeight: FontWeight.w900,
-                          letterSpacing: 4, color: ink)),
+                child: Center(
+                  child: RedemptionCode(redemption.redemptionCode,
+                      style: TextStyle(fontSize: AppType.balance.fontSize, fontWeight: FontWeight.w800, letterSpacing: 4, color: ink)),
                 ),
               ),
             ),
             const SizedBox(height: AppSpace.md),
-            Text('${redemption.pointsUsed} pts · valid until ${months[e.month - 1]} ${e.day}, ${e.year}',
+            Text('${redemption.pointsUsed} pts · valid until ${AppDates.dayYear(e)}',
                 style: t.titleSmall!.copyWith(color: const Color(0xFF333333))),
             const Spacer(),
             OutlinedButton.icon(
@@ -882,8 +854,9 @@ class StaffCodeScreen extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
               child: const Text('Done'),
             ),
-          ]),
+          ])),
         ),
+        )),
       ),
     );
   }

@@ -39,18 +39,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   }
 
   Future<void> _signOut() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You can sign in again any time with your email and password.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Sign out', style: TextStyle(color: ctx.colors.danger))),
-        ],
-      ),
-    );
+    final confirm = await showAppDialog(context,
+        title: 'Sign out?',
+        message: 'You can sign in again any time with your email and password.',
+        confirmLabel: 'Sign out',
+        destructive: true);
     if (confirm == true) {
       await FirebaseService.logout();
       if (mounted) {
@@ -64,10 +57,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   void _openBadges() => Navigator.push(context, MaterialPageRoute(builder: (_) => BadgesScreen(user: widget.user)));
 
-  static String _monthYear(DateTime d) {
-    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${m[d.month - 1]} ${d.year}';
-  }
+  static String _monthYear(DateTime d) => AppDates.monthYear(d);
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +93,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                           child: Text('Profile', style: t.headlineMedium!.copyWith(color: AppPalette.cream)),
                         ),
                         const SizedBox(height: AppSpace.md),
-                        Tap(label: 'Edit profile photo', onTap: _editProfile,
+                        Tap(label: 'Edit profile', onTap: _editProfile,
                             child: UserAvatar(name: user.username, photo: user.photo, size: 96, onHero: true)),
                         const SizedBox(height: AppSpace.md),
                         Text(user.username, style: t.headlineSmall!.copyWith(color: AppPalette.cream),
@@ -142,7 +132,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   color: Colors.transparent,
                   child: IntrinsicHeight(
                     child: Row(children: [
-                      _stat('${user.points}', 'Points', 'Open rewards', widget.onOpenRewards),
+                      _stat(formatCount(user.points), 'Points', 'Open rewards', widget.onOpenRewards),
                       VerticalDivider(width: 1, thickness: 1, color: c.border),
                       _stat('${user.scanCount}', 'Scans', 'Open scan history', widget.onOpenHistory),
                       VerticalDivider(width: 1, thickness: 1, color: c.border),
@@ -249,7 +239,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
               child: Column(children: [
                 FittedBox(fit: BoxFit.scaleDown,
-                    child: Text(value, style: AppType.numeral.copyWith(fontSize: 26, color: context.colors.textPrimary))),
+                    child: Text(value, style: AppType.stat.copyWith(color: context.colors.textPrimary))),
                 const SizedBox(height: AppSpace.xxs),
                 Text(label, style: context.text.bodySmall),
               ]),

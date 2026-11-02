@@ -25,7 +25,12 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     _headerFade  = CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard);
     _headerSlide = Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _headerCtrl, curve: AppMotion.standard));
-    _headerCtrl.forward();
+    // First visit of the session only; afterwards the page simply appears.
+    if (_entrance.play) {
+      _headerCtrl.forward();
+    } else {
+      _headerCtrl.value = 1;
+    }
   }
 
   @override
@@ -54,9 +59,10 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
       mainAxisExtent: 96 + 80 * textScale + 120 * (textScale - 1),
     );
 
-    return Scaffold(
+    return PageScaffold(
       body: CustomScrollView(
         slivers: [
+          const AppSliverHeader(title: 'Badges'),
           SliverToBoxAdapter(
             child: FadeTransition(
               opacity: _headerFade,
@@ -64,19 +70,10 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                 position: _headerSlide,
                 child: Container(
                   color: c.background,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.xs, AppSpace.lg, 0),
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
                       child: Column(children: [
-                        Row(children: [
-                          HeroBackButton(onTap: () => Navigator.pop(context)),
-                          const SizedBox(width: AppSpace.xs),
-                          Text('Badges', style: t.headlineMedium),
-                        ]),
-                        const SizedBox(height: AppSpace.md),
                         Container(
-                          margin: const EdgeInsets.only(left: AppSpace.sm),
                           padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: AppSpace.md),
                           decoration: cardDecoration(context),
                           child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
@@ -89,7 +86,6 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                         ),
                       ]),
                     ),
-                  ),
                 ),
               ),
             ),
@@ -102,7 +98,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                 child: Row(children: [
                   Icon(Icons.emoji_events_rounded, color: c.gold, size: 18),
                   const SizedBox(width: AppSpace.xs),
-                  Text('Earned (${earnedDefs.length})', style: t.titleMedium!.copyWith(fontSize: 15)),
+                  Text('Earned (${earnedDefs.length})', style: t.titleMedium),
                 ]),
               ),
             ),
@@ -129,7 +125,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                 child: Row(children: [
                   Icon(Icons.lock_outline_rounded, color: c.textTertiary, size: 18),
                   const SizedBox(width: AppSpace.xs),
-                  Text('Locked (${lockedDefs.length})', style: t.titleMedium!.copyWith(fontSize: 15)),
+                  Text('Locked (${lockedDefs.length})', style: t.titleMedium),
                 ]),
               ),
             ),
@@ -155,7 +151,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   }
 
   Widget _headerStat(String value, String label) => Column(children: [
-    Text(value, style: AppType.numeral.copyWith(fontSize: 24, color: context.colors.textPrimary)),
+    Text(value, style: AppType.stat.copyWith(color: context.colors.textPrimary)),
     Text(label, style: context.text.bodySmall),
   ]);
 }
@@ -251,7 +247,7 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
               ],
               if (widget.earned) ...[
                 const SizedBox(height: AppSpace.xs - 2),
-                Container(
+                FittedBox(fit: BoxFit.scaleDown, child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs, vertical: 2),
                   decoration: BoxDecoration(
                     color: c.gold.withValues(alpha: 0.12),
@@ -263,7 +259,7 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
                     const SizedBox(width: 2),
                     Text('Earned', style: t.labelSmall!.copyWith(color: c.ink(c.gold), fontWeight: FontWeight.w700)),
                   ]),
-                ),
+                )),
               ],
             ]),
           ),

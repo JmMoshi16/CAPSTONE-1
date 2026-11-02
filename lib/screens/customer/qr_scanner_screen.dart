@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show NumberFormat;
 import 'package:flutter/services.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -18,6 +17,14 @@ const _kScanAccent = AppPalette.mint;
 
 /// Shared points mapping — single source of truth in this file.
 
+/// The scan frame: a square of 65 % of the width, but no taller than 42 % of the screen and no bigger than
+/// 320 dp, centred a little above the middle so the status card at the bottom never covers it (small phones)
+/// and a tablet does not get a giant frame.
+Rect scanWindowRect(Size area) {
+  final side = [area.width * 0.65, area.height * 0.42, 320.0].reduce(math.min);
+  return Rect.fromCenter(center: Offset(area.width / 2, area.height * 0.42), width: side, height: side);
+}
+
 class QRScannerScreen extends StatefulWidget {
   final String userId;
   final String username;
@@ -27,8 +34,10 @@ class QRScannerScreen extends StatefulWidget {
   final int pointsBefore;
   /// Long-pressing the Scan button opens the scanner with the flashlight already on.
   final bool startWithTorch;
+  /// Claims the code and credits the points; replaced in tests.
+  final Future<ScanClaim> Function(String token, String userId) claim;
   const QRScannerScreen({super.key, required this.userId, required this.username, this.lifetimeBefore = 0,
-      this.pointsBefore = 0, this.startWithTorch = false});
+      this.pointsBefore = 0, this.startWithTorch = false, this.claim = FirebaseService.claimScan});
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
@@ -124,7 +133,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
     final ScanClaim claim;
     try {
       // Claim + credit are one transaction: either both happened or neither did.
-      claim = await FirebaseService.claimScan(token, widget.userId);
+      claim = await widget.claim(token, widget.userId).timeout(kScanClaimTimeout);
     } catch (e) {
       // Never show raw exception text to customers (audit M-17).
       _showError(scanErrorForException(e));
@@ -185,9 +194,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
     setState(() => _processing = false);
     _lockCtrl.reverse();
     AppHaptics.error();
+    // The dialog also closes when the whole screen is removed: then there is nothing to restart.
     showScanErrorDialog(context, e,
-        onScanAgain: () => _controller.start(),
-        onBack: () => Navigator.pop(context));
+        onScanAgain: () { if (mounted) _controller.start(); },
+        onBack: () { if (mounted) Navigator.pop(context); });
   }
 
   @override
@@ -200,8 +210,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
         appBar: AppBar(
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
-          title: const Text('Scan QR Code'),
-          leading: BackButton(onPressed: () => Navigator.pop(context)),
+          title: const Text('Scan QR code'),
+          automaticallyImplyLeading: false,
+          leading: const AppBackButton(onImage: true),
         ),
         body: Center(
           child: Padding(
@@ -213,7 +224,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
                 child: const Icon(Icons.lock_rounded, color: Colors.white70, size: 40),
               ),
               const SizedBox(height: AppSpace.lg),
-              Text('Camera Permission Required',
+              Text('Camera permission required',
                   style: t.titleLarge!.copyWith(color: Colors.white),
                   textAlign: TextAlign.center),
               const SizedBox(height: AppSpace.xs),
@@ -224,7 +235,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
               FilledButton.icon(
                 onPressed: _retryCamera,
                 icon: const Icon(Icons.camera_alt_rounded),
-                label: const Text('Retry Camera Access'),
+                label: const Text('Retry camera access'),
                 style: FilledButton.styleFrom(
                   backgroundColor: _kScanAccent,
                   foregroundColor: AppPalette.forestDeep,
@@ -280,12 +291,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
               ),
             ),
           ),
-          // Framing hint just above the scan window (the window is 65 % of the width, centred).
+          // Framing hint just above the scan window.
           Positioned.fill(
             child: IgnorePointer(
               child: LayoutBuilder(builder: (_, box) {
-                final scan = box.maxWidth * 0.65;
-                final top = (box.maxHeight - scan) / 2;
+                final top = scanWindowRect(box.biggest).top;
                 return Padding(
                   padding: EdgeInsets.fromLTRB(AppSpace.xl, (top - 48).clamp(0.0, double.infinity), AppSpace.xl, 0),
                   child: Align(
@@ -305,16 +315,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
               padding: const EdgeInsets.all(AppSpace.md),
               child: Row(
                 children: [
-                  Tap(label: 'Back', tooltip: true,
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: AppRadius.all(AppRadius.md)),
-                      child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
-                    ),
-                  ),
+                  const AppBackButton(onImage: true),
                   const SizedBox(width: AppSpace.sm),
-                  Expanded(child: Text('Scan QR Code', style: t.titleLarge!.copyWith(color: Colors.white))),
+                  Expanded(child: Text('Scan QR code', style: t.titleLarge!.copyWith(color: Colors.white))),
                   // FIX 4: Torch toggle with visual on/off state
                   Tap(label: _torchOn ? 'Turn flashlight off' : 'Turn flashlight on', tooltip: true, selected: _torchOn,
                     onTap: () {
@@ -432,7 +435,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
   late Animation<double> _fadeAnim;
 
   // "+N" flies from the points card into the balance counter, which then counts up.
-  late final AnimationController _flyCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+  late final AnimationController _flyCtrl = AnimationController(vsync: this, duration: AppMotion.flight);
   final _stackKey = GlobalKey();
   final _cardKey = GlobalKey();
   final _balanceKey = GlobalKey();
@@ -473,14 +476,18 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
     if (_rankedUp) AppHaptics.success(); // heavy is kept for errors
     AppSounds.play(AppSound.success);
     if (_rankedUp || widget.newBadges.isNotEmpty) {
-      Future.delayed(const Duration(milliseconds: 700), () => AppSounds.play(AppSound.badge));
+      Future.delayed(AppMotion.flight, () => AppSounds.play(AppSound.badge));
     }
     // Let the screen settle (fade-in, Lottie) before the points take off.
-    Future.delayed(const Duration(milliseconds: 650), _startFlight);
-    // Once per device, after the celebration: explain notifications, then ask (Android 13+).
-    Future.delayed(AppMotion.celebration, () {
-      if (mounted) askForNotificationsOnce(context);
-    });
+    Future.delayed(AppMotion.slow + AppMotion.medium, _startFlight);
+    // The notification question waits for Done (see _done), so it never lands on top of the confetti.
+  }
+
+  /// One thing at a time: the celebration plays out, then (once per device) the notification question,
+  /// then back to where the scan started.
+  Future<void> _done() async {
+    await askForNotificationsOnce(context);   // NotificationService catches plugin errors itself
+    if (mounted) Navigator.pop(context);
   }
 
   /// Rank before and after this scan's credited points (lifetime points drive rank).
@@ -496,7 +503,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
     final c = context.colors;
     final t = context.text;
     final fill = c.wasteFill(widget.wasteType);
-    return Scaffold(
+    return PageScaffold(
       body: Stack(key: _stackKey, children: [
       SafeArea(
         child: SingleChildScrollView(
@@ -511,13 +518,13 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                   padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.xs),
                   decoration: cardDecoration(context, radius: AppRadius.pill, borderColor: c.gold.withValues(alpha: 0.5)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.stars_rounded, color: AppPalette.coin[1], size: 20),
-                    const SizedBox(width: AppSpace.xs - 2),
+                    const EcoCoin(size: 22),
+                    const SizedBox(width: AppSpace.xs),
                     AnimatedCount(
                       _landed ? widget.pointsBefore + widget.points : widget.pointsBefore,
-                      format: NumberFormat('#,###').format,
+                      format: formatCount,
                       suffix: ' pts',
-                      duration: const Duration(milliseconds: 600),   // part of the celebration
+                      duration: AppMotion.flight,
                       style: t.titleMedium!.copyWith(fontFamily: AppType.displayFamily),
                     ),
                   ]),
@@ -534,7 +541,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                 // ── Rank-up (wired from the old, unused showRankUp idea) ──
                 if (_rankedUp) ...[
                   FlipReveal(
-                    delay: const Duration(milliseconds: 300),
+                    delay: AppMotion.beat,
                     child: Semantics(
                       liveRegion: true,
                       child: Container(
@@ -570,7 +577,8 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                         Row(children: [
                           Icon(Icons.emoji_events_rounded, color: c.gold, size: 20),
                           const SizedBox(width: AppSpace.xs),
-                          Text('Badge unlocked', style: t.titleSmall!.copyWith(color: c.ink(c.gold), fontWeight: FontWeight.w700)),
+                          Flexible(child: Text('Badge unlocked',
+                              style: t.titleSmall!.copyWith(color: c.ink(c.gold), fontWeight: FontWeight.w700))),
                         ]),
                         const SizedBox(height: AppSpace.sm - 2),
                         ...widget.newBadges.indexed.map((e) {
@@ -578,7 +586,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                           final info = FirebaseService.getBadgeInfo(id);
                           // Each new badge flips into view, one after another.
                           return FlipReveal(
-                            delay: const Duration(milliseconds: 500) + AppMotion.slow * i,
+                            delay: AppMotion.beat + AppMotion.medium + AppMotion.slow * i,
                             child: Container(
                             margin: const EdgeInsets.only(bottom: AppSpace.xs),
                             padding: const EdgeInsets.all(AppSpace.xs),
@@ -622,18 +630,15 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                           style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500)),
                       const SizedBox(height: 2),
                       AnimatedCount(widget.points, fromZero: true, prefix: '+', suffix: ' points',
-                          duration: const Duration(milliseconds: 700),   // part of the celebration
-                          style: t.titleLarge!.copyWith(color: Colors.white, fontSize: 20)),
+                          duration: AppMotion.flight,
+                          style: AppType.tabular(t.titleLarge!).copyWith(color: Colors.white)),
                       if (widget.multiplier > 1.0)
                         // Display only: what was credited, broken down (+15 × 1.5 streak bonus = +23).
                         Text('+${widget.basePoints} × ${_fmtMultiplier(widget.multiplier)} streak bonus = +${widget.points}',
                             style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.95))),
                     ])),
-                    Container(
-                      padding: const EdgeInsets.all(AppSpace.sm - 2),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                      child: Icon(Icons.stars_rounded, color: AppPalette.coin[1], size: 24),
-                    ),
+                    // The signature coin turns in as the points arrive.
+                    const EcoCoin(size: 44, turnIn: true),
                   ]),
                 ),
                 const SizedBox(height: AppSpace.lg),
@@ -642,7 +647,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                 AppButton(
                   label: 'Done',
                   height: 56,
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _done,
                 ),
                 const SizedBox(height: AppSpace.lg),
               ],
@@ -702,10 +707,10 @@ class _ScanOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.black.withValues(alpha: 0.55);
-    final scanSize = size.width * 0.65;
-    final left = (size.width - scanSize) / 2;
-    final top = (size.height - scanSize) / 2;
-    final scanRect = Rect.fromLTWH(left, top, scanSize, scanSize);
+    final scanRect = scanWindowRect(size);
+    final scanSize = scanRect.width;
+    final left = scanRect.left;
+    final top = scanRect.top;
     canvas.drawPath(
       Path.combine(PathOperation.difference,
         Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),

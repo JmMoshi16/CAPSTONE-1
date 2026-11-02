@@ -1,42 +1,6 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
-
-/// Frosted glass for content sitting on a forest surface: blur, a white tint, a hairline edge and a soft
-/// light along the top, like a pass in a wallet.
-class GlassCard extends StatelessWidget {
-  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(AppSpace.md),
-      this.radius = AppRadius.xl, this.tint = Colors.white, this.opacity = 0.10, this.blur = 16});
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final double radius;
-  final Color tint;
-  final double opacity;
-  final double blur;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-        borderRadius: AppRadius.all(radius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.center,
-                colors: [Colors.white.withValues(alpha: opacity + 0.08), tint.withValues(alpha: opacity)],
-              ),
-              borderRadius: AppRadius.all(radius),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-            ),
-            child: child,
-          ),
-        ),
-      );
-}
 
 /// Circular progress that sweeps from 0 when first shown and from the old value to the
 /// new one after that. [child] sits in the middle (e.g. a level number).

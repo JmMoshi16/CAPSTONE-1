@@ -6,8 +6,10 @@ class _HomeHero extends StatelessWidget {
     required this.user,
     required this.rewards,
     required this.pending,
+    required this.streak,
     required this.countFromZero,
     required this.onProfile,
+    required this.onStreak,
     required this.onBell,
     required this.onBalance,
     required this.onScan,
@@ -19,8 +21,10 @@ class _HomeHero extends StatelessWidget {
   final UserModel user;
   final List<Reward> rewards;
   final int pending;
+  /// Days in a row with a scan (0 = none or broken).
+  final int streak;
   final bool countFromZero;
-  final VoidCallback onProfile, onBell, onBalance, onScan, onMyCodes, onLeaderboard, onBadges;
+  final VoidCallback onProfile, onBell, onBalance, onScan, onMyCodes, onLeaderboard, onBadges, onStreak;
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -54,6 +58,10 @@ class _HomeHero extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: t.titleLarge!.copyWith(color: AppPalette.cream)),
               ])),
+              if (streak > 0) ...[
+                _StreakChip(streak: streak, onTap: onStreak),
+                const SizedBox(width: AppSpace.xs),
+              ],
               Tap(
                 label: pending > 0 ? 'Notifications, $pending reward codes waiting' : 'Notifications',
                 tooltip: true,
@@ -79,21 +87,55 @@ class _HomeHero extends StatelessWidget {
             const SizedBox(height: AppSpace.lg),
             _GlassBalance(user: user, rewards: rewards, countFromZero: countFromZero, onTap: onBalance),
             const SizedBox(height: AppSpace.lg),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-              _QuickAction(
-                  icon: Icons.qr_code_scanner_rounded,
-                  label: 'Scan',
-                  primary: true,
-                  onTap: onScan,
-                  semantics: 'Scan the QR code at the bin'),
-              _QuickAction(
-                  icon: Icons.confirmation_number_outlined, label: 'My codes', onTap: onMyCodes, badge: pending),
-              _QuickAction(
-                  icon: Icons.leaderboard_outlined, label: 'Ranking', onTap: onLeaderboard, semantics: 'Leaderboard'),
-              _QuickAction(icon: Icons.military_tech_outlined, label: 'Badges', onTap: onBadges),
+            // Equal shares of the width, so four actions fit a 320 dp phone.
+            Row(children: [
+              for (final action in [
+                _QuickAction(
+                    icon: Icons.qr_code_scanner_rounded,
+                    label: 'Scan',
+                    primary: true,
+                    onTap: onScan,
+                    semantics: 'Scan the QR code at the bin'),
+                _QuickAction(
+                    icon: Icons.confirmation_number_outlined, label: 'My codes', onTap: onMyCodes, badge: pending),
+                _QuickAction(icon: Icons.leaderboard_outlined, label: 'Leaderboard', onTap: onLeaderboard),
+                _QuickAction(icon: Icons.military_tech_outlined, label: 'Badges', onTap: onBadges),
+              ])
+                Expanded(child: action),
             ]),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+/// The streak, where it is seen every day: a flame and the day count on frosted glass. Opens the streak details.
+class _StreakChip extends StatelessWidget {
+  const _StreakChip({required this.streak, required this.onTap});
+  final int streak;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Tap(
+      label: '$streak-day streak, details',
+      tooltip: true,
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: AppRadius.all(AppRadius.pill),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.local_fire_department_rounded, size: 20, color: c.heroAccent),
+          const SizedBox(width: AppSpace.xxs),
+          Text('$streak', style: AppType.tabular(context.text.titleMedium!).copyWith(color: c.onHero)),
+        ]),
       ),
     );
   }
@@ -145,7 +187,10 @@ class _GlassBalance extends StatelessWidget {
     return Tap(
       label: '${user.points} points. ${rank.label} member, level ${level.level}. $goal. Explain ranks and levels',
       onTap: onTap,
-      child: GlassCard(
+      scale: 0.98,
+      child: TiltOnTouch(child: AppSurface(
+        depth: Depth.floating,
+        onHero: true,
         padding: const EdgeInsets.all(AppSpace.lg),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -176,7 +221,8 @@ class _GlassBalance extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: AppSpace.xs),
-          FittedBox(
+          Row(children: [
+          Expanded(child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: SheenOnChange(
@@ -187,13 +233,17 @@ class _GlassBalance extends StatelessWidget {
                   children: [
                     AnimatedCount(user.points,
                         fromZero: countFromZero,
-                        format: NumberFormat('#,###').format,
-                        style: AppType.numeral.copyWith(color: AppPalette.cream, fontSize: 56)),
+                        format: formatCount,
+                        style: AppType.balance.copyWith(color: AppPalette.cream)),
                     const SizedBox(width: AppSpace.xs),
                     Text('pts', style: t.titleMedium!.copyWith(color: c.onHeroMuted)),
                   ]),
             ),
-          ),
+          )),
+          const SizedBox(width: AppSpace.sm),
+          // The signature coin: what the points are, beside how many.
+          EcoCoin(size: 60, turnIn: countFromZero),
+          ]),
           const SizedBox(height: AppSpace.md),
           AnimatedBar(
               progress: progress,
@@ -204,7 +254,7 @@ class _GlassBalance extends StatelessWidget {
           const SizedBox(height: AppSpace.xs),
           Text(goal, style: t.bodySmall!.copyWith(color: c.onHero)),
         ]),
-      ),
+      )),
     );
   }
 }
@@ -265,8 +315,10 @@ class _QuickAction extends StatelessWidget {
               ),
           ]),
           const SizedBox(height: AppSpace.xs),
-          Text(label,
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: context.text.labelMedium!.copyWith(color: c.onHero)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(label, maxLines: 1, style: context.text.labelMedium!.copyWith(color: c.onHero)),
+          ),
         ]),
       ),
     );
@@ -358,7 +410,7 @@ class _RewardCard extends StatelessWidget {
     final c = context.colors;
     final t = context.text;
     final short = reward.pointsCost - points;
-    final price = reward.pointsCost <= 0 ? 'Free' : '${reward.pointsCost}';
+    final price = reward.pointsCost <= 0 ? 'Free' : formatCount(reward.pointsCost);
     final accent = rewardColor(reward.category);
     return Tap(
       label: '${reward.title}, ${reward.pointsCost <= 0 ? 'free' : '$price points'}'
@@ -410,9 +462,11 @@ class _RewardCard extends StatelessWidget {
 
 // ── This week: a ring for the 10-scan goal, the streak beside it ──
 class _WeekCard extends StatelessWidget {
-  const _WeekCard({required this.streak, required this.scansThisWeek, required this.fromZero, required this.onTap});
+  const _WeekCard(
+      {required this.streak, required this.scansThisWeek, required this.scansToday, required this.fromZero,
+      required this.onTap});
 
-  final int streak, scansThisWeek;
+  final int streak, scansThisWeek, scansToday;
   final bool fromZero;
   final VoidCallback onTap;
   static const goal = 10;
@@ -425,7 +479,8 @@ class _WeekCard extends StatelessWidget {
     final done = scansThisWeek >= goal;
     return Tap(
       label:
-          '${streak > 0 ? '$streak day streak' : 'No streak yet'}. $scansThisWeek of $goal scans this week. Streak details',
+          '${streak > 0 ? '$streak day streak' : 'No streak yet'}. $scansThisWeek of $goal scans in the last 7 days, '
+          '$scansToday today. Streak details',
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(AppSpace.md),
@@ -452,7 +507,9 @@ class _WeekCard extends StatelessWidget {
               ],
             ]),
             const SizedBox(height: AppSpace.xxs),
-            Text(done ? 'Weekly goal reached' : '$scansThisWeek of $goal scans this week', style: t.bodySmall),
+            Text(done ? 'Goal of $goal reached in the last 7 days' : '$scansThisWeek of $goal scans in the last 7 days',
+                style: t.bodySmall),
+            Text('$scansToday today', style: t.bodySmall!.copyWith(color: c.textPrimary, fontWeight: FontWeight.w600)),
           ])),
           const SizedBox(width: AppSpace.xs),
           Icon(Icons.chevron_right_rounded, color: c.textTertiary),
@@ -482,11 +539,16 @@ class _BottomNav extends StatelessWidget {
     // Five slots; Scan holds the middle one, so tabs 2 and 3 sit in slots 3 and 4.
     final slot = selectedIndex >= 2 ? selectedIndex + 1 : selectedIndex;
     return DecoratedBox(
-      decoration: BoxDecoration(color: c.surface, border: Border(top: BorderSide(color: c.border))),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(top: BorderSide(color: c.isDark ? Color.lerp(c.border, Colors.white, 0.1)! : c.border)),
+        boxShadow: AppShadows.of(context, const [BoxShadow(color: Color(0x141F3F27), blurRadius: 18, offset: Offset(0, -6))]),
+      ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          // 64 at normal text size; grows with larger text so the labels never get cut.
+          height: 48 + MediaQuery.textScalerOf(context).scale(16),
           child: LayoutBuilder(builder: (context, box) {
             final slotWidth = box.maxWidth / 5;
             return Stack(children: [

@@ -48,7 +48,7 @@ class _ImpactChartsState extends State<ImpactCharts> {
     final rec = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final res = widget.logs.where((l) => l.wasteType == 'Residual').length;
     final total = bio + rec + res;
-    final duration = AppMotion.of(context, const Duration(milliseconds: 700));
+    final duration = AppMotion.of(context, AppMotion.flight);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       // ── Last 7 days ──
@@ -98,8 +98,9 @@ class _ImpactChartsState extends State<ImpactCharts> {
                           toY: _shown ? perDay[i].toDouble() : 0,
                           width: 18,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                          gradient: const LinearGradient(
-                            colors: [AppPalette.forest, AppPalette.mint],
+                          // Forest is too dark to read on the dark surface; there the bars start lighter.
+                          gradient: LinearGradient(
+                            colors: [c.isDark ? AppPalette.forestLight : AppPalette.forest, AppPalette.mint],
                             begin: Alignment.bottomCenter, end: Alignment.topCenter,
                           ),
                           backDrawRodData: BackgroundBarChartRodData(
@@ -231,8 +232,8 @@ class _Equivalent extends StatelessWidget {
       child: Column(children: [
         Medallion(icon: icon, color: color, size: 40),
         const SizedBox(height: AppSpace.xs),
-        AnimatedCount(value, fromZero: animate, duration: const Duration(milliseconds: 900),
-            style: AppType.numeral.copyWith(fontSize: 26, color: c.textPrimary)),
+        AnimatedCount(value, fromZero: animate, duration: AppMotion.linger,
+            style: AppType.stat.copyWith(color: c.textPrimary)),
         Text(label, textAlign: TextAlign.center, style: context.text.bodySmall),
       ]),
     );

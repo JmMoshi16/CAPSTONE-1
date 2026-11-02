@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         const SizedBox(height: AppSpace.md),
         Semantics(
           header: true,
-          child: Text('ECOReward', style: t.displaySmall!.copyWith(color: AppPalette.cream, fontSize: 34)),
+          child: Text('ECOReward', style: t.displayMedium!.copyWith(color: AppPalette.cream)),
         ),
         const SizedBox(height: AppSpace.xxs),
         Text('From coffee to a greener future', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
@@ -220,5 +220,5 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _label(String text) => Text(text, style: context.text.labelMedium!.copyWith(
-      color: context.colors.textSecondary, fontSize: 13));
+      color: context.colors.textSecondary));
 }

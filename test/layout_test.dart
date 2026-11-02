@@ -5,9 +5,7 @@
 // Real Roboto metrics are loaded from the Flutter SDK so text widths match a phone; without
 // them the test font's square glyphs would report overflows that never happen on a device.
 
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,35 +29,7 @@ import 'package:ecoreward_bin/screens/register_screen.dart';
 import 'package:ecoreward_bin/screens/splash_screen.dart';
 import 'package:ecoreward_bin/widgets/ui/skeleton.dart';
 
-/// The app's own bundled fonts (DM Sans body, Fraunces headings): measure with what ships.
-Future<void> _loadAppFonts() async {
-  Future<ByteData> read(String f) async => ByteData.view(File('assets/fonts/$f').readAsBytesSync().buffer);
-  final body = FontLoader('DMSans');
-  for (final w in [400, 500, 600, 700]) { body.addFont(read('DMSans-$w.ttf')); }
-  await body.load();
-  final display = FontLoader('Fraunces');
-  for (final w in [600, 700, 800]) { display.addFont(read('Fraunces-$w.ttf')); }
-  await display.load();
-}
-
-Future<void> _loadRealFonts() async {
-  // flutter_tester lives in <flutter>/bin/cache/artifacts/engine/<platform>/.
-  final artifacts = File(Platform.resolvedExecutable).parent.parent.parent;
-  final dir = Directory('${artifacts.path}${Platform.pathSeparator}material_fonts');
-  if (!dir.existsSync()) {
-    // ignore: avoid_print
-    print('Roboto not found under ${dir.path}; using the test font (stricter widths).');
-    return;
-  }
-  Future<ByteData> read(String f) async =>
-      ByteData.view(File('${dir.path}${Platform.pathSeparator}$f').readAsBytesSync().buffer);
-  final roboto = FontLoader('Roboto');
-  for (final f in ['roboto-regular.ttf', 'roboto-medium.ttf', 'roboto-bold.ttf', 'roboto-black.ttf']) {
-    roboto.addFont(read(f));
-  }
-  await roboto.load();
-  await (FontLoader('MaterialIcons')..addFont(read('materialicons-regular.otf'))).load();
-}
+import 'support/fonts.dart';
 
 // ── Sample data ───────────────────────────────────────────────────────────────
 final _now = DateTime.now();
@@ -111,7 +81,7 @@ final Map<String, Widget Function()> _customerScreens = {
   'Impact': () => ImpactScreen(logs: _logs),
   'Impact (empty)': () => ImpactScreen(logs: const [], onScan: () {}),
   'Scan History': () => ScanHistoryScreen(logs: _logs),
-  'Scan History (empty)': () => ScanHistoryScreen(logs: const [], onScan: () {}),
+  'Scan History (empty)': () => ScanHistoryScreen(logs: const [], onScan: () async {}),
   'Leaderboard (offline)': () => const LeaderboardScreen(currentUid: 'u1'),
   'Badges': () => BadgesScreen(user: _user),
   'Profile': () => CustomerProfileScreen(user: _user, logs: _logs, onUpdated: () {}),
@@ -136,8 +106,8 @@ final Map<String, Widget Function()> _adminScreens = {
   'Admin QR': () => const AdminQRScreen(),
 };
 
-const _sizes = {'360x640': Size(360, 640), '393x852': Size(393, 852), 'tablet': Size(800, 1280)};
-const _scales = [1.0, 1.3];
+const _sizes = {'320x568': Size(320, 568), '360x640': Size(360, 640), '393x852': Size(393, 852), 'tablet': Size(800, 1280)};
+const _scales = [1.0, 1.3, 2.0];
 
 Future<void> _render(WidgetTester tester, Widget screen, Size size, double scale, ThemeData theme) async {
   tester.view.physicalSize = size;
@@ -161,8 +131,8 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({'notifications_prompted': true});
-    await _loadRealFonts();   // Roboto: fallback glyphs and MaterialIcons
-    await _loadAppFonts();
+    await loadRealFonts();   // Roboto: fallback glyphs and MaterialIcons
+    await loadAppFonts();
   });
 
   for (final s in _customerScreens.entries) {

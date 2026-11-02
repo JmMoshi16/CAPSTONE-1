@@ -10,14 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../core/tokens.dart';
 
-/// Brand palette used by the animations. Keep in sync with tool/generate_lottie.py.
-class EcoBrand {
-  static const forest = AppPalette.forest;
-  static const coffee = AppPalette.coffee;
-  static const cream = AppPalette.cream;
-  static const mint = AppPalette.mint;
-}
-
 class EcoAnimations {
   static const loader = 'assets/animations/loader.json';   // 1.5 s, loops
   static const success = 'assets/animations/success.json'; // 1.2 s, plays once
@@ -34,8 +26,7 @@ class EcoAnimations {
   }
 }
 
-bool _reduceMotion(BuildContext context) =>
-    MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+bool _reduceMotion(BuildContext context) => AppMotion.reduced(context);
 
 /// Compact looping loader: the symbol with a mint arc travelling round the ring.
 /// Drop-in replacement for CircularProgressIndicator.
@@ -54,10 +45,11 @@ class EcoLoader extends StatelessWidget {
         height: size,
         repeat: true,
         animate: !_reduceMotion(context),
-        errorBuilder: (_, __, ___) => SizedBox(
+        // Fallbacks follow the theme: the brand forest is too dark to see on the dark background.
+        errorBuilder: (ctx, __, ___) => SizedBox(
           width: size * .5,
           height: size * .5,
-          child: const CircularProgressIndicator(color: EcoBrand.forest, strokeWidth: 3),
+          child: CircularProgressIndicator(color: Theme.of(ctx).colorScheme.primary, strokeWidth: 3),
         ),
       ),
     );
@@ -150,8 +142,8 @@ class _EcoSuccessState extends State<EcoSuccess> with SingleTickerProviderStateM
         width: widget.size,
         height: widget.size,
         onLoaded: _start,
-        errorBuilder: (_, __, ___) =>
-            Icon(Icons.check_circle, color: EcoBrand.forest, size: widget.size * .6),
+        errorBuilder: (ctx, __, ___) =>
+            Icon(Icons.check_circle, color: Theme.of(ctx).colorScheme.primary, size: widget.size * .6),
       ),
     );
   }

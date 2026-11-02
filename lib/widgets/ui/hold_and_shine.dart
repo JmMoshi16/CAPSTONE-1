@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/haptics.dart';
 import '../../core/tokens.dart';
+import 'app_dialog.dart';
 
 /// Press and hold to confirm: a fill sweeps across the button; releasing early cancels.
 /// Screen-reader users (who cannot easily hold) get a confirmation dialog instead.
@@ -11,7 +12,7 @@ class HoldToConfirmButton extends StatefulWidget {
     super.key,
     required this.label,
     required this.onConfirmed,
-    this.holdDuration = const Duration(milliseconds: 1100),
+    this.holdDuration = AppMotion.hold,
     this.icon,
     this.confirmQuestion = 'Are you sure?',
   });
@@ -61,17 +62,8 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton> with SingleTi
 
   Future<void> _accessibleConfirm() async {
     if (!_enabled) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(widget.label),
-        content: Text(widget.confirmQuestion),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
-        ],
-      ),
-    );
+    final ok = await showAppDialog(context, title: widget.label, message: widget.confirmQuestion,
+        confirmLabel: 'Confirm');
     if (ok == true) widget.onConfirmed?.call();
   }
 
@@ -106,30 +98,37 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton> with SingleTi
                 borderRadius: AppRadius.all(AppRadius.lg + 2),
                 border: Border.all(color: _enabled ? c.primary : c.border, width: 1.5),
               ),
-              child: Stack(children: [
-                // The fill: the forest gradient grows from the left.
-                FractionallySizedBox(
-                  widthFactor: _c.value,
-                  heightFactor: 1,
-                  child: const DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forest)),
-                ),
-                Center(
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(
-                      _c.value > 0.5 ? Icons.lock_open_rounded : (widget.icon ?? Icons.touch_app_rounded),
-                      color: !_enabled ? c.textTertiary : (_c.value > 0.5 ? Colors.white : c.primary),
-                      size: 20,
-                    ),
-                    const SizedBox(width: AppSpace.xs),
-                    Text(
-                      _c.value > 0 && _c.value < 1 ? 'Keep holding…' : widget.label,
-                      style: t.labelLarge!.copyWith(
-                        color: !_enabled ? c.textTertiary : (_c.value > 0.5 ? Colors.white : c.primary),
+              // The fill grows from the left in the theme's primary colour. The label is drawn twice: in primary on
+              // the empty part and in onPrimary on the filled part, so every letter stays readable as the fill
+              // passes under it, in light and dark.
+              child: LayoutBuilder(builder: (_, box) {
+                // A long label at large text shrinks to fit the button instead of running off it.
+                Widget label(Color fg) => Center(
+                      child: Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.md), child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(_c.value > 0.5 ? Icons.lock_open_rounded : (widget.icon ?? Icons.touch_app_rounded),
+                            color: fg, size: 20),
+                        const SizedBox(width: AppSpace.xs),
+                        Text(_c.value > 0 && _c.value < 1 ? 'Keep holding…' : widget.label,
+                            style: t.labelLarge!.copyWith(color: fg)),
+                      ]),
+                    )));
+                return Stack(children: [
+                  label(_enabled ? c.primary : c.textTertiary),
+                  if (_c.value > 0) ClipRect(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: _c.value,
+                      child: SizedBox(
+                        width: box.maxWidth,
+                        height: box.maxHeight,
+                        child: ColoredBox(color: c.primary, child: label(c.onPrimary)),
                       ),
                     ),
-                  ]),
-                ),
-              ]),
+                  ),
+                ]);
+              }),
             );
           },
         ),

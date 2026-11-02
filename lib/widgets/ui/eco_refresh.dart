@@ -41,7 +41,7 @@ class _EcoRefreshState extends State<EcoRefresh> {
     } finally {
       if (mounted) {
         setState(() => _done = true);
-        Future.delayed(const Duration(milliseconds: 900), () { if (mounted) setState(() => _done = false); });
+        Future.delayed(AppMotion.linger, () { if (mounted) setState(() => _done = false); });
       }
     }
   }

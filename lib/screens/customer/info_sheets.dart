@@ -3,7 +3,6 @@
 // the badge definitions), so nothing here can drift from what is credited.
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/gamification.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
@@ -170,14 +169,14 @@ Future<void> showScanDetailSheet(BuildContext context, WasteLog log) {
       const SizedBox(width: AppSpace.md),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(log.wasteType, style: t.headlineSmall),
-        Text(DateFormat('EEEE, MMM d yyyy · h:mm a').format(log.timestamp), style: t.bodySmall),
+        Text(AppDates.full(log.timestamp), style: t.bodySmall),
       ])),
     ]),
     const SizedBox(height: AppSpace.lg),
     row('Base points', '+${log.pointsEarned}'),
     if (bonus > 0) row('Streak bonus', '+$bonus'),
     row('Credited', '+${log.pointsAwarded} pts'),
-    row('Bin', log.binId),
+    row('Code reference', log.binId),   // the start of the scanned QR code (stored as binId)
   ]);
 }
 

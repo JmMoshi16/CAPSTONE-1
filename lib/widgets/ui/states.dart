@@ -9,7 +9,6 @@ class EmptyState extends StatelessWidget {
     required this.title,
     this.message,
     this.icon,
-    this.emoji,
     this.actionLabel,
     this.onAction,
     this.dense = false,
@@ -21,7 +20,6 @@ class EmptyState extends StatelessWidget {
   /// Replaces the icon circle, e.g. a brand animation.
   final Widget? illustration;
   final IconData? icon;
-  final String? emoji;
   final String? actionLabel;
   final VoidCallback? onAction;
   final bool dense;
@@ -39,9 +37,7 @@ class EmptyState extends StatelessWidget {
             height: circle,
             decoration: BoxDecoration(color: c.surfaceAlt, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: emoji != null
-                ? ExcludeSemantics(child: Text(emoji!, style: TextStyle(fontSize: circle * 0.45)))
-                : Icon(icon ?? Icons.inbox_rounded, size: circle * 0.45, color: c.textTertiary),
+            child: Icon(icon ?? Icons.inbox_rounded, size: circle * 0.45, color: c.textTertiary),
           ),
           const SizedBox(height: AppSpace.md),
           Text(title, style: context.text.titleMedium, textAlign: TextAlign.center),
@@ -60,7 +56,8 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Failure message with a Retry button. Never shows raw exception text.
+/// Failure message with a Retry button, and optionally a second way out (e.g. Sign out) so a
+/// full-screen error is never a dead end. Never shows raw exception text.
 class ErrorState extends StatelessWidget {
   const ErrorState({
     super.key,
@@ -68,12 +65,16 @@ class ErrorState extends StatelessWidget {
     this.message = 'Check your connection and try again.',
     this.icon = Icons.wifi_off_rounded,
     required this.onRetry,
+    this.secondaryLabel,
+    this.onSecondary,
   });
 
   final String title;
   final String message;
   final IconData icon;
   final VoidCallback onRetry;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +95,10 @@ class ErrorState extends StatelessWidget {
           Text(message, style: context.text.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
           const SizedBox(height: AppSpace.lg),
           AppButton(label: 'Retry', icon: Icons.refresh_rounded, onPressed: onRetry, expand: false),
+          if (secondaryLabel != null && onSecondary != null) ...[
+            const SizedBox(height: AppSpace.xs),
+            TextButton(onPressed: onSecondary, child: Text(secondaryLabel!)),
+          ],
         ]),
       ),
     );

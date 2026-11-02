@@ -84,17 +84,11 @@ void showAppearanceSheet(BuildContext context) {
 
 /// Sends Firebase's password-reset email to the signed-in address, after a confirmation.
 Future<void> confirmPasswordReset(BuildContext context, String email) async {
-  final send = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Change password'),
-      content: Text('We will email a link to $email. Open it on any device to choose a new password.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send link')),
-      ],
-    ),
-  );
+  final send = await showAppDialog(context,
+      icon: Icons.lock_reset_rounded,
+      title: 'Change password',
+      message: 'We will email a link to $email. Open it on any device to choose a new password.',
+      confirmLabel: 'Send link');
   if (send != true || !context.mounted) return;
   try {
     await FirebaseService.sendPasswordReset(email);

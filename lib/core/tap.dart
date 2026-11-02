@@ -16,8 +16,11 @@ class Tap extends StatefulWidget {
   final VoidCallback? onLongPress;
   final String? longPressHint;
 
+  /// How far it presses in: 0.94 for icons and small targets, about 0.98 for whole cards.
+  final double scale;
+
   const Tap({super.key, required this.onTap, required this.label, required this.child,
-      this.tooltip = false, this.selected, this.onLongPress, this.longPressHint});
+      this.tooltip = false, this.selected, this.onLongPress, this.longPressHint, this.scale = 0.94});
 
   @override
   State<Tap> createState() => _TapState();
@@ -63,7 +66,7 @@ class _TapState extends State<Tap> {
         child: MinTapArea(
           min: kMinInteractiveDimension,
           child: AnimatedScale(
-            scale: _down ? 0.94 : 1,
+            scale: _down ? widget.scale : 1,
             duration: AppMotion.of(context, AppMotion.fast),
             curve: AppMotion.standard,
             child: widget.child,

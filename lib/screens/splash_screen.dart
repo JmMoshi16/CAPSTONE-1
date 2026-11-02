@@ -3,6 +3,7 @@
 // so opening the app goes straight from the phone's launch screen to Login or Home.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/tokens.dart';
 
@@ -19,31 +20,27 @@ class BrandSplash extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = (MediaQuery.sizeOf(context).shortestSide * .30).clamp(96.0, 140.0);
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
       backgroundColor: AppPalette.cream,
       body: Center(
         child: Semantics(
-          label: '$appName. Signing you in',
+          label: '$appName. Loading',
           excludeSemantics: true,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Image.asset('assets/icons/app_icon.png', width: icon, height: icon),
             const SizedBox(height: AppSpace.lg),
             Text(appName,
-                style: const TextStyle(
-                  fontFamily: AppType.displayFamily,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: .2,
-                  color: AppPalette.forest,
-                )),
+                style: Theme.of(context).textTheme.headlineMedium!.copyWith(color: AppPalette.forest)),
             if (tagline != null) ...[
               const SizedBox(height: 6),
               Text(tagline!,
-                  style: TextStyle(fontSize: 13.5, letterSpacing: .2, color: AppPalette.coffee.withValues(alpha: .8))),
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: AppPalette.coffee)),
             ],
           ]),
         ),
       ),
-    );
+    ));
   }
 }

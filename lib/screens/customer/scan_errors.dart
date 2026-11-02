@@ -6,6 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
 import '../../services/firebase_service.dart' show QRValidationResult;
 import '../../widgets/ui.dart';
 
+/// How long "Verifying your code…" may take before the scan is reported as a connection problem.
+/// The claim is one transaction, so a late success is still safe: scanning again then says
+/// "Points already added".
+const kScanClaimTimeout = Duration(seconds: 15);
+
 /// The waste types a bin code can carry (`ECOBIN:<Type>:<uuid>`).
 const kBinWasteTypes = ['Biodegradable', 'Recyclable', 'Residual'];
 
@@ -71,47 +76,23 @@ ScanError scanErrorForException(Object e) =>
     e is FirebaseException && e.code == 'permission-denied' ? ScanError.rejected : ScanError.offline;
 
 /// The scan error dialog: what happened, then "Scan again" or "Back to Home".
+/// Closing it any other way (tapping outside, system back) also scans again, so the camera
+/// is never left stopped behind a closed dialog.
 Future<void> showScanErrorDialog(BuildContext context, ScanError e,
-    {required VoidCallback onScanAgain, required VoidCallback onBack}) {
-  return showDialog<void>(
-    context: context,
-    builder: (ctx) {
-      final c = ctx.colors;
-      return AlertDialog(
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(color: e.warning ? c.warningContainer : c.dangerContainer, shape: BoxShape.circle),
-            child: Icon(e.icon, color: e.warning ? c.warning : c.danger, size: 36),
-          ),
-          const SizedBox(height: AppSpace.md - 2),
-          Text(e.title, style: ctx.text.titleLarge, textAlign: TextAlign.center),
-          const SizedBox(height: AppSpace.xs - 2),
-          Text(e.message, style: ctx.text.bodyMedium!.copyWith(color: c.textSecondary), textAlign: TextAlign.center),
-        ]),
-        actions: [
-          Column(mainAxisSize: MainAxisSize.min, children: [
-            AppButton(
-              label: 'Scan again',
-              icon: Icons.qr_code_scanner_rounded,
-              height: 48,
-              onPressed: () {
-                Navigator.pop(ctx);
-                onScanAgain();
-              },
-            ),
-            const SizedBox(height: AppSpace.xs),
-            AppButton.secondary(
-              label: 'Back to Home',
-              height: 48,
-              onPressed: () {
-                Navigator.pop(ctx);
-                onBack();
-              },
-            ),
-          ]),
-        ],
-      );
-    },
-  );
+    {required VoidCallback onScanAgain, required VoidCallback onBack}) async {
+  final c = context.colors;
+  final scanAgain = await showAppDialog(context,
+      icon: e.icon,
+      iconColor: e.warning ? c.warning : c.danger,
+      iconBackground: e.warning ? c.warningContainer : c.dangerContainer,
+      title: e.title,
+      message: e.message,
+      confirmLabel: 'Scan again',
+      confirmIcon: Icons.qr_code_scanner_rounded,
+      cancelLabel: 'Back to Home');
+  if (scanAgain == false) {
+    onBack();
+  } else {
+    onScanAgain();
+  }
 }

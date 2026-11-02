@@ -1,20 +1,24 @@
 // Reusable UI components built on lib/core/tokens.dart.
+export '../core/dates.dart';
 export '../core/haptics.dart';
 export '../core/tap.dart';
 export '../core/tokens.dart';
 export 'ui/app_button.dart';
+export 'ui/app_dialog.dart';
 export 'ui/app_snackbar.dart';
 export 'ui/eco_refresh.dart';
 export 'ui/fields.dart';
 export 'ui/glow.dart';
+export 'ui/headers.dart';
 export 'ui/hold_and_shine.dart';
 export 'ui/marks.dart';
+export 'ui/materials.dart';
 export 'ui/app_sheet.dart';
 export 'ui/celebration.dart';
+export 'ui/coin.dart';
 export 'ui/motion.dart';
 export 'ui/premium.dart';
-export 'ui/press_scale.dart';
+export 'ui/scan_row.dart';
 export 'ui/skeleton.dart';
-export 'ui/stat_card.dart';
 export 'ui/states.dart';
 export 'ui/surfaces.dart';

@@ -54,7 +54,8 @@ class _AppButtonState extends State<AppButton> {
     final fg = switch (widget.kind) {
       AppButtonKind.primary => scheme.onPrimary,
       AppButtonKind.secondary => scheme.primary,
-      AppButtonKind.danger => Colors.white,
+      // White on the light theme's red (5.6:1); the dark theme's red is light, so it takes dark text (7.7:1).
+      AppButtonKind.danger => c.isDark ? c.dangerContainer : Colors.white,
     };
 
     final content = widget.loading
@@ -85,8 +86,7 @@ class _AppButtonState extends State<AppButton> {
           child: content),
       AppButtonKind.danger => FilledButton(
           onPressed: onPressed,
-          style: FilledButton.styleFrom(minimumSize: size, backgroundColor: AppColors.light.danger, // white text 5.6:1 in both themes
-              foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(minimumSize: size, backgroundColor: c.danger, foregroundColor: fg),
           child: content),
     };
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart' show wasteIcon;
 import '../../widgets/ui.dart';
@@ -10,7 +9,8 @@ class ScanHistoryScreen extends StatefulWidget {
   final List<WasteLog> logs;
   /// Reloads from Firestore and returns the fresh list (pull-to-refresh).
   final Future<List<WasteLog>> Function()? onRefresh;
-  final VoidCallback? onScan;
+  /// Opens the scanner; completes when it closes, then the list reloads to show the new scan.
+  final Future<void> Function()? onScan;
   /// Filter to open with ('All' or a waste type), e.g. from an Impact type card.
   final String initialFilter;
   const ScanHistoryScreen({super.key, required this.logs, this.onRefresh, this.onScan, this.initialFilter = 'All'});
@@ -28,6 +28,11 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
     if (mounted) setState(() => _logs = fresh);
   }
 
+  Future<void> _scan() async {
+    await widget.onScan!();
+    if (widget.onRefresh != null) await _refresh();
+  }
+
   static const _types = ['All', 'Biodegradable', 'Recyclable', 'Residual'];
 
   List<WasteLog> get _filtered =>
@@ -41,49 +46,28 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
     final t = context.text;
     final filtered = _filtered;
 
-    return Scaffold(
+    return PageScaffold(
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
-          SliverAppBar(
-            expandedHeight: AppLayout.headerHeight(context, 180),
-            pinned: true,
-            backgroundColor: c.background,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              tooltip: 'Back',
-              icon: Icon(Icons.arrow_back_rounded, color: c.textPrimary),
-              onPressed: () => Navigator.pop(context),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                color: c.background,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: AppSpace.xxxl),
-                        Text('Scan History', style: t.headlineMedium),
-                        const SizedBox(height: AppSpace.xxs),
-                        Text('${_logs.length} scans · $_totalPoints pts total',
-                            style: t.bodyMedium!.copyWith(color: c.textSecondary)),
-                        const SizedBox(height: AppSpace.md),
-                        // Summary chips: one row (scrolls on narrow phones) so the header height holds.
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(children: [
-                            for (final type in const ['Biodegradable', 'Recyclable', 'Residual']) ...[
-                              _summaryChip(type, '${_logs.where((l) => l.wasteType == type).length}'),
-                              const SizedBox(width: AppSpace.xs),
-                            ],
-                          ]),
-                        ),
-                      ],
-                    ),
-                  ),
+          const AppSliverHeader(title: 'Scan history'),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.lg, AppSpace.xs),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${_logs.length} scan${_logs.length == 1 ? '' : 's'} · $_totalPoints pts total',
+                    style: t.bodyMedium!.copyWith(color: c.textSecondary)),
+                const SizedBox(height: AppSpace.md),
+                // Summary chips: one row that scrolls on narrow phones.
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    for (final type in const ['Biodegradable', 'Recyclable', 'Residual']) ...[
+                      _summaryChip(type, '${_logs.where((l) => l.wasteType == type).length}'),
+                      const SizedBox(width: AppSpace.xs),
+                    ],
+                  ]),
                 ),
-              ),
+              ]),
             ),
           ),
         ],
@@ -122,7 +106,9 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                         message: _filter == 'All' ? 'Your scans will appear here.' : null,
                         actionLabel: _filter != 'All' ? 'Show all scans'
                             : (widget.onScan != null ? 'Scan a QR code' : null),
-                        onAction: _filter != 'All' ? () => setState(() => _filter = 'All') : widget.onScan,
+                        onAction: _filter != 'All'
+                            ? () => setState(() => _filter = 'All')
+                            : (widget.onScan != null ? _scan : null),
                         dense: true,
                       ))],
                     )
@@ -217,18 +203,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
     );
   }
 
-  Widget _logTile(WasteLog log) {
-    final c = context.colors;
-    return AppListTile(
-      margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
-      leading: IconBadge(icon: wasteIcon(log.wasteType), color: c.waste(log.wasteType)),
-      title: log.wasteType,
-      subtitle: Text(DateFormat('MMM d, yyyy · h:mm a').format(log.timestamp), style: context.text.bodySmall),
-      trailing: PointsPill('+${log.pointsAwarded} pts'),
-      onTap: () => showScanDetailSheet(context, log),
-      semanticLabel: '${log.wasteType} scan, +${log.pointsAwarded} points, details',
-    );
-  }
+  Widget _logTile(WasteLog log) => AppScanRow(log: log, onTap: () => showScanDetailSheet(context, log));
 }
 
 class _Day {
@@ -246,14 +221,7 @@ class _DayHeader extends SliverPersistentHeaderDelegate {
 
   static const _height = 40.0;
 
-  String get _label {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final diff = today.difference(day.date).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    return DateFormat(day.date.year == now.year ? 'EEE, MMM d' : 'EEE, MMM d yyyy').format(day.date);
-  }
+  String get _label => AppDates.dayLabel(day.date);
 
   double get _extent => _height * textScale.clamp(1.0, 1.6);
 

@@ -56,22 +56,22 @@ void main() {
     final camera = _FakeCamera(MobileScannerErrorCode.permissionDenied);
     MobileScannerPlatform.instance = camera;
     await _open(tester);
-    expect(find.text('Camera Permission Required'), findsOneWidget);
+    expect(find.text('Camera permission required'), findsOneWidget);
     expect(camera.starts, 1, reason: 'the camera is started once, not twice');
 
     camera.failWith = null;   // the user allowed it in settings
-    await tester.tap(find.text('Retry Camera Access'));
+    await tester.tap(find.text('Retry camera access'));
     await tester.pump();
     await tester.pump();
     expect(camera.starts, 2);
-    expect(find.text('Camera Permission Required'), findsNothing);
+    expect(find.text('Camera permission required'), findsNothing);
     await _close(tester);
   });
 
   testWidgets('any other camera failure is not reported as a permission problem', (tester) async {
     MobileScannerPlatform.instance = _FakeCamera(MobileScannerErrorCode.genericError);
     await _open(tester);
-    expect(find.text('Camera Permission Required'), findsNothing);
+    expect(find.text('Camera permission required'), findsNothing);
     expect(find.text('Camera unavailable'), findsOneWidget);
     await _close(tester);
   });

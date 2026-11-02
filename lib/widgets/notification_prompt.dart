@@ -14,15 +14,15 @@ Future<void> askForNotificationsOnce(BuildContext context) async {
   if (await NotificationService.enabled()) return;
   if (!context.mounted) return;
 
-  final yes = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
+  final yes = await AppSheet.showContent<bool>(
+    context,
+    padding: EdgeInsets.zero,
     builder: (ctx) {
       final c = ctx.colors;
       final t = ctx.text;
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.lg, AppSpace.xl, AppSpace.lg),
+          padding: const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.xs, AppSpace.xl, AppSpace.lg),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: 64, height: 64,

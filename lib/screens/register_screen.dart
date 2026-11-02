@@ -90,7 +90,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 opacity: _fadeAnim,
                 child: SlideTransition(
                   position: _slideAnim,
-                  child: Shake(key: _shakeKey, child: Form(
+                  // Password managers offer and save the new account's details.
+                  child: AutofillGroup(child: Shake(key: _shakeKey, child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,6 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               controller: _userCtrl,
                               hint: 'Choose a username',
                               icon: Icons.person_outline_rounded,
+                              autofillHints: const [AutofillHints.newUsername],
                               validator: (v) => v!.trim().length < 3 ? 'Min 3 characters' : null,
                             ),
 
@@ -114,6 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               controller: _emailCtrl,
                               hint: 'Enter your email',
                               icon: Icons.mail_outline_rounded,
+                              autofillHints: const [AutofillHints.email],
                               keyboardType: TextInputType.emailAddress,
                               validator: (v) => isValidEmail(v!.trim()) ? null : 'Enter a valid email',
                             ),
@@ -127,6 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               controller: _passCtrl,
                               hint: 'Min 6 characters',
                               icon: Icons.lock_outline_rounded,
+                              autofillHints: const [AutofillHints.newPassword],
                               obscure: _obscure,
                               suffixIcon: IconButton(
                                 tooltip: _obscure ? 'Show password' : 'Hide password',
@@ -147,6 +151,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               controller: _confirmCtrl,
                               hint: 'Re-enter your password',
                               icon: Icons.lock_outline_rounded,
+                              autofillHints: const [AutofillHints.newPassword],
+                              // The last field: the keyboard's action creates the account.
+                              action: TextInputAction.done,
+                              onSubmitted: (_) => _register(),
                               obscure: _obscureConfirm,
                               suffixIcon: IconButton(
                                 tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
@@ -180,14 +188,14 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             ),
                           ],
                         ),
-                      )),
+                      ))),
                 ),
               ),
     );
   }
 
   Widget _fieldLabel(String text) => Text(text, style: context.text.labelMedium!.copyWith(
-      color: context.colors.textSecondary, fontSize: 13));
+      color: context.colors.textSecondary));
 
   Widget _buildField({
     required TextEditingController controller,
@@ -198,6 +206,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     Widget? suffixIcon,
     String? Function(String?)? validator,
     ValueChanged<String>? onChanged,
+    Iterable<String>? autofillHints,
+    TextInputAction action = TextInputAction.next,
+    ValueChanged<String>? onSubmitted,
   }) =>
       AppTextField(
         controller: controller,
@@ -208,7 +219,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         suffix: suffixIcon,
         validator: validator,
         onChanged: onChanged,
-        textInputAction: TextInputAction.next,
+        textInputAction: action,
+        autofillHints: autofillHints,
+        onSubmitted: onSubmitted,
       );
 }
 

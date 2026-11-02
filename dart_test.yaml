@@ -1,0 +1,7 @@
+# Screenshot (golden) tests compare against images made on the Windows dev PC; other systems render text a
+# little differently, so they are skipped unless asked for:
+#   flutter test --tags golden --run-skipped                  (check)
+#   flutter test --tags golden --run-skipped --update-goldens (accept an intended change)
+tags:
+  golden:
+    skip: "Golden images are made on the Windows dev PC; run with --tags golden --run-skipped"

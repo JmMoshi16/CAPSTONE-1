@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import '../../models/models.dart';
+import '../../core/gamification.dart' show scansInLastDays;
 import '../../core/theme.dart' show wasteIcon;
 import '../../widgets/ui.dart';
 import 'info_sheets.dart';
@@ -53,18 +53,23 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     final rec      = widget.logs.where((l) => l.wasteType == 'Recyclable').length;
     final res      = widget.logs.where((l) => l.wasteType == 'Residual').length;
     final totalPts = widget.logs.fold(0, (s, l) => s + l.pointsAwarded);
+    final lastWeek = scansInLastDays(widget.logs.map((l) => l.timestamp), DateTime.now());
+    // The full, filterable list lives in Scan history; here only the latest few.
+    final recent = widget.logs.take(5).toList();
+    final headerHeight = AppLayout.headerHeight(context, 160);
 
     final scroll = CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverAppBar(
-            expandedHeight: AppLayout.headerHeight(context, 160),
+            expandedHeight: headerHeight,
             pinned: true,
             backgroundColor: c.hero[1],
             surfaceTintColor: Colors.transparent,
             systemOverlayStyle: SystemUiOverlayStyle.light,
             automaticallyImplyLeading: false,
-            flexibleSpace: FlexibleSpaceBar(
+            flexibleSpace: HeroHeaderSpace(
+              title: 'Activity',
               background: AuroraBackground(
                 child: FadeTransition(
                   opacity: _headerFade,
@@ -76,10 +81,11 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
                         const SizedBox(height: AppSpace.xxs),
                         Text('Everything you have sorted at the bin', style: t.bodyMedium!.copyWith(color: c.onHeroMuted)),
                         const SizedBox(height: AppSpace.md),
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                          _CountUpStat(end: widget.logs.length, label: 'Items sorted', ctrl: _headerCtrl),
-                          _CountUpStat(end: totalPts, label: 'Points earned', ctrl: _headerCtrl),
-                          _CountUpStat(end: rec, label: 'Recyclable', ctrl: _headerCtrl),
+                        Row(children: [
+                          for (final (end, label) in [(widget.logs.length, 'Items sorted'), (totalPts, 'Points earned'),
+                            (lastWeek, 'Last 7 days')])
+                            Expanded(child: FittedBox(fit: BoxFit.scaleDown,
+                                child: _CountUpStat(end: end, label: label, ctrl: _headerCtrl))),
                         ]),
                       ]),
                     ),
@@ -108,8 +114,13 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
                   ImpactCharts(logs: widget.logs, animate: _animate),
                   const SizedBox(height: AppSpace.lg),
                 ],
-                Text('Disposal History', style: t.titleMedium!.copyWith(color: c.primary)),
-                const SizedBox(height: AppSpace.sm),
+                SectionHeader(
+                  title: 'Recent scans',
+                  actionLabel: widget.logs.length > recent.length && widget.onOpenHistory != null
+                      ? 'See all ${widget.logs.length} scans' : null,
+                  onAction: () => widget.onOpenHistory!('All'),
+                ),
+                const SizedBox(height: AppSpace.xs),
               ]),
             ),
           ),
@@ -131,8 +142,8 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _FadeSlideItem(index: i, animate: _animate, child: _logTile(widget.logs[i])),
-                  childCount: widget.logs.length,
+                  (_, i) => _FadeSlideItem(index: i, animate: _animate, child: _logTile(recent[i])),
+                  childCount: recent.length,
                 ),
               ),
             ),
@@ -143,7 +154,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     return Scaffold(
       body: widget.onRefresh == null
           ? scroll
-          : EcoRefresh(onRefresh: widget.onRefresh!, edgeOffset: 160, child: scroll),
+          : EcoRefresh(onRefresh: widget.onRefresh!, edgeOffset: headerHeight, child: scroll),
     );
   }
 
@@ -168,22 +179,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
     ]),
   );
 
-  Widget _logTile(WasteLog log) {
-    final c = context.colors;
-    return AppListTile(
-      margin: const EdgeInsets.only(bottom: AppSpace.sm - 2),
-      leading: IconBadge(icon: wasteIcon(log.wasteType), color: c.wasteFill(log.wasteType), size: 46, filled: true),
-      title: log.wasteType,
-      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(DateFormat('EEE, MMM d yyyy · h:mm a').format(log.timestamp),
-            style: context.text.bodySmall!.copyWith(color: c.textPrimary)),
-        Text('Bin: ${log.binId}', style: context.text.bodySmall),
-      ]),
-      trailing: PointsPill('+${log.pointsAwarded} pts'),
-      onTap: () => showScanDetailSheet(context, log),
-      semanticLabel: '${log.wasteType} scan, +${log.pointsAwarded} points, details',
-    );
-  }
+  Widget _logTile(WasteLog log) => AppScanRow(log: log, onTap: () => showScanDetailSheet(context, log));
 }
 
 // ── Count-up stat widget ──────────────────────────────────────────────────────
@@ -202,7 +198,7 @@ class _CountUpStat extends StatelessWidget {
       AnimatedBuilder(
         animation: anim,
         builder: (_, __) => Text('${anim.value.toInt()}',
-            style: AppType.numeral.copyWith(fontSize: 26, color: AppPalette.cream)),
+            style: AppType.stat.copyWith(color: AppPalette.cream)),
       ),
       Text(label, style: context.text.bodySmall!.copyWith(color: c.onHeroMuted)),
     ]);

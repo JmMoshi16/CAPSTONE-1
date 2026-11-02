@@ -66,9 +66,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _photoOptions() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
+    AppSheet.showContent<void>(
+      context,
+      padding: EdgeInsets.zero,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
@@ -117,18 +117,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<bool> _confirmDiscard() async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard changes?'),
-          content: const Text('Your changes to your profile have not been saved.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Discard', style: TextStyle(color: ctx.colors.danger))),
-          ],
-        ),
-      ) ??
+      await showAppDialog(context,
+          title: 'Discard changes?',
+          message: 'Your changes to your profile have not been saved.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+          destructive: true) ??
       false;
 
   @override
@@ -141,16 +135,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (didPop) return;
         if (await _confirmDiscard() && context.mounted) Navigator.pop(context, false);
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Edit profile'),
+      child: PageScaffold(
+        appBar: AppHeaderBar(
+          title: 'Edit profile',
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: AppSpace.xs),
               child: _saving
                   ? const Padding(
                       padding: EdgeInsets.all(AppSpace.md),
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                      child: SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, semanticsLabel: 'Saving')),
                     )
                   : TextButton(onPressed: _canSave ? _save : null, child: const Text('Save')),
             ),

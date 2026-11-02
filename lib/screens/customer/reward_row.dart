@@ -15,7 +15,7 @@ import '../../widgets/ui.dart';
 }
 
 /// "50 pts", or "Free" when a reward costs nothing.
-String rewardPrice(int cost) => cost <= 0 ? 'Free' : '$cost pts';
+String rewardPrice(int cost) => cost <= 0 ? 'Free' : '${formatCount(cost)} pts';
 
 /// One reward on the menu: its picture, name and note, and the price set like a menu price. A reward still
 /// out of reach shows how far away it is (the group heading says which are ready). Tap opens the detail page,
@@ -50,6 +50,12 @@ class RewardRow extends StatelessWidget {
       onLongPress!();
     }
 
+    final stacked = AppLayout.textScale(context) > 1.5;
+    final price = Column(crossAxisAlignment: stacked ? CrossAxisAlignment.start : CrossAxisAlignment.end, children: [
+      _Price(cost: reward.pointsCost, muted: !ready),
+      if (soldOut)
+        Text('Sold out', style: t.labelMedium!.copyWith(color: c.textTertiary, fontWeight: FontWeight.w700)),
+    ]);
     return Semantics(
       button: !soldOut,
       enabled: !soldOut,
@@ -79,14 +85,10 @@ class RewardRow extends StatelessWidget {
                   Text('$short pts to go', style: t.labelSmall),
                 ] else if (lowStock && !soldOut)
                   Text('Only ${reward.stock} left', style: t.labelSmall!.copyWith(color: c.warning)),
+                if (stacked) ...[const SizedBox(height: AppSpace.xxs), price],
               ]),
             ),
-            const SizedBox(width: AppSpace.sm),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              _Price(cost: reward.pointsCost, muted: !ready),
-              if (soldOut)
-                Text('Sold out', style: t.labelMedium!.copyWith(color: c.textTertiary, fontWeight: FontWeight.w700)),
-            ]),
+            if (!stacked) ...[const SizedBox(width: AppSpace.sm), price],
             if (!soldOut) ...[
               const SizedBox(width: AppSpace.xxs),
               Icon(Icons.chevron_right_rounded, color: c.textTertiary),
@@ -112,7 +114,7 @@ class _Price extends StatelessWidget {
     final number = context.text.titleLarge!.copyWith(fontFamily: AppType.displayFamily, color: color, height: 1.1);
     if (cost <= 0) return Text('Free', style: number);
     return Text.rich(TextSpan(children: [
-      TextSpan(text: '$cost', style: number),
+      TextSpan(text: formatCount(cost), style: number),
       TextSpan(text: ' pts', style: context.text.labelMedium!.copyWith(color: c.textSecondary)),
     ]));
   }

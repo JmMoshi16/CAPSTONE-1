@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
@@ -15,6 +14,7 @@ import 'customer_profile_screen.dart';
 import 'leaderboard_screen.dart';
 import 'badges_screen.dart';
 import 'info_sheets.dart';
+import '../login_screen.dart';
 
 part 'customer_home_widgets.dart';
 
@@ -87,6 +87,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           title: 'Could not load data',
           message: 'Check your connection and try again',
           onRetry: _loadData,
+          // A missing or unreadable profile never loads: signing out is the way to another account.
+          secondaryLabel: 'Sign out',
+          onSecondary: _signOut,
         ),
       );
     }
@@ -118,7 +121,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     ];
 
     // Docked tab bar (no body swipe: it fought the iOS back gesture and the charts).
-    return Scaffold(
+    return TabBackScope(
+      index: _selectedIndex,
+      onFirstTab: () => setState(() => _selectedIndex = 0),
+      child: PageScaffold(
       body: AnimatedSwitcher(
         duration: AppMotion.of(context, AppMotion.medium),
         child: loading
@@ -131,7 +137,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         onScan: _openScanner,
         onScanWithLight: () => _openScanner(torch: true),
       ),
-    );
+    ));
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await FirebaseService.logout();
+    } catch (_) {
+      // Signed out locally either way; the sign-in screen is the way forward.
+    }
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+    }
   }
 
   final _rewardsKey = GlobalKey<RewardsScreenState>();
@@ -189,7 +206,7 @@ Widget homeTabPreview({
   ValueChanged<Reward>? onOpenReward,
   int selectedTab = 0,
 }) =>
-    Scaffold(
+    PageScaffold(
       body: _HomeTab(
         user: user, logs: logs, rewards: rewards, redemptions: redemptions, myRank: myRank, offline: offline,
         onScan: () {}, onRewards: () {}, onOpenReward: onOpenReward ?? (_) {}, onMyCodes: () {},
@@ -316,7 +333,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       items.add(_NotifItem(
         icon: Icons.recycling_rounded, iconColor: c.success,
         id: 'points-${widget.user.scanCount}',
-        title: 'Points Credited',
+        title: 'Points credited',
         subtitle: '${widget.user.scanCount} scan${widget.user.scanCount > 1 ? "s" : ""} recorded. Keep recycling!',
         time: _lastScanLabel(widget.user.lastScanDate), isUnread: false, onTap: widget.onHistory,
       ));
@@ -325,7 +342,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       items.add(_NotifItem(
         icon: Icons.military_tech_rounded, iconColor: c.gold,
         id: 'badges-${widget.user.badges.length}',
-        title: 'Badge Unlocked',
+        title: 'Badge unlocked',
         subtitle: 'You earned ${widget.user.badges.length} badge${widget.user.badges.length > 1 ? "s" : ""}. Check your collection!',
         time: '', isUnread: false, onTap: widget.onBadges,
       ));
@@ -334,7 +351,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       items.add(_NotifItem(
         icon: Icons.leaderboard_rounded, iconColor: c.gold,
         id: 'rank-${widget.myRank}',
-        title: 'Top 10 Leaderboard',
+        title: "You're in the top 10",
         subtitle: "You're ranked #${widget.myRank} on the leaderboard!",
         time: 'Now', isUnread: false, onTap: widget.onLeaderboard,
       ));
@@ -344,7 +361,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       items.add(_NotifItem(
         icon: Icons.local_fire_department_rounded, iconColor: c.warning,
         id: 'streak-$streak',
-        title: '$streak-Day Streak',
+        title: '$streak-day streak',
         subtitle: 'Amazing! Keep recycling every day.',
         time: 'Now', isUnread: false, onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
       ));
@@ -478,10 +495,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
     return _fmtDate(d);
   }
 
-  String _fmtDate(DateTime dt) {
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${m[dt.month - 1]} ${dt.day}';
-  }
+  String _fmtDate(DateTime dt) => AppDates.day(dt);
   Widget _fadeSlide(int index, Widget child) => FadeTransition(
         opacity: _fadeAnims[index],
         child: SlideTransition(position: _slideAnims[index], child: child),
@@ -504,6 +518,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
     final recent = widget.logs.take(3).toList();
     final streak = effectiveStreak(widget.user.streak, widget.user.lastScanDate, now);
     final scansThisWeek = scansInLastDays(widget.logs.map((l) => l.timestamp), now);
+    final scansToday = scansInLastDays(widget.logs.map((l) => l.timestamp), now, days: 1);
     final strip = _stripRewards();
     final canRedeem = strip.isNotEmpty && strip.first.pointsCost <= widget.user.points;
     final pending = widget.redemptions.where((r) => r.status == 'pending' && !now.isAfter(r.expiresAt)).length;
@@ -527,6 +542,8 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                 user: widget.user,
                 rewards: widget.rewards,
                 pending: pending,
+                streak: streak,
+                onStreak: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
                 countFromZero: _firstLoad,
                 onProfile: widget.onProfile,
                 onBell: () => _showNotificationsSheet(context),
@@ -555,13 +572,14 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
             ],
 
             // This week.
-            SliverToBoxAdapter(child: _fadeSlide(3, section('This week'))),
+            SliverToBoxAdapter(child: _fadeSlide(3, section('Last 7 days'))),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
                 child: _fadeSlide(3, _WeekCard(
                   streak: streak,
                   scansThisWeek: scansThisWeek,
+                  scansToday: scansToday,
                   fromZero: _firstLoad,
                   onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
                 )),
@@ -592,8 +610,9 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                           color: Colors.transparent,
                           child: Column(children: [
                             for (var i = 0; i < recent.length; i++) ...[
-                              if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: c.border),
-                              _activityRow(recent[i]),
+                              if (i > 0) Divider(height: 1, thickness: 1, indent: 68, color: c.border),
+                              AppScanRow(log: recent[i], grouped: true,
+                                  onTap: () => showScanDetailSheet(context, recent[i])),
                             ],
                           ]),
                         ),
@@ -608,29 +627,4 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
     );
   }
 
-  Widget _activityRow(WasteLog log) {
-    final c = context.colors;
-    final t = context.text;
-    final color = c.waste(log.wasteType);
-    return Semantics(
-      button: true,
-      label: '${log.wasteType} scan, +${log.pointsAwarded} points, details',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: () { AppHaptics.tap(); showScanDetailSheet(context, log); },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm),
-          child: Row(children: [
-            Medallion(icon: wasteIcon(log.wasteType), color: color, size: 36),
-            const SizedBox(width: AppSpace.md),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(log.wasteType, style: t.titleSmall),
-              Text(DateFormat('MMM d, h:mm a').format(log.timestamp), style: t.bodySmall),
-            ])),
-            Text('+${log.pointsAwarded} pts', style: t.titleSmall!.copyWith(color: c.success)),
-          ]),
-        ),
-      ),
-    );
-  }
 }

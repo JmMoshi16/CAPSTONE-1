@@ -7,12 +7,6 @@ import '../../core/admin_theme.dart';
 import '../../core/theme.dart' show getRank;
 import '../../widgets/ui.dart';
 
-const kGreen = kAdminGreen;
-const kDarkGreen = kAdminDGreen;
-const kBlue = kAdminBlue;
-const kDark = kAdminDark;
-const kCard = kAdminCard;
-const kBorder = kAdminBorder;
 
 /// Disposals per user, counted once instead of per sort comparison and per card (audit G).
 Map<String, int> countLogsByUser(Iterable<WasteLog> logs) {
@@ -95,7 +89,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
               // User header
               Row(children: [
-                _avatar(u, size: 60, fontSize: 26),
+                _avatar(u, size: 60, fontSize: AdminSize.display),
                 const SizedBox(width: AppSpace.md),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(u.username, style: AdminType.heading.copyWith(color: AdminColors.textPrimary)),
@@ -109,7 +103,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
               // Stats row
               Row(children: [
-                Expanded(child: _detailStat('${u.lifetimePoints}', 'Earned', Icons.emoji_events_rounded, AdminColors.gold)),
+                Expanded(child: _detailStat(formatCount(u.lifetimePoints), 'Earned', Icons.emoji_events_rounded, AdminColors.gold)),
                 const SizedBox(width: 10),
                 Expanded(child: _detailStat('${userLogs.length}', 'Disposals', Icons.recycling_rounded, kGreen)),
                 const SizedBox(width: 10),
@@ -120,10 +114,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               // Waste breakdown
               Container(
                 padding: const EdgeInsets.all(AppSpace.md),
-                decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(16),
+                decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.lg),
                     border: Border.all(color: kBorder)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Waste Breakdown', style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
+                  Text('Waste breakdown', style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
                   const SizedBox(height: 14),
                   _wasteBar('Biodegradable', bio, userLogs.length, AdminColors.bio),
                   const SizedBox(height: 10),
@@ -140,7 +134,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               // Recent logs
               if (userLogs.isNotEmpty) ...[
                 const SizedBox(height: AppSpace.lg),
-                Text('Recent Activity', style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
+                Text('Recent activity', style: AdminType.section.copyWith(color: AdminColors.textSecondary)),
                 const SizedBox(height: 10),
                 ...userLogs.take(3).map((log) {
                   final colors = {'Biodegradable': AdminColors.bio, 'Recyclable': kBlue, 'Residual': AdminColors.res};
@@ -149,7 +143,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   return Container(
                     margin: const EdgeInsets.only(bottom: AppSpace.xs),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+                    decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: kBorder)),
                     child: Row(children: [
                       Icon(icons[log.wasteType] ?? Icons.recycling_rounded, color: c, size: 18),
                       const SizedBox(width: 10),
@@ -184,7 +178,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _detailStat(String v, String l, IconData icon, Color c) => Container(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-        decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14),
+        decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(children: [
           Icon(icon, color: c, size: 18),
@@ -219,15 +213,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     children: [
                       Row(children: [
                         Container(padding: const EdgeInsets.all(9),
-                            decoration: BoxDecoration(color: kBlue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
+                            decoration: BoxDecoration(color: kBlue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md),
                                 border: Border.all(color: kBlue.withValues(alpha: 0.3))),
                             child: const Icon(Icons.people_rounded, color: kBlue, size: 20)),
                         const SizedBox(width: AppSpace.sm),
-                        Text('Customers', style: AdminType.heading.copyWith(color: AdminColors.textPrimary)),
-                        const Spacer(),
+                        Expanded(child: Text('Customers', maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: AdminType.heading.copyWith(color: AdminColors.textPrimary))),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 6),
-                          decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20),
+                          decoration: BoxDecoration(color: kGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.xl),
                               border: Border.all(color: kGreen.withValues(alpha: 0.3))),
                           child: Text('${widget.customers.length} users',
                               style: AdminType.label.copyWith(color: kGreen, fontWeight: FontWeight.bold)),
@@ -237,17 +231,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
                       // Summary stats
                       Row(children: [
-                        Expanded(child: _headerStat('${widget.customers.length}', 'Total Users', Icons.person_rounded, kBlue)),
+                        Expanded(child: _headerStat('${widget.customers.length}', 'Customers', Icons.person_rounded, kBlue)),
                         const SizedBox(width: 10),
                         Expanded(child: _headerStat('${widget.logs.length}', 'Disposals', Icons.recycling_rounded, kGreen)),
                         const SizedBox(width: 10),
-                        Expanded(child: _headerStat('$totalPts', 'Pts Balance', Icons.stars_rounded, AdminColors.gold)),
+                        Expanded(child: _headerStat(formatCount(totalPts), 'Points held', Icons.stars_rounded, AdminColors.gold)),
                       ]),
                       const SizedBox(height: AppSpace.md),
 
                       // Search bar
                       Container(
-                        decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(14),
+                        decoration: BoxDecoration(color: kDark, borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(color: kBorder)),
                         child: TextField(
                           onChanged: (v) => setState(() => _search = v),
@@ -264,7 +258,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       const SizedBox(height: AppSpace.sm),
 
                       // Sort chips
-                      Row(children: [
+                      SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
                         Text('Sort:', style: AdminType.label.copyWith(color: AdminColors.textTertiary)),
                         const SizedBox(width: AppSpace.xs),
                         _sortChip('Rank', 'rank'),
@@ -272,7 +266,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         _sortChip('Disposals', 'disposals'),
                         const SizedBox(width: 6),
                         _sortChip('Name', 'name'),
-                      ]),
+                      ])),
                     ],
                   ),
                 ),
@@ -330,6 +324,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget _userCard(UserModel u, int rank) {
     final userLogs = _logCount(u.uid);
     final medalColors = [AdminColors.gold, Colors.grey.shade400, AppPalette.medalBronze];
+    final medal = rank >= 0 && rank < 3;   // sorted by name there is no place (rank -1)
 
     return Tap(
       label: '${u.username}, ${u.lifetimePoints} points earned, ${u.points} to spend, open details',
@@ -344,32 +339,34 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: kCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: rank < 3 ? medalColors[rank].withValues(alpha: 0.3) : kBorder),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: medal ? medalColors[rank].withValues(alpha: 0.3) : kBorder),
         ),
         child: Row(children: [
           // Rank number
-          SizedBox(
-            width: 28,
-            child: rank < 3
-                ? Container(
-                    width: 24, height: 24,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: medalColors[rank], shape: BoxShape.circle),
-                    child: Text('${rank + 1}',
-                        style: AdminType.body.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
-                  )
-                : Text('${rank + 1}', style: AdminType.body.copyWith(color: AdminColors.textTertiary, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: AppSpace.xs),
-          _avatar(u, size: 46, fontSize: 18),
+          if (rank >= 0) ...[
+            SizedBox(
+              width: 28,
+              child: medal
+                  ? Container(
+                      width: 24, height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: medalColors[rank], shape: BoxShape.circle),
+                      child: Text('${rank + 1}',
+                          style: AdminType.body.copyWith(color: AppPalette.medalInk, fontWeight: FontWeight.w800, fontSize: AdminSize.label)),
+                    )
+                  : Text('${rank + 1}', style: AdminType.body.copyWith(color: AdminColors.textTertiary, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: AppSpace.xs),
+          ],
+          _avatar(u, size: 46, fontSize: AdminSize.heading),
           const SizedBox(width: AppSpace.sm),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Flexible(child: Text(u.username, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: AdminType.title.copyWith(color: AdminColors.textPrimary))),
               const SizedBox(width: 6),
-              _rankBadge(u.lifetimePoints, small: true),
+              Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: _rankBadge(u.lifetimePoints, small: true))),
             ]),
             const SizedBox(height: 2),
             Text(u.email, style: AdminType.caption.copyWith(color: AdminColors.textTertiary),
@@ -380,7 +377,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             Row(children: [
               const Icon(Icons.emoji_events_rounded, color: AdminColors.gold, size: 13),
               const SizedBox(width: 3),
-              Text('${u.lifetimePoints}', style: AdminType.body.copyWith(color: AdminColors.gold, fontWeight: FontWeight.bold)),
+              Text(formatCount(u.lifetimePoints), style: AdminType.body.copyWith(color: AdminColors.gold, fontWeight: FontWeight.bold)),
             ]),
             const SizedBox(height: 3),
             Row(children: [
@@ -424,7 +421,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 6 : AppSpace.xs, vertical: small ? 2 : 3),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(color: color.withValues(alpha: 0.4))),
       child: Text(label, style: AdminType.caption.copyWith(color: color, fontWeight: FontWeight.bold)),
     );
@@ -432,7 +429,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _headerStat(String v, String l, IconData icon, Color c) => Container(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-        decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14),
+        decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(children: [
           Icon(icon, color: c, size: 18),
@@ -453,7 +450,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? kGreen.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           border: Border.all(color: selected ? kGreen.withValues(alpha: 0.5) : kBorder),
         ),
         child: Text(label, style: AdminType.caption.copyWith(color: selected ? kGreen : AdminColors.textTertiary,
