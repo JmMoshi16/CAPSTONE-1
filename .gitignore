@@ -50,3 +50,4 @@ app.*.map.json
 # Audit notes describe weaknesses: keep local (never push publicly)
 /PROJECT_DEEP_AUDIT.md
 /IMPLEMENTATION_REPORT.md
+/PROJECT_DEEP_UI_UX_AUDIT.md
