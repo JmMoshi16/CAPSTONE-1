@@ -13,7 +13,9 @@ class RewardsScreen extends StatefulWidget {
   final UserModel user;
   final List<Reward> rewards;
   final VoidCallback onRedeemed;
-  const RewardsScreen({super.key, required this.user, required this.rewards, required this.onRedeemed});
+  /// The customer's codes, live; defaults to Firestore (tests pass their own).
+  final Stream<List<Redemption>>? codes;
+  const RewardsScreen({super.key, required this.user, required this.rewards, required this.onRedeemed, this.codes});
   @override
   State<RewardsScreen> createState() => RewardsScreenState();
 }
@@ -89,6 +91,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 
   @override
   void dispose() {
+    _codesSub?.cancel();
     _countdown?.cancel();
     _tabController.dispose();
     super.dispose();
@@ -101,15 +104,32 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     return '${d.inMinutes.clamp(1, 59)}m left';
   }
 
-  Future<void> _loadHistory() async {
-    try {
-      final uid = FirebaseService.currentUid;
-      if (uid == null) throw StateError('signed out');
-      final r = await FirebaseService.getUserRedemptions(uid).timeout(const Duration(seconds: 10));
-      if (mounted) setState(() { _redemptions = r; _loadingHistory = false; _historyError = false; });
-    } catch (_) {
+  StreamSubscription<List<Redemption>>? _codesSub;
+
+  /// Listens to the customer's codes (a claim on the console shows up here live). Completes on the first answer, so
+  /// pull-to-refresh and Retry can await it.
+  Future<void> _loadHistory() {
+    final first = Completer<void>();
+    void fail(Object _) {
       if (mounted) setState(() { _loadingHistory = false; _historyError = true; });
+      if (!first.isCompleted) first.complete();
     }
+    _codesSub?.cancel();
+    try {
+      final stream = widget.codes ?? switch (FirebaseService.currentUid) {
+        final String uid => FirebaseService.watchUserRedemptions(uid),
+        null => Stream<List<Redemption>>.error(StateError('signed out')),
+      };
+      _codesSub = stream.listen((r) {
+        if (mounted) setState(() { _redemptions = r; _loadingHistory = false; _historyError = false; });
+        if (!first.isCompleted) first.complete();
+      }, onError: fail);
+    } catch (e) {
+      fail(e);
+    }
+    return first.future.timeout(const Duration(seconds: 10), onTimeout: () {
+      if (_loadingHistory) fail(TimeoutException('codes'));
+    });
   }
 
   List<Reward> get _filteredRewards {
@@ -203,7 +223,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                 style: t.bodySmall, textAlign: TextAlign.center),
           ]));
     if (showStaff == true && mounted) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r)));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r, updates: FirebaseService.watchRedemption(r.id!))));
     }
   }
 
@@ -717,7 +737,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             title: const Text('Show to staff'),
             onTap: () {
               Navigator.pop(ctx);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r)));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => StaffCodeScreen(redemption: r, updates: FirebaseService.watchRedemption(r.id!))));
             },
           ),
           ListTile(
@@ -847,13 +867,21 @@ class _RewardsListSkeleton extends StatelessWidget {
 // ── Staff view of a redemption code ───────────────────────────────────────────
 /// Full-screen, maximum-contrast code for the counter: black on white in every theme,
 /// very large monospaced characters, the reward name and the expiry date.
+/// Live: the moment staff mark it claimed on the console, the code gives way to "Handed out".
 class StaffCodeScreen extends StatelessWidget {
-  const StaffCodeScreen({super.key, required this.redemption});
+  const StaffCodeScreen({super.key, required this.redemption, this.updates});
 
   final Redemption redemption;
+  /// This code, live (FirebaseService.watchRedemption); null shows it as it was opened.
+  final Stream<Redemption?>? updates;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => StreamBuilder<Redemption?>(
+        stream: updates,
+        builder: (context, snap) => _build(context, handedOut: (snap.data ?? redemption).status == 'claimed'),
+      );
+
+  Widget _build(BuildContext context, {required bool handedOut}) {
     final t = context.text;
     const ink = Color(0xFF000000);
     final e = redemption.expiresAt;
@@ -875,6 +903,16 @@ class StaffCodeScreen extends StatelessWidget {
             Text(redemption.rewardTitle, textAlign: TextAlign.center,
                 style: t.headlineSmall!.copyWith(color: ink)),
             const SizedBox(height: AppSpace.xl),
+            if (handedOut) ...[
+              Semantics(liveRegion: true, child: Column(children: [
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF1B7F3B), size: 96),
+                const SizedBox(height: AppSpace.md),
+                Text('Handed out', style: t.headlineMedium!.copyWith(color: ink, fontWeight: FontWeight.w800)),
+                const SizedBox(height: AppSpace.xs),
+                Text('Enjoy your ${redemption.rewardTitle}.', textAlign: TextAlign.center,
+                    style: t.titleSmall!.copyWith(color: const Color(0xFF333333))),
+              ])),
+            ] else ...[
             Semantics(
               label: 'Redemption code ${redemption.redemptionCode.split('').join(' ')}',
               excludeSemantics: true,
@@ -894,8 +932,9 @@ class StaffCodeScreen extends StatelessWidget {
             const SizedBox(height: AppSpace.md),
             Text('${redemption.pointsUsed} pts · valid until ${AppDates.dayYear(e)}',
                 style: t.titleSmall!.copyWith(color: const Color(0xFF333333))),
+            ],
             const Spacer(),
-            OutlinedButton.icon(
+            if (!handedOut) OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: ink,
                 side: const BorderSide(color: ink, width: 1.5),

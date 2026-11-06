@@ -6,6 +6,7 @@ class _HomeHero extends StatelessWidget {
     required this.user,
     required this.rewards,
     required this.pending,
+    required this.newCodes,
     required this.streak,
     required this.countFromZero,
     required this.onProfile,
@@ -21,17 +22,12 @@ class _HomeHero extends StatelessWidget {
   final UserModel user;
   final List<Reward> rewards;
   final int pending;
+  /// Codes the bell hasn't shown yet: opening the bell clears it (My codes keeps [pending]).
+  final int newCodes;
   /// Days in a row with a scan (0 = none or broken).
   final int streak;
   final bool countFromZero;
   final VoidCallback onProfile, onBell, onBalance, onScan, onMyCodes, onLeaderboard, onBadges, onStreak;
-
-  String get _greeting {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +49,7 @@ class _HomeHero extends StatelessWidget {
               ],
               Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_greeting,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
+                HomeGreeting(style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
                 Text(user.username,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -65,12 +60,12 @@ class _HomeHero extends StatelessWidget {
                 const SizedBox(width: AppSpace.xs),
               ],
               Tap(
-                label: pending > 0 ? 'Notifications, $pending reward codes waiting' : 'Notifications',
+                label: newCodes > 0 ? 'Notifications, $newCodes new' : 'Notifications',
                 tooltip: true,
                 onTap: onBell,
                 child: Stack(clipBehavior: Clip.none, children: [
                   _GlassCircle(size: 44, child: Icon(Icons.notifications_none_rounded, color: c.onHero, size: 22)),
-                  if (pending > 0)
+                  if (newCodes > 0)
                     Positioned(
                       top: -2,
                       right: -2,
@@ -79,7 +74,7 @@ class _HomeHero extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: AppSpace.xxs),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(color: c.heroAccent, borderRadius: AppRadius.all(AppRadius.pill)),
-                        child: Text('$pending',
+                        child: Text('$newCodes',
                             style: t.labelSmall!.copyWith(color: AppPalette.navyDeep, fontWeight: FontWeight.w800)),
                       ),
                     ),
@@ -125,6 +120,37 @@ class _HomeHero extends StatelessWidget {
 }
 
 /// The streak, where it is seen every day: a flame and the day count on frosted glass. Opens the streak details.
+String greetingFor(DateTime t) => t.hour < 12 ? 'Good morning' : t.hour < 17 ? 'Good afternoon' : 'Good evening';
+
+/// "Good morning" that becomes "Good evening" by itself: Home can stay open from morning to night without a rebuild.
+class HomeGreeting extends StatefulWidget {
+  const HomeGreeting({super.key, this.style, this.clock = DateTime.now});
+  final TextStyle? style;
+  final DateTime Function() clock;
+  @override
+  State<HomeGreeting> createState() => _HomeGreetingState();
+}
+
+class _HomeGreetingState extends State<HomeGreeting> {
+  late final Timer _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(greetingFor(widget.clock()), maxLines: 1, overflow: TextOverflow.ellipsis, style: widget.style);
+}
+
 class _StreakChip extends StatelessWidget {
   const _StreakChip({required this.streak, required this.onTap});
   final int streak;

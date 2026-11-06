@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,8 +37,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   List<Redemption> _redemptions = [];
   int _myRank = 0;
 
+  /// The customer's codes, live (claimed on the console → updated here at once).
+  StreamSubscription<List<Redemption>>? _codesSub;
+
   @override
   void initState() { super.initState(); _loadData(); }
+
+  @override
+  void dispose() {
+    _codesSub?.cancel();
+    super.dispose();
+  }
+
+  void _watchCodes(String uid) {
+    _codesSub ??= FirebaseService.watchUserRedemptions(uid).listen(
+        (r) { if (mounted) setState(() => _redemptions = r); },
+        // A dropped listener keeps the last codes; the next _loadData (pull to refresh, after a scan) starts it again.
+        onError: (_) { _codesSub = null; });
+  }
 
   Future<void> _loadData() async {
     if (!mounted) return;
@@ -49,6 +67,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         if (mounted) setState(() => _loadError = true);
         return;
       }
+      _watchCodes(uid);
       // A slow or failed refresh keeps the last data and says so, instead of showing zeros as real.
       List<Object>? results;
       try {
@@ -56,7 +75,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           FirebaseService.getUserWasteLogs(uid),
           FirebaseService.getRewards(),
           FirebaseService.getUserRank(uid),
-          FirebaseService.getUserRedemptions(uid),
         ]).timeout(const Duration(seconds: 10));
       } catch (_) {
         results = null;
@@ -69,7 +87,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           _logs = results[0] as List<WasteLog>;
           _rewards = results[1] as List<Reward>;
           _myRank = results[2] as int;
-          _redemptions = results[3] as List<Redemption>;
         }
         _loadError = false;
       });
@@ -274,6 +291,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
     } else {
       _staggerCtrl.value = 1;
     }
+    _loadSeenCodes();
   }
 
   @override
@@ -290,6 +308,34 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
   }
 
   static const _dismissedKey = 'dismissed_notifications';
+  static const _seenKey = 'seen_codes';
+
+  /// Codes the bell has already shown (this phone only).
+  Set<String> _seenCodes = {};
+
+  List<Redemption> get _liveCodes {
+    final now = DateTime.now();
+    return widget.redemptions.where((r) => r.status == 'pending' && !now.isAfter(r.expiresAt)).toList();
+  }
+
+  int get _newCodes => _liveCodes.where((r) => !_seenCodes.contains(r.id)).length;
+
+  Future<void> _loadSeenCodes() async {
+    try {
+      final seen = (await SharedPreferences.getInstance()).getStringList(_seenKey)?.toSet() ?? {};
+      if (mounted) setState(() => _seenCodes = seen);
+    } catch (_) {}
+  }
+
+  /// Opening the bell is seeing what's new: its number clears until another code arrives.
+  Future<void> _markCodesSeen() async {
+    final live = _liveCodes.map((r) => r.id).whereType<String>().toSet();
+    if (live.difference(_seenCodes).isEmpty) return;
+    setState(() => _seenCodes = live);   // codes used or expired are forgotten
+    try {
+      await (await SharedPreferences.getInstance()).setStringList(_seenKey, _seenCodes.toList());
+    } catch (_) {}
+  }
 
   Future<void> _showNotificationsSheet(BuildContext context) async {
     // Dismissed rows are remembered on this phone only (nothing is written to Firestore).
@@ -298,6 +344,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
       dismissed = (await SharedPreferences.getInstance()).getStringList(_dismissedKey)?.toSet() ?? {};
     } catch (_) {}
     if (!context.mounted) return;
+    _markCodesSeen();
     final c = context.colors;
     // Build flat notification list
     final items = <_NotifItem>[];
@@ -526,7 +573,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
     final scansToday = scansInLastDays(widget.logs.map((l) => l.timestamp), now, days: 1);
     final strip = _stripRewards();
     final canRedeem = strip.isNotEmpty && strip.first.pointsCost <= widget.user.points;
-    final pending = widget.redemptions.where((r) => r.status == 'pending' && !now.isAfter(r.expiresAt)).length;
+    final pending = _liveCodes.length;
 
     Widget section(String title, {String? action, VoidCallback? onAction}) => Padding(
           padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, AppSpace.sm),
@@ -553,6 +600,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
                     user: widget.user,
                     rewards: widget.rewards,
                     pending: pending,
+                    newCodes: _newCodes,
                     streak: streak,
                     onStreak: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
                     countFromZero: _firstLoad,

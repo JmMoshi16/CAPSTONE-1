@@ -39,6 +39,13 @@ List<String> computeNewBadges(UserModel user) {
 }
 
 /// The points the badges [ids] pay when unlocked.
+/// A reward code as the rules accept it (firestore.rules `isPaidRedemption`): dated by the server, never the phone.
+Map<String, dynamic> redemptionWrite(Redemption r) => {...r.toMap(), 'redeemedAt': FieldValue.serverTimestamp()};
+
+/// The redeem's payment, tagged with the code it pays for, so one payment can't cover a second code.
+Map<String, dynamic> redeemPayment({required int newBalance, required int lifetimePoints, required String redemptionId}) =>
+    {'points': newBalance, 'lifetimePoints': lifetimePoints, 'lastRedemptionId': redemptionId};
+
 int badgeBonus(Iterable<String> ids) => ids.fold(0, (total, id) => total + ((_badgeInfo(id)['bonus'] as int?) ?? 0));
 
 /// One scan worth [base] points, made by [user] on [today]: what it credits, and the user as it will be after it.
@@ -324,12 +331,13 @@ class FirebaseService {
         redeemedAt: DateTime.now(),
         redemptionCode: code,
       );
-      tx.set(redemptionRef, redemption.toMap());
+      tx.set(redemptionRef, redemptionWrite(redemption));
       // Spending lowers the balance only; lifetimePoints (rank/level) is untouched (audit M-11).
       final newBalance = live.points - reward.pointsCost;
       // lifetimePoints is written explicitly: on older documents it is missing and would otherwise
       // be read as the (now lower) balance.
-      tx.update(userRef, {'points': newBalance, 'lifetimePoints': live.lifetimePoints});
+      tx.update(userRef, redeemPayment(
+          newBalance: newBalance, lifetimePoints: live.lifetimePoints, redemptionId: redemptionRef.id));
       tx.set(profileRef, _profileMirror(
           username: live.username, points: newBalance,
           lifetimePoints: live.lifetimePoints, badges: live.badges));
@@ -364,6 +372,21 @@ class FirebaseService {
     list.sort((a, b) => b.redeemedAt.compareTo(a.redeemedAt));
     return list;
   }
+
+  /// The customer's codes, live: a code staff hand out on the console turns Claimed here within a second.
+  static Stream<List<Redemption>> watchUserRedemptions(String userId) => _db
+      .collection('redemptions')
+      .where('userId', isEqualTo: userId)
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => Redemption.fromDoc(d)).toList()
+        ..sort((a, b) => b.redeemedAt.compareTo(a.redeemedAt)));
+
+  /// One code, live (the full-screen code shown at the counter).
+  static Stream<Redemption?> watchRedemption(String id) => _db
+      .collection('redemptions')
+      .doc(id)
+      .snapshots()
+      .map((d) => d.exists ? Redemption.fromDoc(d) : null);
 
   static Future<List<Redemption>> getAllRedemptions() async {
     final snap = await _db.collection('redemptions').get();

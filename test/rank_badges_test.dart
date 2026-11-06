@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ecoreward_bin/core/theme.dart';
 import 'package:ecoreward_bin/models/models.dart';
@@ -46,6 +47,23 @@ void main() {
       final log = WasteLog(userId: 'u', wasteType: 'Recyclable', pointsEarned: 10, timestamp: DateTime(2026), binId: 'b');
       expect(log.pointsAwarded, 10);
       expect(log.toMap()['pointsAwarded'], 10);
+    });
+  });
+
+  group('a redeem writes what the rules require (firestore.rules isPaidRedemption)', () {
+    final r = Redemption(userId: 'u', userEmail: 'u@x', rewardId: 'latte', rewardTitle: 'Iced Latte', pointsUsed: 120,
+        redeemedAt: DateTime(2099), redemptionCode: 'AB12CD34');
+    test('the code is dated by the server, never by the phone', () {
+      final w = redemptionWrite(r);
+      expect(w['redeemedAt'], isA<FieldValue>());
+      expect(w.keys, unorderedEquals(['userId', 'userEmail', 'rewardId', 'rewardTitle', 'pointsUsed', 'redeemedAt',
+          'status', 'redemptionCode']), reason: 'the rules refuse any other field');
+      expect(w['status'], 'pending');
+      expect(w['pointsUsed'], 120);
+    });
+    test('the payment is tagged with the code it pays for', () {
+      expect(redeemPayment(newBalance: 30, lifetimePoints: 400, redemptionId: 'rd1'),
+          {'points': 30, 'lifetimePoints': 400, 'lastRedemptionId': 'rd1'});
     });
   });
 
