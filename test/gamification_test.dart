@@ -38,6 +38,14 @@ void main() {
       expect(creditedPoints(15, 1), 15);
     });
     test('largest single credit stays within the +100 rule bound', () => expect(creditedPoints(15, 365), lessThanOrEqualTo(100)));
+    test('a badge bonus is cut only where scan plus bonus would pass the +100 rule bound', () {
+      expect(kMaxCredit, 100);
+      expect(cappedBonus(20, 30), 20);
+      expect(cappedBonus(65, 30), 65, reason: 'the rarest real pile-up still pays in full');
+      expect(cappedBonus(80, 30), 70);
+      expect(cappedBonus(10, 100), 0);
+      expect(cappedBonus(10, 120), 0, reason: 'never negative');
+    });
   });
 
   group('weekly goal counts the last 7 calendar days only', () {

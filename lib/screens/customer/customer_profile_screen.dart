@@ -72,14 +72,14 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         child: Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg), child: child));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,   // the page opens on the forest band
+      value: SystemUiOverlayStyle.light,   // the page opens on the navy band
       child: Scaffold(
         body: EcoRefresh(
           onRefresh: () async => widget.onUpdated(),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // ── Identity, on the forest band ──
+              // ── Identity, on the navy band ──
               SliverToBoxAdapter(
                 child: AuroraBackground(
                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxl)),
@@ -220,7 +220,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               padded(SettingsGroup(children: [
                 SettingsRow(icon: Icons.logout_rounded, title: 'Sign out', destructive: true, onTap: _signOut),
               ])),
-              gap(),
+              gap(AppLayout.bottomClearance(context)),
             ],
           ),
         ),

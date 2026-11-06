@@ -149,10 +149,59 @@ IconData rewardIconData(String title, String category) {
   };
 }
 
-/// A reward category's accent (decorative; text in it goes through `colors.ink`).
-Color rewardColor(String category) => AppPalette.categories[category] ?? AppPalette.forest;
+/// Crave's own product photos (assets/rewards/, cropped from the café's menu posters), picked by words in a reward's
+/// name. Order matters: food first, because the crunch flavours share words with drinks (Smokey Classic, Spicy
+/// Mango), and two-word names before the words inside them (Strawberry Matcha before matcha and strawberry).
+final _rewardPhotos = <(RegExp, String)>[
+  (RegExp(r'tocino'), 'tocino'),
+  (RegExp(r'tapa'), 'tapa'),
+  (RegExp(r'buzz'), 'crunch_buzz_n_burn'),
+  (RegExp(r'smokey classic'), 'crunch_smokey_classic'),
+  (RegExp(r'spicy mango'), 'crunch_spicy_mango'),
+  (RegExp(r'crunch'), 'crunch_bowl'),
+  (RegExp(r'pizza ?burger'), 'pizza_burger'),
+  (RegExp(r'samgy'), 'samgy_burger'),
+  (RegExp(r'burger'), 'og_burger'),
+  (RegExp(r'fries'), 'fries'),
+  (RegExp(r'strawberry matcha'), 'strawberry_matcha'),
+  (RegExp(r'matcha cookie'), 'matcha_cookies'),
+  (RegExp(r'matcha'), 'matcha_dream'),
+  (RegExp(r'chocnut'), 'chocnut_cloud'),
+  (RegExp(r'choco ?berry'), 'choco_berry'),
+  (RegExp(r'choco|cocoa'), 'dark_choco_dream'),
+  (RegExp(r'strawberry'), 'strawberry_dream'),
+  (RegExp(r'blueberry'), 'blueberry_haze'),
+  (RegExp(r'mango'), 'mango_mirage'),
+  (RegExp(r'sunrise'), 'sunrise'),
+  (RegExp(r'signature'), 'signature_blend'),
+  (RegExp(r'americano'), 'orange_americano'),
+  (RegExp(r'mocha'), 'mocha'),
+  (RegExp(r'caramel'), 'caramel_drip'),
+  (RegExp(r'cookies? ?(&|and|n)? ?brew'), 'cookies_and_brew'),
+  (RegExp(r'\boat\b'), 'sweet_oat'),
+  (RegExp(r'sweet ?(&|and|n)? ?salty'), 'sweet_and_salty'),
+  (RegExp(r'salted'), 'salted_classic'),
+  (RegExp(r'sweet classic'), 'sweet_classic'),
+  (RegExp(r'classic'), 'classic'),
+];
 
-/// A reward's picture: its icon on the category's tint, the same on Home, in Rewards and on the detail page.
+/// A reward's product photo when its name is (or shares a flavour with) something Crave sells, else null.
+String? rewardPhoto(String title) {
+  final name = title.toLowerCase();
+  for (final (words, photo) in _rewardPhotos) {
+    if (words.hasMatch(name)) return 'assets/rewards/$photo.webp';
+  }
+  return null;
+}
+
+/// A category as customers read it. The data keeps "Coffee", but that group holds matcha and fruit drinks too.
+String rewardCategoryLabel(String category) => category == 'Coffee' ? 'Drinks' : category;
+
+/// A reward category's accent (decorative; text in it goes through `colors.ink`).
+Color rewardColor(String category) => AppPalette.categories[category] ?? AppPalette.navy;
+
+/// A reward's picture: the café's photo of it when there is one ([rewardPhoto]), else its icon on the category's
+/// tint; the same on Home, in Rewards and on the detail page.
 /// [heroTag] lets the picture fly into the detail page; [muted] greys it out (sold out).
 class RewardArt extends StatelessWidget {
   const RewardArt({super.key, required this.title, required this.category, this.size = 56, this.heroTag,
@@ -167,25 +216,42 @@ class RewardArt extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final accent = muted ? c.textTertiary : rewardColor(category);
+    final photo = rewardPhoto(title);
+    final shape = AppRadius.all(size * 0.28);
+    final edge = Border.all(color: accent.withValues(alpha: c.isDark ? 0.40 : 0.22));
+    final icon = Icon(rewardIconData(title, category), size: size * 0.5, color: muted ? c.textTertiary : c.ink(accent));
     Widget art = Container(
       width: size,
       height: size,
+      clipBehavior: photo == null ? Clip.none : Clip.antiAlias,
       // Lit from the top left, with a hairline edge and (light mode) a soft shadow in its own colour.
       decoration: BoxDecoration(
-        borderRadius: AppRadius.all(size * 0.28),
+        borderRadius: shape,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [accent.withValues(alpha: c.isDark ? 0.32 : 0.20), accent.withValues(alpha: c.isDark ? 0.14 : 0.07)],
         ),
-        border: Border.all(color: accent.withValues(alpha: c.isDark ? 0.40 : 0.22)),
+        border: photo == null ? edge : null,
         boxShadow: muted
             ? null
             : AppShadows.of(context, [
                 BoxShadow(color: accent.withValues(alpha: 0.18), blurRadius: size * 0.22, offset: Offset(0, size * 0.08)),
               ]),
       ),
-      child: Icon(rewardIconData(title, category), size: size * 0.5, color: muted ? c.textTertiary : c.ink(accent)),
+      // Over a photo the hairline goes on top, so a cup on its white backdrop still has an edge on a white card.
+      foregroundDecoration: photo == null ? null : BoxDecoration(borderRadius: shape, border: edge),
+      child: photo == null
+          ? icon
+          : _muted(
+              muted,
+              Image.asset(
+                photo,
+                fit: BoxFit.cover,
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                errorBuilder: (_, __, ___) => icon,
+              ),
+            ),
     );
     if (heroTag != null) {
       art = HeroMode(
@@ -194,5 +260,45 @@ class RewardArt extends StatelessWidget {
       );
     }
     return ExcludeSemantics(child: art);
+  }
+
+  /// A sold-out photo in black and white, like the greyed icon.
+  static Widget _muted(bool muted, Widget photo) =>
+      muted ? ColorFiltered(colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.saturation), child: photo) : photo;
+}
+
+/// A reward's picture filling whatever box it is given (a menu tile, the Home card's side panel): the café's photo,
+/// else its icon large on the category's tint. [muted] greys it out (sold out).
+class RewardPicture extends StatelessWidget {
+  const RewardPicture({super.key, required this.title, required this.category, this.muted = false,
+      this.fit = BoxFit.cover});
+
+  final String title, category;
+  final bool muted;
+
+  /// How the photo fills the box: cover (tiles, panels), or contain where the whole cup must show in a wide frame.
+  final BoxFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final accent = muted ? c.textTertiary : rewardColor(category);
+    final tint = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withValues(alpha: c.isDark ? 0.30 : 0.18), accent.withValues(alpha: c.isDark ? 0.12 : 0.05)],
+        ),
+      ),
+      child: Center(
+        child: Icon(rewardIconData(title, category), size: 44, color: muted ? c.textTertiary : c.ink(accent)),
+      ),
+    );
+    final photo = rewardPhoto(title);
+    if (photo == null) return ExcludeSemantics(child: tint);
+    return ExcludeSemantics(
+      child: RewardArt._muted(muted, Image.asset(photo, fit: fit, errorBuilder: (_, __, ___) => tint)),
+    );
   }
 }

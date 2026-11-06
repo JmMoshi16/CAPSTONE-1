@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Native launch window: cream, matching the Flutter splash (no white flash) -->
+<!-- Native launch window: the logo's yellow, matching the Flutter splash (no white flash) -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/splash_cream" />
+    <item android:drawable="@color/splash_yellow" />
 </layer-list>

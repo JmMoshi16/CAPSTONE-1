@@ -9,7 +9,7 @@ The redesign plan and per-phase progress are in `PROJECT_REDESIGN_ROADMAP.md` an
 
 ## Identity
 Every recycled item creates value.
-- **Colours:** forest green, mint and cream.
+- **Colours:** Crave's navy and yellow (from the café's logo), with cream.
 - **Type:** a soft serif (Fraunces) for numbers and headings.
 - **Signature moment:** the scan. The brackets lock on, then points fly into the balance.
 
@@ -17,12 +17,13 @@ Every recycled item creates value.
 
 | Token | Hex | Use |
 |---|---|---|
-| forest | #2F5D3A | primary actions, brand |
-| forestDeep | #1F3F27 | hero gradient start, text on mint |
-| forestLight | #3E7A4C | chart bars in dark mode |
-| mint | #7CCFA5 | accents, scan line, dark-mode primary |
+| navy | #142477 | primary actions, brand (Crave by: Secret Cafe navy) |
+| navyDeep | #08124F | hero gradient start, text on yellow |
+| navyLight | #23359E | chart bars in dark mode |
+| sun | #FFC914 | accents, scan line, dark-mode primary (Crave's golden yellow); never text on light surfaces |
+| sunDeep | #D9A800 | the shaded side of yellow fills |
 | coffee | #6B4A34 | secondary brand, splash tagline |
-| cream | #F5EDE0 | warm surfaces, text on the forest hero |
+| cream | #FFF8EC | warm surfaces, text on the navy hero |
 | coin | #FFE566 → #B8860B | small points stars on the scan screens (decorative) |
 | champagneLight / champagne / champagneDeep | #F6E7BF / #D9B76A / #9A7432 | the signature coin `EcoCoin` only (decorative, never behind text) |
 | medalGold / Silver / Bronze | #FFC107 / #9E9E9E / #CD7F32 | podium, rank colours |
@@ -38,8 +39,8 @@ others, from the `AppColors` theme extension in light and dark variants.
 never red, because red means an error.
 
 **Staff console (`AdminColors`, `AdminType`, `AdminSize`)**
-- **Surfaces:** forest-black background #0B110E, card #141B17.
-- **Accent:** the brand mint, with dark `onAccent` text.
+- **Surfaces:** navy-black background #0A0D18, card #131726.
+- **Accent:** Crave's yellow, with navy `onAccent` text.
 - **Waste colours:** the same bin colours as the customer app (residual is charcoal).
 - **Avatars:** brand-derived gradients.
 - **Type:** sizes come from the staff ramp. Use `AdminType` styles, or `AdminSize` for styles built at the call site
@@ -131,20 +132,27 @@ never red, because red means an error.
 | `Depth.floating` | The one thing a screen is about (the Home balance) |
 
 **Glass and fallback**
-- `onHero: true` makes it frosted glass over the forest header: blurred (σ16 / σ24), a white tint that is brighter at
+- `onHero: true` makes it frosted glass over the navy header: blurred (σ16 / σ24), a white tint that is brighter at
   the top, and a hairline edge.
-- With the system's high-contrast setting on, glass turns solid (forestDeep).
+- With the system's high-contrast setting on, glass turns solid (navyDeep).
 
 **Other pieces**
 - **`TiltOnTouch`:** the card leans up to 5° towards a resting finger and settles back on release. A touch that becomes
   a scroll does not tilt it. It stays still under reduced motion. Used on the Home balance.
-- **`EcoCoin`:** the brand's signature, a champagne-gold coin with a forest leaf struck into it ("every recycled item
+- **`EcoCoin`:** the brand's signature, a champagne-gold coin with a navy leaf struck into it ("every recycled item
   creates value").
   - Drawn in code; no image or package.
   - `turnIn` turns it face-on once when it first appears.
   - Screen readers skip it.
   - Used on the Home balance (60) and the Rewards header (26). Keep it to places that show the points balance.
-- **`RewardArt`:** a lit tile (gradient, edge, soft shadow in its own colour), not a flat tint.
+- **`RewardArt`:** the café's product photo when the reward's name matches one (`rewardPhoto`, bundled in
+  `assets/rewards/`), else a lit tile with its icon (gradient, edge, soft shadow in its own colour). A photo keeps
+  the tile's shape, hairline and shadow; sold out turns it black and white.
+- **The Rewards menu** is a grid of photo tiles (`RewardTile`): two per row on phones, three at 560 dp and up.
+  Each tile has a square photo edge to edge, then name, note and price. Sold out and low stock show as a flag on
+  the photo, so tiles in a group keep one height. Same price sorts A to Z.
+- **Home's reward card** is a menu card: the photo runs down its left side (or the icon on the category's
+  tint), then the name, note and price, with a Redeem pill, or a progress bar and "N to go".
 - **Live tickets:** live redemption tickets use the raised material; expired ones lie flat.
 
 ## Dates (`AppDates`, `lib/core/dates.dart`)
@@ -174,10 +182,11 @@ The only place dates are formatted. Screens never write month names themselves.
 | Redemption code | `RedemptionCode`: shrinks to fit, never cut off with "…" |
 | Pages | `PageScaffold` (customer pages: reading width on tablets) |
 | Cards and rows | `cardDecoration`, `AppListTile`, `SettingsGroup` / `SettingsRow`, `SectionHeader`, `AppChip`, `PointsPill`, `IconBadge` |
-| Marks | `Medallion`, `RankMark`, `BadgeMark`, `UserAvatar`, `RewardArt` (drawn, not emoji) |
+| Marks | `Medallion`, `RankMark`, `BadgeMark`, `UserAvatar`, `RewardArt` (photo or drawn, never emoji) |
 | States | `EmptyState`, `ErrorState` (Retry, plus an optional second way out such as Sign out), skeletons |
 | Feedback | `AppSnackbar`, `EcoRefresh` (pull-to-refresh), `ConfettiBurst`, `FlipReveal`, `HoldToConfirmButton` |
 | Premium | `AppSurface`, `TiltOnTouch`, `EcoCoin`, `AuroraBackground`, `AnimatedProgressRing`, `StaggeredEntrance`, `SheenOnChange` |
+| Tab bar | `FloatingPillNav` + `NavGlyph`: a slim (60 dp) capsule with continuous superellipse corners, navy shading into royal blue, a sheen from above, a fine top-edge highlight and layered shadows (contact, mid, ambient), floating over the page. The selected tab's filled glyph rides in a lit yellow bubble (46 dp) low on the bar, over a soft pool of yellow light that slides with it; changing tabs it hops (lifts, arcs, lands with a ~5 % pop; 400 ms; still under reduced motion). Own icon family (`NavGlyph`: 24-unit grid, 1.8 stroke, outline at rest, filled when selected). Quiet cream names; the selected name bold yellow. Scan: frosted glass with a yellow viewfinder glyph, never the bubble's fill. At most 520 dp wide; grows with text size |
 | Tabs | `FadeIndexedStack`, `NavIconMorph`, `TabBackScope` (system back returns to the first tab) |
 
 ## Rules
@@ -198,4 +207,4 @@ The only place dates are formatted. Screens never write month names themselves.
 ## Known debt (tracked in the roadmap)
 - **Staff screens still built by hand:** the add/edit reward sheet, the customer detail sheet and the "Hand over this
   reward?" dialog. They are dark and on tokens, but not yet on `AppSheet` / `showAppDialog`.
-- **Headers on Rewards and Activity:** they keep their forest headers until their redesign. Phase 3.
+- **Headers on Rewards and Activity:** they keep their navy headers until their redesign. Phase 3.

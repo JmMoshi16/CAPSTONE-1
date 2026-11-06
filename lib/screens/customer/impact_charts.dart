@@ -98,9 +98,9 @@ class _ImpactChartsState extends State<ImpactCharts> {
                           toY: _shown ? perDay[i].toDouble() : 0,
                           width: 18,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                          // Forest is too dark to read on the dark surface; there the bars start lighter.
+                          // Navy is too dark to read on the dark surface; there the bars start lighter.
                           gradient: LinearGradient(
-                            colors: [c.isDark ? AppPalette.forestLight : AppPalette.forest, AppPalette.mint],
+                            colors: [c.isDark ? AppPalette.navyLight : AppPalette.navy, AppPalette.sun],
                             begin: Alignment.bottomCenter, end: Alignment.topCenter,
                           ),
                           backDrawRodData: BackgroundBarChartRodData(

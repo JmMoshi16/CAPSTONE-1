@@ -1,6 +1,6 @@
 part of 'customer_home_screen.dart';
 
-// ── Hero: the forest surface carrying who you are, your points and the four things you do most ──
+// ── Hero: the navy surface carrying who you are, your points and the four things you do most ──
 class _HomeHero extends StatelessWidget {
   const _HomeHero({
     required this.user,
@@ -44,15 +44,17 @@ class _HomeHero extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.xl),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            // The café's mark leads, as on a menu board; you and your notifications sit on the right. Below 360 dp
+            // the mark steps aside so the name is not cut short.
             Row(children: [
-              Tap(
-                  label: 'Open profile',
-                  onTap: onProfile,
-                  child: UserAvatar(name: user.username, photo: user.photo, size: 44, onHero: true)),
-              const SizedBox(width: AppSpace.sm),
+              if (MediaQuery.sizeOf(context).width >= 360) ...[
+                const CraveMark(size: 40),
+                const SizedBox(width: AppSpace.sm),
+              ],
               Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_greeting, style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
+                Text(_greeting,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall!.copyWith(color: c.onHeroMuted)),
                 Text(user.username,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -78,31 +80,43 @@ class _HomeHero extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(color: c.heroAccent, borderRadius: AppRadius.all(AppRadius.pill)),
                         child: Text('$pending',
-                            style: t.labelSmall!.copyWith(color: AppPalette.forestDeep, fontWeight: FontWeight.w800)),
+                            style: t.labelSmall!.copyWith(color: AppPalette.navyDeep, fontWeight: FontWeight.w800)),
                       ),
                     ),
                 ]),
               ),
+              const SizedBox(width: AppSpace.xs),
+              Tap(
+                  label: 'Open profile',
+                  onTap: onProfile,
+                  child: UserAvatar(name: user.username, photo: user.photo, size: 44, onHero: true)),
             ]),
             const SizedBox(height: AppSpace.lg),
             _GlassBalance(user: user, rewards: rewards, countFromZero: countFromZero, onTap: onBalance),
             const SizedBox(height: AppSpace.lg),
-            // Equal shares of the width, so four actions fit a 320 dp phone.
-            Row(children: [
-              for (final action in [
-                _QuickAction(
-                    icon: Icons.qr_code_scanner_rounded,
-                    label: 'Scan',
-                    primary: true,
-                    onTap: onScan,
-                    semantics: 'Scan the QR code at the bin'),
-                _QuickAction(
-                    icon: Icons.confirmation_number_outlined, label: 'My codes', onTap: onMyCodes, badge: pending),
-                _QuickAction(icon: Icons.leaderboard_outlined, label: 'Leaderboard', onTap: onLeaderboard),
-                _QuickAction(icon: Icons.military_tech_outlined, label: 'Badges', onTap: onBadges),
-              ])
-                Expanded(child: action),
-            ]),
+            // Equal shares of the width, so four actions fit a 320 dp phone. The labels share one size: if the
+            // longest would not fit its share with a gap either side (large system text), all four shrink together.
+            LayoutBuilder(builder: (context, box) {
+              final scaler = _QuickAction.sharedScaler(context, box.maxWidth / 4 - AppSpace.xs,
+                  const ['Scan', 'My codes', 'Leaderboard', 'Badges']);
+              return Row(children: [
+                for (final action in [
+                  _QuickAction(
+                      glyph: NavGlyphKind.scan,
+                      label: 'Scan',
+                      primary: true,
+                      onTap: onScan,
+                      labelScaler: scaler,
+                      semantics: 'Scan the QR code at the bin'),
+                  _QuickAction(
+                      glyph: NavGlyphKind.codes, label: 'My codes', onTap: onMyCodes, badge: pending, labelScaler: scaler),
+                  _QuickAction(
+                      glyph: NavGlyphKind.leaderboard, label: 'Leaderboard', onTap: onLeaderboard, labelScaler: scaler),
+                  _QuickAction(glyph: NavGlyphKind.badges, label: 'Badges', onTap: onBadges, labelScaler: scaler),
+                ])
+                  Expanded(child: action),
+              ]);
+            }),
           ]),
         ),
       ),
@@ -141,7 +155,7 @@ class _StreakChip extends StatelessWidget {
   }
 }
 
-/// A frosted circle for icons on the forest surface.
+/// A frosted circle for icons on the navy surface.
 class _GlassCircle extends StatelessWidget {
   const _GlassCircle({required this.size, required this.child});
   final double size;
@@ -194,7 +208,7 @@ class _GlassBalance extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpace.lg),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text('Points balance', style: t.labelMedium!.copyWith(color: c.onHeroMuted)),
+            Text('Balance', style: t.labelMedium!.copyWith(color: c.onHeroMuted)),   // "85 pts" below says what of
             const SizedBox(width: AppSpace.sm),
             // The rank pill takes what is left, right-aligned; its text shortens before anything wraps.
             Expanded(
@@ -259,22 +273,43 @@ class _GlassBalance extends StatelessWidget {
   }
 }
 
-/// One of the four shortcuts under the balance: a circle and a word. Scan is the filled one.
+/// One of the four shortcuts under the balance: a circle with one of the app's own icons (the tab bar's family),
+/// and a word. Scan is the filled one.
 class _QuickAction extends StatelessWidget {
   const _QuickAction(
-      {required this.icon,
+      {required this.glyph,
       required this.label,
       required this.onTap,
       this.primary = false,
       this.badge = 0,
-      this.semantics});
+      this.semantics,
+      required this.labelScaler});
 
-  final IconData icon;
+  final NavGlyphKind glyph;
   final String label;
   final VoidCallback onTap;
   final bool primary;
   final int badge;
   final String? semantics;
+  final TextScaler labelScaler;
+
+  static TextStyle _labelStyle(BuildContext context) => context.text.labelMedium!;
+
+  /// The phone's text scale, reduced just enough that the longest label fits [width].
+  static TextScaler sharedScaler(BuildContext context, double width, List<String> labels) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final style = _labelStyle(context);
+    var widest = 0.0;
+    for (final l in labels) {
+      final p = TextPainter(text: TextSpan(text: l, style: style), textDirection: TextDirection.ltr, textScaler: scaler)
+        ..layout();
+      widest = widest > p.width ? widest : p.width;
+      p.dispose();
+    }
+    if (widest <= width) return scaler;
+    final size = style.fontSize!;
+    return TextScaler.linear(scaler.scale(size) / size * width / widest);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -288,9 +323,9 @@ class _QuickAction extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6))],
             ),
-            child: Icon(icon, color: AppPalette.forestDeep, size: 26),
+            child: Center(child: NavGlyph(glyph, color: AppPalette.navyDeep, size: 28, filled: true)),
           )
-        : _GlassCircle(size: 56, child: Icon(icon, color: c.onHero, size: 24));
+        : _GlassCircle(size: 56, child: Center(child: NavGlyph(glyph, color: c.onHero, size: 27)));
     return Tap(
       label: semantics ?? (badge > 0 ? '$label, $badge waiting' : label),
       onTap: onTap,
@@ -310,14 +345,14 @@ class _QuickAction extends StatelessWidget {
                   decoration: BoxDecoration(color: c.heroAccent, shape: BoxShape.circle),
                   child: Text('$badge',
                       style:
-                          context.text.labelSmall!.copyWith(color: AppPalette.forestDeep, fontWeight: FontWeight.w800)),
+                          context.text.labelSmall!.copyWith(color: AppPalette.navyDeep, fontWeight: FontWeight.w800)),
                 ),
               ),
           ]),
           const SizedBox(height: AppSpace.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(label, maxLines: 1, style: context.text.labelMedium!.copyWith(color: c.onHero)),
+            child: Text(label, maxLines: 1, textScaler: labelScaler, style: _labelStyle(context).copyWith(color: c.onHero)),
           ),
         ]),
       ),
@@ -338,7 +373,7 @@ class _RewardCarousel extends StatefulWidget {
 }
 
 class _RewardCarouselState extends State<_RewardCarousel> {
-  late final PageController _pages = PageController(viewportFraction: 0.78);
+  late final PageController _pages = PageController(viewportFraction: 0.84);
   int _page = 0;
 
   @override
@@ -353,23 +388,31 @@ class _RewardCarouselState extends State<_RewardCarousel> {
     final rewards = widget.rewards;
     return Column(children: [
       SizedBox(
-        height: 178 * scale,
+        // Grows with large text, but less than the text does: a taller card is a taller glass, and so a wider one.
+        height: 178 + 110 * (scale - 1),
         child: PageView.builder(
           controller: _pages,
           itemCount: rewards.length,
           onPageChanged: (i) => setState(() => _page = i),
           itemBuilder: (_, i) => AnimatedBuilder(
             animation: _pages,
-            // Cards beside the one in focus sit back a little (smaller, dimmer).
-            builder: (_, child) {
+            // Cards beside the one in focus sit back a little (smaller, dimmer); their photos drift for depth.
+            builder: (_, __) {
               final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? 0) : 0.0;
-              final d = (page - i).abs().clamp(0.0, 1.0);
-              return Opacity(opacity: 1 - d * 0.35, child: Transform.scale(scale: 1 - d * 0.06, child: child));
+              final delta = (page - i).clamp(-1.0, 1.0);
+              final d = delta.abs();
+              return Opacity(
+                opacity: 1 - d * 0.35,
+                child: Transform.scale(
+                  scale: 1 - d * 0.06,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
+                    child: _RewardCard(reward: rewards[i], points: widget.points,
+                        parallax: AppMotion.reduced(context) ? 0 : delta, onTap: () => widget.onOpen(rewards[i])),
+                  ),
+                ),
+              );
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
-              child: _RewardCard(reward: rewards[i], points: widget.points, onTap: () => widget.onOpen(rewards[i])),
-            ),
           ),
         ),
       ),
@@ -396,14 +439,16 @@ class _RewardCarouselState extends State<_RewardCarousel> {
   }
 }
 
-/// A reward in the carousel: a band in its category's colour holding the picture and the price, then the name
-/// and whether it is ready.
+/// A reward in the carousel, like a café menu card: the drink (or dish) in a glass that the points fill with Crave's
+/// yellow ([RewardFill]), then its name and note, a tilted price sticker that pops on, and Redeem once the points
+/// cover it, else how far is left. [parallax] is the card's distance from the carousel's centre.
 class _RewardCard extends StatelessWidget {
-  const _RewardCard({required this.reward, required this.points, required this.onTap});
+  const _RewardCard({required this.reward, required this.points, required this.onTap, this.parallax = 0});
 
   final Reward reward;
   final int points;
   final VoidCallback onTap;
+  final double parallax;
 
   @override
   Widget build(BuildContext context) {
@@ -411,48 +456,84 @@ class _RewardCard extends StatelessWidget {
     final t = context.text;
     final short = reward.pointsCost - points;
     final price = reward.pointsCost <= 0 ? 'Free' : formatCount(reward.pointsCost);
-    final accent = rewardColor(reward.category);
+    final level = reward.pointsCost <= 0 ? 1.0 : (points / reward.pointsCost).clamp(0.0, 1.0);
+    final pop = AppMotion.of(context, AppMotion.slow);
     return Tap(
       label: '${reward.title}, ${reward.pointsCost <= 0 ? 'free' : '$price points'}'
           '${short > 0 ? ', $short more points needed' : ', ready to redeem'}',
       onTap: onTap,
       child: Container(
-        clipBehavior: Clip.antiAlias,
+        key: const ValueKey('reward-card'),
+        padding: const EdgeInsets.all(AppSpace.xs),
         decoration: cardDecoration(context),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Expanded(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          // The glass, set inside the card in the drink's own upright shape: the photos are square with the cup in
+          // their middle, so covering this the whole cup shows, lid to coaster.
+          AspectRatio(
+            aspectRatio: 0.7,
             child: Container(
-              padding: const EdgeInsets.all(AppSpace.md),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    accent.withValues(alpha: c.isDark ? 0.30 : 0.18),
-                    accent.withValues(alpha: c.isDark ? 0.12 : 0.05)
-                  ],
-                ),
-              ),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                RewardArt(title: reward.title, category: reward.category, size: 52),
-                const Spacer(),
-                Text.rich(TextSpan(children: [
-                  TextSpan(text: price, style: t.headlineSmall!.copyWith(color: c.textPrimary)),
-                  if (reward.pointsCost > 0)
-                    TextSpan(text: ' pts', style: t.labelMedium!.copyWith(color: c.textSecondary)),
-                ])),
-              ]),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(borderRadius: AppRadius.all(AppRadius.md)),
+              foregroundDecoration:
+                  BoxDecoration(borderRadius: AppRadius.all(AppRadius.md), border: Border.all(color: c.border)),
+              child: RewardFill(title: reward.title, category: reward.category, level: level, parallax: parallax),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.sm, AppSpace.md, AppSpace.md),
-            child: Row(children: [
-              Expanded(child: Text(reward.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall)),
-              const SizedBox(width: AppSpace.xs),
-              Text(short > 0 ? '$short to go' : 'Redeem',
-                  style: t.labelMedium!
-                      .copyWith(color: short > 0 ? c.textSecondary : c.primary, fontWeight: FontWeight.w700)),
-            ]),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpace.sm, AppSpace.xxs, AppSpace.xxs, AppSpace.xxs),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(reward.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleMedium),
+                const SizedBox(height: AppSpace.xxs),
+                Expanded(
+                  child: Text(reward.description, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: t.bodySmall!.copyWith(color: c.textSecondary)),
+                ),
+                // The price as a sticker: Crave's yellow, a slight tilt, popping on as the card arrives.
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: pop == Duration.zero ? 1 : 0.5, end: 1),
+                  duration: pop,
+                  curve: Curves.easeOutBack,
+                  builder: (_, v, child) => Transform.scale(scale: v, alignment: Alignment.centerLeft, child: child),
+                  child: Transform.rotate(
+                    angle: -0.06,
+                    alignment: Alignment.centerLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xxs),
+                        decoration: BoxDecoration(
+                          color: AppPalette.sun,
+                          borderRadius: AppRadius.all(AppRadius.sm),
+                          boxShadow: AppShadows.of(context, AppShadows.e1),
+                        ),
+                        child: Text(reward.pointsCost <= 0 ? price : '$price pts',
+                            style: t.titleMedium!.copyWith(fontFamily: AppType.displayFamily,
+                                color: AppPalette.navyDeep, fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpace.xs),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: short > 0
+                      ? Text('$short pts to go',
+                          style: t.labelMedium!.copyWith(color: c.textSecondary, fontWeight: FontWeight.w700))
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xxs),
+                          decoration: BoxDecoration(color: c.primary, borderRadius: AppRadius.all(AppRadius.pill)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text('Redeem', style: t.labelMedium!.copyWith(color: c.onPrimary, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 2),
+                            Icon(Icons.arrow_forward_rounded, size: 14, color: c.onPrimary),
+                          ]),
+                        ),
+                ),
+              ]),
+            ),
           ),
         ]),
       ),
@@ -491,7 +572,7 @@ class _WeekCard extends StatelessWidget {
             size: 60,
             stroke: 6,
             fromZero: fromZero,
-            gradient: AppGradients.forestMint,
+            gradient: AppGradients.brandSun,
             child: Text('$scansThisWeek', style: t.titleLarge!.copyWith(fontFamily: AppType.displayFamily)),
           ),
           const SizedBox(width: AppSpace.md),
@@ -519,8 +600,7 @@ class _WeekCard extends StatelessWidget {
   }
 }
 
-// ── Bottom navigation: docked and labelled. One pill slides to the selected tab; Scan is an action, not a tab,
-// so it is a round button with an ordinary label and never looks selected. ──
+// ── Bottom navigation: the floating pill (FloatingPillNav). Four tabs; Scan is the action in the middle. ──
 class _BottomNav extends StatelessWidget {
   const _BottomNav(
       {required this.selectedIndex, required this.onTap, required this.onScan, required this.onScanWithLight});
@@ -529,111 +609,27 @@ class _BottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
   final VoidCallback onScan, onScanWithLight;
 
-  /// Height of the icon row, shared by the tabs and the Scan button so every label sits on one line.
-  static const _iconSlot = 40.0;
-  static const _top = 0.0;
+  static const _tabs = [
+    FloatingNavTab(glyph: NavGlyphKind.home, label: 'Home'),
+    FloatingNavTab(glyph: NavGlyphKind.rewards, label: 'Rewards'),
+    FloatingNavTab(glyph: NavGlyphKind.activity, label: 'Activity'),
+    FloatingNavTab(glyph: NavGlyphKind.profile, label: 'Profile'),
+  ];
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    // Five slots; Scan holds the middle one, so tabs 2 and 3 sit in slots 3 and 4.
-    final slot = selectedIndex >= 2 ? selectedIndex + 1 : selectedIndex;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border(top: BorderSide(color: c.isDark ? Color.lerp(c.border, Colors.white, 0.1)! : c.border)),
-        boxShadow: AppShadows.of(context, const [BoxShadow(color: Color(0x141F3F27), blurRadius: 18, offset: Offset(0, -6))]),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          // 64 at normal text size; grows with larger text so the labels never get cut.
-          height: 48 + MediaQuery.textScalerOf(context).scale(16),
-          child: LayoutBuilder(builder: (context, box) {
-            final slotWidth = box.maxWidth / 5;
-            return Stack(children: [
-              AnimatedPositioned(
-                key: const ValueKey('nav-pill'),
-                duration: AppMotion.of(context, AppMotion.medium),
-                curve: AppMotion.emphasized,
-                left: slot * slotWidth + (slotWidth - 52) / 2,
-                top: _top + (_iconSlot - 32) / 2,
-                width: 52,
-                height: 32,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: c.primaryContainer, borderRadius: AppRadius.all(AppRadius.pill)),
-                ),
-              ),
-              Row(children: [
-                _item(context, Icons.home_rounded, Icons.home_outlined, 'Home', 0),
-                _item(context, Icons.redeem_rounded, Icons.redeem_outlined, 'Rewards', 1),
-                Expanded(
-                  child: Tap(
-                    label: 'Scan the QR code at the bin',
-                    onTap: onScan,
-                    onLongPress: onScanWithLight,
-                    longPressHint: 'scan with the flashlight on',
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: _top),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Container(
-                          width: _iconSlot,
-                          height: _iconSlot,
-                          decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                          child: Icon(Icons.qr_code_scanner_rounded, color: c.onPrimary, size: 20),
-                        ),
-                        const SizedBox(height: 2),
-                        Text('Scan',
-                            style:
-                                context.text.labelSmall!.copyWith(color: c.textSecondary, fontWeight: FontWeight.w600)),
-                      ]),
-                    ),
-                  ),
-                ),
-                _item(context, Icons.insights_rounded, Icons.insights_outlined, 'Activity', 2),
-                _item(context, Icons.person_rounded, Icons.person_outline_rounded, 'Profile', 3),
-              ]),
-            ]);
-          }),
+  Widget build(BuildContext context) => FloatingPillNav(
+        tabs: _tabs,
+        selectedIndex: selectedIndex,
+        onTap: onTap,
+        action: FloatingNavAction(
+          glyph: NavGlyphKind.scan,
+          label: 'Scan',
+          semanticLabel: 'Scan the QR code at the bin',
+          onTap: onScan,
+          onLongPress: onScanWithLight,
+          longPressHint: 'scan with the flashlight on',
         ),
-      ),
-    );
-  }
-
-  Widget _item(BuildContext context, IconData active, IconData inactive, String label, int index) {
-    final c = context.colors;
-    final selected = selectedIndex == index;
-    return Expanded(
-      child: Tap(
-        label: label,
-        selected: selected,
-        onTap: () => onTap(index),
-        child: Padding(
-          padding: const EdgeInsets.only(top: _top),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            SizedBox(
-              height: _iconSlot,
-              child: Center(
-                // Outline to filled icon as a quick cross-fade, while the pill slides in behind it.
-                child: AnimatedSwitcher(
-                  duration: AppMotion.of(context, AppMotion.fast),
-                  child: Icon(selected ? active : inactive,
-                      key: ValueKey(selected), color: selected ? c.onPrimaryContainer : c.textSecondary, size: 22),
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.labelSmall!.copyWith(
-                    color: selected ? c.textPrimary : c.textSecondary,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
-          ]),
-        ),
-      ),
-    );
-  }
+      );
 }
 
 // ── Offline banner ────────────────────────────────────────────────────────────

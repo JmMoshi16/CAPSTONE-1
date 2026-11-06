@@ -28,18 +28,31 @@ class RewardDetailScreen extends StatelessWidget {
       body: CustomScrollView(slivers: [
         SliverAppBar(
           pinned: true,
-          expandedHeight: AppLayout.headerHeight(context, 230, perScale: 40),
-          // A quiet band in the category's tint; the picture from the row grows into it.
+          expandedHeight: AppLayout.headerHeight(context, 320, perScale: 40),
+          // The reward large, in the same glass as on Home: filled as far as the points go. The picture from the
+          // menu grows into it. Sold out: the photo greyed, no fill.
           backgroundColor: c.background,
           surfaceTintColor: Colors.transparent,
           leading: AppBackButton(onPressed: () => Navigator.pop(context, false)),
           flexibleSpace: FlexibleSpaceBar(
-            background: ColoredBox(
-              color: Color.alphaBlend(color.withValues(alpha: c.isDark ? 0.16 : 0.08), c.background),
-              child: SafeArea(
-                child: Center(
-                  child: RewardArt(title: reward.title, category: reward.category, size: 112, heroTag: heroTag,
-                      muted: soldOut),
+            background: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.lg, kToolbarHeight, AppSpace.lg, AppSpace.xs),
+                child: HeroMode(
+                  enabled: !AppMotion.reduced(context),
+                  child: Hero(
+                    tag: heroTag,
+                    flightShuttleBuilder: heroMaterialFlight,
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: cardDecoration(context, radius: AppRadius.xxl),
+                      child: soldOut
+                          ? RewardPicture(title: reward.title, category: reward.category, muted: true,
+                              fit: BoxFit.contain)
+                          : RewardFill(title: reward.title, category: reward.category,
+                              level: progress.clamp(0.0, 1.0), fit: BoxFit.contain),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -52,7 +65,7 @@ class RewardDetailScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.xxl),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  PointsPill(reward.category, color: c.ink(color)),
+                  PointsPill(rewardCategoryLabel(reward.category), color: c.ink(color)),
                   const SizedBox(height: AppSpace.sm),
                   Text(reward.title, style: t.headlineMedium),
                   const SizedBox(height: AppSpace.xs),
@@ -77,7 +90,7 @@ class RewardDetailScreen extends StatelessWidget {
                         progress: progress,
                         size: 76,
                         stroke: 8,
-                        gradient: canAfford ? AppGradients.forestMint : null,
+                        gradient: canAfford ? AppGradients.brandSun : null,
                         color: c.warning,
                         semanticsLabel: 'Your points towards this reward',
                         child: Text('${(progress.clamp(0.0, 1.0) * 100).round()}%',

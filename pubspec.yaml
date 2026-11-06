@@ -46,6 +46,10 @@ flutter:
     - assets/animations/
     - assets/sounds/
     - assets/config/rules.json
+    # Crave café's product photos, cropped from its menu posters; picked by reward name (rewardPhoto).
+    - assets/rewards/
+    # Crave's wordmark, cut from the café's logo onto transparency (navy only), for the Rewards tab.
+    - assets/brand/
   # Bundled (not fetched at runtime) so the defense never depends on venue Wi-Fi. SIL OFL 1.1.
   fonts:
     - family: Fraunces

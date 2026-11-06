@@ -117,7 +117,12 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
     return _rewards.where((r) => r.category == _selectedCategory).toList();
   }
 
-  List<String> get _categories => ['All', ..._rewards.map((r) => r.category).toSet()];
+  /// All first, then the café's own order (drinks, food, deals), whatever order the rewards arrived in.
+  List<String> get _categories {
+    const order = ['Coffee', 'Food', 'Discount', 'Other'];
+    final present = _rewards.map((r) => r.category).toSet();
+    return ['All', ...order.where(present.contains), ...present.difference(order.toSet())];
+  }
 
   Future<void> _redeem(Reward reward) async {
     // FIX 10: Block sold-out rewards at UI level too
@@ -319,7 +324,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
             padding: const EdgeInsets.only(top: AppSpace.xxl),
             child: EmptyState(
               icon: rewardIconData('', _selectedCategory),
-              title: 'No $_selectedCategory rewards yet',
+              title: 'No ${rewardCategoryLabel(_selectedCategory).toLowerCase()} rewards yet',
               actionLabel: 'Show all rewards',
               onAction: () => setState(() => _selectedCategory = 'All'),
               dense: true,
@@ -336,28 +341,49 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
         onRefresh: _loadRewards,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: AppSpace.navClearance),
+          padding: EdgeInsets.only(bottom: AppLayout.bottomClearance(context)),
           children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: const Padding(
+                  padding: EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.xxs),
+                  child: _CraveBand(),
+                ),
+              ),
+            ),
             SizedBox(
               height: 56,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-                itemCount: _categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpace.xs),
-                itemBuilder: (_, i) {
-                  final cat = _categories[i];
-                  return AppChip(
-                    label: cat,
-                    semanticLabel: '$cat rewards',
-                    icon: cat == 'All' ? null : rewardIconData('', cat),
-                    selected: _selectedCategory == cat,
-                    onTap: () => setState(() {
-                      _swipeForward = _categories.indexOf(cat) >= _categories.indexOf(_selectedCategory);
-                      _selectedCategory = cat;
-                    }),
-                  );
-                },
+              // Centred when the chips fit; when they don't (narrow phone, large text) they scroll from the left.
+              child: LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: box.maxWidth - AppSpace.lg * 2),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      for (final (i, cat) in _categories.indexed) ...[
+                        if (i > 0) const SizedBox(width: AppSpace.xs),
+                        Builder(builder: (context) {
+                          final label = rewardCategoryLabel(cat);
+                          final count =
+                              cat == 'All' ? _rewards.length : _rewards.where((r) => r.category == cat).length;
+                          return AppChip(
+                            label: label,
+                            count: count,
+                            semanticLabel: '$label rewards, $count',
+                            icon: cat == 'All' ? null : rewardIconData('', cat),
+                            selected: _selectedCategory == cat,
+                            onTap: () => setState(() {
+                              _swipeForward = _categories.indexOf(cat) >= _categories.indexOf(_selectedCategory);
+                              _selectedCategory = cat;
+                            }),
+                          );
+                        }),
+                      ],
+                    ]),
+                  ),
+                ),
               ),
             ),
             Center(
@@ -396,34 +422,38 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       );
   }
 
-  /// One group of the menu: a heading, then its rewards as rows on one surface.
+  /// One group of the menu: a heading, then its rewards as photo tiles, two per row on a phone, three on a tablet.
   Widget _menuSection(String title, List<Reward> items) {
-    final c = context.colors;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(AppSpace.xxs, AppSpace.lg, AppSpace.xxs, AppSpace.sm),
         child: Semantics(header: true, child: Text(title, style: context.text.titleMedium)),
       ),
-      Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: cardDecoration(context),
-        child: Material(
-          color: Colors.transparent,
-          child: Column(children: [
-            for (var i = 0; i < items.length; i++) ...[
-              // Inset to the text column: picture (56) plus the gaps either side.
-              if (i > 0) Divider(height: 1, thickness: 1, indent: AppSpace.md * 2 + 56, color: c.border),
-              RewardRow(
-                reward: items[i],
-                points: widget.user.points,
-                heroTag: _rewardHeroTag(items[i]),
-                onTap: () => _redeem(items[i]),
-                onLongPress: () => _peekReward(items[i]),
-              ),
-            ],
-          ]),
-        ),
-      ),
+      LayoutBuilder(builder: (context, box) {
+        final perRow = box.maxWidth >= 560 ? 3 : 2;
+        return Column(children: [
+          for (var i = 0; i < items.length; i += perRow)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpace.sm),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                for (var j = i; j < i + perRow; j++) ...[
+                  if (j > i) const SizedBox(width: AppSpace.sm),
+                  Expanded(
+                    child: j < items.length
+                        ? RewardTile(
+                            reward: items[j],
+                            points: widget.user.points,
+                            heroTag: _rewardHeroTag(items[j]),
+                            onTap: () => _redeem(items[j]),
+                            onLongPress: () => _peekReward(items[j]),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ]),
+            ),
+        ]);
+      }),
     ]);
   }
 
@@ -465,7 +495,7 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
       onRefresh: _loadHistory,
       child: ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, AppSpace.navClearance),
+      padding: EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, AppLayout.bottomClearance(context)),
       children: [
         if (pending.isNotEmpty) ...[
           _sectionHeader('Pending codes', Icons.hourglass_top_rounded, c.warning, pending.length),
@@ -540,10 +570,11 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpace.md - 2, AppSpace.md - 2, AppSpace.sm, AppSpace.md - 2),
                   child: Row(children: [
-                    IconBadge(
+                    RewardTicketArt(
+                      title: r.rewardTitle,
                       icon: isExpired ? Icons.timer_off_rounded : (isPending ? Icons.confirmation_number_rounded : Icons.check_circle_rounded),
                       color: statusColor,
-                      size: 44,
+                      muted: isExpired,
                     ),
                     const SizedBox(width: AppSpace.sm),
                     Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -743,7 +774,35 @@ class RewardsScreenState extends State<RewardsScreen> with SingleTickerProviderS
 }
 
 // ── Rewards list skeleton ─────────────────────────────────────────────────────
-/// The menu's silhouette: chips, a heading, then rows (picture, two lines, price).
+/// Whose menu this is, said quietly: "Rewards from" and Crave's wordmark, small, in Crave's navy (cream on dark,
+/// where navy would vanish). No box, so the page keeps the app's navy and cream.
+class _CraveBand extends StatelessWidget {
+  const _CraveBand();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      container: true,
+      label: 'Rewards from Crave',
+      excludeSemantics: true,
+      // Centred, like the chips beneath it; with very large text the line shrinks to fit rather than overflow.
+      child: FittedBox(fit: BoxFit.scaleDown, child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('Rewards from', style: context.text.titleSmall!.copyWith(color: c.textSecondary)),
+        const SizedBox(width: AppSpace.xs),
+        // Sits on the text's baseline: the wordmark's foot lines up with "from".
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          // Sized up front (the lettering is 723 x 153 px), so the line is laid out before the image decodes.
+          child: Image.asset('assets/brand/crave_logo.png',
+              height: 20, width: 20 * 723 / 153, color: c.isDark ? c.textPrimary : AppPalette.navy),
+        ),
+      ])),
+    );
+  }
+}
+
+/// The menu's silhouette: chips, a heading, then a grid of tiles (photo, name, price).
 class _RewardsListSkeleton extends StatelessWidget {
   const _RewardsListSkeleton();
 
@@ -764,18 +823,20 @@ class _RewardsListSkeleton extends StatelessWidget {
             const SizedBox(height: AppSpace.xl),
             const SkeletonBox(width: 140, height: 16),
             const SizedBox(height: AppSpace.sm),
-            for (var i = 0; i < 4; i++)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
+            for (var i = 0; i < 2; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpace.md),
                 child: Row(children: [
-                  SkeletonBox(width: 56, height: 56, radius: AppRadius.lg),
-                  SizedBox(width: AppSpace.md),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    SkeletonBox(width: 150, height: 14),
-                    SizedBox(height: AppSpace.xs),
-                    SkeletonBox(width: 110, height: 12),
-                  ])),
-                  SkeletonBox(width: 52, height: 20),
+                  for (var j = 0; j < 2; j++) ...[
+                    if (j > 0) const SizedBox(width: AppSpace.sm),
+                    const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      AspectRatio(aspectRatio: 1, child: SkeletonBox(height: double.infinity, radius: AppRadius.lg)),
+                      SizedBox(height: AppSpace.sm),
+                      SkeletonBox(width: 110, height: 14),
+                      SizedBox(height: AppSpace.xs),
+                      SkeletonBox(width: 60, height: 18),
+                    ])),
+                  ],
                 ]),
               ),
           ],

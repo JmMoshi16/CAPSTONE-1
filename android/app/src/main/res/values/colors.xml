@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Same cream as the Flutter splash, so the native launch window hands off without a flash -->
-    <color name="splash_cream">#F5EDE0</color>
+    <!-- The yellow Crave's logo is printed on, same as the Flutter splash (CraveBrand.ground): no flash at hand-off -->
+    <color name="splash_yellow">#FDCF09</color>
 </resources>

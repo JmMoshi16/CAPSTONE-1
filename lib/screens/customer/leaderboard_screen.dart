@@ -180,7 +180,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with TickerProvid
                   ),
                 ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, AppSpace.navClearance),
+                padding: EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, AppLayout.bottomClearance(context)),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (_, i) {

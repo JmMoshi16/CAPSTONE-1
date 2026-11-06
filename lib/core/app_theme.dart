@@ -11,7 +11,7 @@ class AppTheme {
 
   static ThemeData _build(AppColors c) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: AppPalette.forest,
+      seedColor: AppPalette.navy,
       brightness: c.brightness,
     ).copyWith(
       primary: c.primary,

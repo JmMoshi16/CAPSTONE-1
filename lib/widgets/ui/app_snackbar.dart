@@ -13,7 +13,7 @@ class AppSnackbar {
     final (icon, bg) = switch (kind) {
       SnackKind.success => (Icons.check_circle_rounded, AppColors.light.success),
       SnackKind.error => (Icons.error_rounded, AppColors.light.danger),
-      SnackKind.info => (Icons.info_rounded, c.isDark ? AppColors.dark.border : AppPalette.forestDeep),
+      SnackKind.info => (Icons.info_rounded, c.isDark ? AppColors.dark.border : AppPalette.navyDeep),
     };
     if (kind == SnackKind.success) AppHaptics.success();
     if (kind == SnackKind.error) AppHaptics.error();
@@ -30,8 +30,8 @@ class AppSnackbar {
         ]),
         action: actionLabel == null
             ? null
-            // Mint passes only on the dark info fill (6.3:1); white on green/red (5.1 / 5.6:1).
-            : SnackBarAction(label: actionLabel, textColor: kind == SnackKind.info ? AppPalette.mint : Colors.white,
+            // Yellow passes only on the dark info fill (6.3:1); white on green/red (5.1 / 5.6:1).
+            : SnackBarAction(label: actionLabel, textColor: kind == SnackKind.info ? AppPalette.sun : Colors.white,
                 onPressed: onAction ?? () {}),
       ));
   }

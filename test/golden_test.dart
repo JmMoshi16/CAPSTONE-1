@@ -36,7 +36,11 @@ Future<void> _golden(WidgetTester tester, String name, Widget screen, ThemeData 
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(debugShowCheckedModeBanner: false, theme: theme, home: screen));
-  await tester.pump(const Duration(seconds: 30));   // past every entrance and the hero's drift
+  // Images (photos, the Crave logo) decode off the fake clock: give them real time, or a capture may miss them.
+  for (var i = 0; i < 6; i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+    await tester.pump(const Duration(seconds: 5));   // past every entrance and the hero's drift
+  }
   await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
   await tester.pumpWidget(const SizedBox());
   await tester.pump(const Duration(seconds: 20));
@@ -65,6 +69,40 @@ void main() {
           EcoCoin(size: 60),
         ])),
       ))), AppTheme.light, size: const Size(393, 220)));
+  // Café photos: the menu grid (ready and saving) and the Home card's glass at empty, half and full. Photos decode
+  // off the fake clock, so they get real time to load before the capture.
+  testWidgets('reward photos', (tester) async {
+    tester.view.physicalSize = const Size(393, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final menu = [
+      Reward(id: 'a', title: 'Matcha Dream', description: 'Iced, coffee-free', pointsCost: 125, category: 'Coffee'),
+      Reward(id: 'b', title: 'Mocha', description: 'Iced coffee', pointsCost: 135, category: 'Coffee'),
+      Reward(id: 'c', title: 'The OG Burger', description: 'Quarter pounder', pointsCost: 150, category: 'Food'),
+      Reward(id: 'd', title: 'Classic', description: 'Iced coffee', pointsCost: 120, category: 'Coffee'),
+    ];
+    await tester.pumpWidget(MaterialApp(debugShowCheckedModeBanner: false, theme: AppTheme.light, home: Scaffold(
+      body: Column(children: [
+        SizedBox(height: 150, child: Row(children: [
+          for (final level in [0.0, 0.5, 1.0])
+            Expanded(child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(borderRadius: BorderRadius.circular(16),
+                  child: RewardFill(title: 'Sunrise', category: 'Coffee', level: level)),
+            )),
+        ])),
+        Expanded(child: RewardsScreen(user: UserModel(uid: 'u', username: 'A', email: 'a@x.com', role: 'customer',
+            points: 130, createdAt: DateTime(2026, 3, 1)), rewards: menu, onRedeemed: () {})),
+      ]),
+    )));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pump(const Duration(seconds: 3));
+    }
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/reward_photos.png'));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 20));
+  });
   testWidgets('signature coin', (t) => _golden(t, 'coin',
       const Scaffold(body: Center(child: EcoCoin(size: 160))), AppTheme.light, size: const Size(240, 240)));
 }

@@ -51,7 +51,7 @@ class ECORewardApp extends StatelessWidget {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: mode,
-        // Auth gate: a still launch screen while the saved session is checked, then home or login.
+        // Auth gate: the animated launch screen while the saved session is checked, then home or login.
         home: const _AuthGate(),
       ),
     );
@@ -91,33 +91,33 @@ class _AuthGateState extends State<_AuthGate> {
     _retry();
   }
 
+  // The splash plays its reveal while the saved sign-in is checked, then fades into whichever screen comes first.
   @override
   Widget build(BuildContext context) => FutureBuilder<(_Restore, UserModel?)>(
         future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            // The still launch screen, shown only while the saved sign-in is checked.
-            return const BrandSplash();
-          }
-          final (state, user) = snap.data ?? (_Restore.unreachable, null);
-          switch (state) {
-            case _Restore.signedOut:
-              return const LoginScreen();
-            case _Restore.ready:
-              return user!.role == 'admin' ? const AdminDashboardScreen() : const CustomerHomeScreen();
-            case _Restore.unreachable:
-              return Scaffold(
-                body: SafeArea(
-                  child: ErrorState(
-                    title: "Couldn't reach ECOReward",
-                    message: "You're still signed in. Check your connection and try again.",
-                    onRetry: _retry,
-                    secondaryLabel: 'Sign in with another account',
-                    onSecondary: _useAnotherAccount,
-                  ),
-                ),
-              );
-          }
-        },
+        builder: (context, snap) =>
+            BrandSplash(child: snap.connectionState == ConnectionState.done ? _first(snap.data) : null),
       );
+
+  Widget _first((_Restore, UserModel?)? result) {
+    final (state, user) = result ?? (_Restore.unreachable, null);
+    switch (state) {
+      case _Restore.signedOut:
+        return const LoginScreen();
+      case _Restore.ready:
+        return user!.role == 'admin' ? const AdminDashboardScreen() : const CustomerHomeScreen();
+      case _Restore.unreachable:
+        return Scaffold(
+          body: SafeArea(
+            child: ErrorState(
+              title: "Couldn't reach ECOReward",
+              message: "You're still signed in. Check your connection and try again.",
+              onRetry: _retry,
+              secondaryLabel: 'Sign in with another account',
+              onSecondary: _useAnotherAccount,
+            ),
+          ),
+        );
+    }
+  }
 }

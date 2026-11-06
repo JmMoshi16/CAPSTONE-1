@@ -81,16 +81,19 @@ void main() {
     expect(rewardIconData('Tumbler', 'Other'), Icons.redeem_rounded);
   });
 
-  group('RewardRow', () {
+  group('RewardTile', () {
     Future<List<String>> row(WidgetTester tester, Reward r, {int points = 65, VoidCallback? onTap}) async {
-      await _pump(tester, Scaffold(body: Material(child: RewardRow(reward: r, points: points, onTap: onTap ?? () {}))));
+      await _pump(tester, Scaffold(body: Align(alignment: Alignment.topLeft, child: SizedBox(width: 180,
+          child: RewardTile(reward: r, points: points, onTap: onTap ?? () {})))));
       return tester.widgetList<RichText>(find.byType(RichText)).map((t) => t.text.toPlainText()).toList();
     }
 
-    testWidgets('ready: price, a chevron, and "ready to redeem" for screen readers', (tester) async {
-      final texts = await row(tester, _reward('Latte', 50));
+    testWidgets('ready: name, price, and "ready to redeem" for screen readers', (tester) async {
+      var taps = 0;
+      final texts = await row(tester, _reward('Latte', 50), onTap: () => taps++);
       expect(texts, containsAll(['Latte', '50 pts']));
-      expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+      await tester.tap(find.byType(RewardTile));
+      expect(taps, 1);
       expect(find.bySemanticsLabel(RegExp('Latte, 50 pts, ready to redeem')), findsOneWidget);
       await _done(tester);
     });
@@ -108,8 +111,7 @@ void main() {
       var taps = 0;
       final texts = await row(tester, _reward('Gone', 10, stock: 0), onTap: () => taps++);
       expect(texts, contains('Sold out'));
-      expect(find.byIcon(Icons.chevron_right_rounded), findsNothing, reason: 'nothing to open');
-      await tester.tap(find.byType(RewardRow));
+      await tester.tap(find.byType(RewardTile));
       expect(taps, 0, reason: 'a sold-out reward cannot be opened');
       await _done(tester);
     });
@@ -146,14 +148,19 @@ void main() {
   testWidgets('nav bar: Scan is a round action that never looks like the selected tab', (tester) async {
     await _pump(tester, homeTabPreview(user: _user));
     const c = AppColors.light;
-    // Two "Scan" labels: the hero shortcut (on forest) and the nav button, whose label must look unselected.
-    expect(tester.widgetList<Text>(find.text('Scan')).map((t) => t.style!.color), contains(c.textSecondary),
-        reason: 'the nav label used to be bold green, like a selected tab');
-    final circles = tester.widgetList<Container>(find.byType(Container)).where((w) {
-      final d = w.decoration;
-      return d is BoxDecoration && d.shape == BoxShape.circle && d.color == c.primary;
-    });
-    expect(circles, hasLength(1), reason: 'the Scan button');
+    // Two "Scan" labels: the hero shortcut and the nav button, whose label must look unselected: not the selected
+    // tab's mint, not its extra-bold weight.
+    final navScan = tester.widget<Text>(find.descendant(of: find.byType(FloatingPillNav), matching: find.text('Scan')));
+    expect(navScan.style!.color, isNot(c.accent), reason: 'the nav label used to look like a selected tab');
+    expect(navScan.style!.fontWeight, isNot(FontWeight.w800));
+    // The floating pill: the selected tab rises in a bubble; Scan stays a glass circle in the bar, never its colour.
+    BoxDecoration deco(Finder f) => tester.widget<DecoratedBox>(f).decoration as BoxDecoration;
+    final scan = deco(find.byKey(const ValueKey('nav-scan')));
+    final bubble = deco(find.descendant(of: find.byKey(const ValueKey('nav-pill')),
+        matching: find.byType(DecoratedBox)).first);
+    for (final colour in bubble.gradient!.colors) {
+      expect(scan.gradient!.colors, isNot(contains(colour)));
+    }
     await _done(tester);
   });
 

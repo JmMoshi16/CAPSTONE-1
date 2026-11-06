@@ -119,7 +119,7 @@ class SkeletonList extends StatelessWidget {
       );
 }
 
-/// Home while the first data loads: the real forest hero straight away (faint shapes where the name, the
+/// Home while the first data loads: the real navy hero straight away (faint shapes where the name, the
 /// balance and the shortcuts will be), then the rest of Home in shimmering grey, so nothing jumps when the
 /// content fades in.
 class HomeSkeleton extends StatelessWidget {

@@ -53,13 +53,13 @@ class NotificationService {
     );
   }
 
-  static Future<void> showBadgeUnlocked(String badgeLabel) async {
+  static Future<void> showBadgeUnlocked(String badgeLabel, {int bonus = 0}) async {
     // Use a unique ID per badge so multiple unlocks don't overwrite each other
     final id = 100 + badgeLabel.hashCode.abs() % 900;
     await _plugin.show(
       id,
       'Badge unlocked',
-      '$badgeLabel — nice work.',
+      bonus > 0 ? '$badgeLabel: +$bonus pts. Nice work.' : '$badgeLabel — nice work.',
       _details(),
     );
   }

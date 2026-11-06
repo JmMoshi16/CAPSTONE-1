@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 
-/// ECOReward's signature mark: a champagne-gold coin with a forest leaf struck into it. Every recycled item
+/// ECOReward's signature mark: a champagne-gold coin with a navy leaf struck into it. Every recycled item
 /// becomes value. Drawn in code (no image asset), so it is sharp at any size and needs no package.
 /// With [turnIn] it turns from edge-on to face-on once when it first appears; never under reduced motion.
 /// Decorative: screen readers skip it (the number beside it carries the meaning).
@@ -109,7 +109,7 @@ class _CoinPainter extends CustomPainter {
     canvas.drawCircle(c.translate(0, s * 0.008), r * 0.76, groove..color = Colors.white.withValues(alpha: 0.5));
     canvas.drawCircle(c, r * 0.76, groove..color = AppPalette.champagneDeep.withValues(alpha: 0.7));
 
-    // The leaf, embossed: a light copy below the forest one reads as a raised edge.
+    // The leaf, embossed: a light copy below the navy one reads as a raised edge.
     final leaf = _leaf(c, r * 0.5);
     canvas.drawPath(leaf.shift(Offset(0, s * 0.012)), Paint()..color = Colors.white.withValues(alpha: 0.45));
     canvas.drawPath(
@@ -118,7 +118,7 @@ class _CoinPainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppPalette.forestLight, AppPalette.forestDeep],
+          colors: [AppPalette.navyLight, AppPalette.navyDeep],
         ).createShader(face),
     );
     canvas.drawPath(

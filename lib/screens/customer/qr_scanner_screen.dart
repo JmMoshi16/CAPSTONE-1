@@ -12,8 +12,8 @@ import '../../core/theme.dart' show wasteIcon, getRank;
 import '../../widgets/notification_prompt.dart';
 import 'scan_errors.dart';
 
-/// Scanner accents sit on the camera image, so they use the bright brand mint in both themes.
-const _kScanAccent = AppPalette.mint;
+/// Scanner accents sit on the camera image, so they use the bright brand yellow in both themes.
+const _kScanAccent = AppPalette.sun;
 
 /// Shared points mapping — single source of truth in this file.
 
@@ -160,7 +160,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
         // A light tap for each badge unlocked (the success pulse follows)
         AppHaptics.primary();
         final info = FirebaseService.getBadgeInfo(id);
-        await NotificationService.showBadgeUnlocked(info['label'] as String);
+        await NotificationService.showBadgeUnlocked(info['label'] as String, bonus: badgeBonus([id]));
       }
     } catch (_) {
       // Notifications are a bonus; the success screen below says the same thing.
@@ -178,6 +178,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
             points: points,
             basePoints: basePoints,
             multiplier: credit.multiplier,
+            badgeBonus: credit.badgeBonus,
             token: token,
             username: widget.username,
             newBadges: newBadges,
@@ -238,7 +239,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with TickerProviderSt
                 label: const Text('Retry camera access'),
                 style: FilledButton.styleFrom(
                   backgroundColor: _kScanAccent,
-                  foregroundColor: AppPalette.forestDeep,
+                  foregroundColor: AppPalette.navyDeep,
                   padding: const EdgeInsets.symmetric(horizontal: AppSpace.xl, vertical: AppSpace.md - 2),
                 ),
               ),
@@ -395,11 +396,12 @@ Widget successScreenPreview({
   int basePoints = 10,
   double multiplier = 1.5,
   List<String> newBadges = const [],
+  int badgeBonus = 0,
   int lifetimeBefore = 0,
   int pointsBefore = 120,
 }) =>
     _SuccessScreen(
-      wasteType: wasteType, points: points, basePoints: basePoints, multiplier: multiplier,
+      wasteType: wasteType, points: points, basePoints: basePoints, multiplier: multiplier, badgeBonus: badgeBonus,
       token: 'test-token', username: 'tester', newBadges: newBadges, lifetimeBefore: lifetimeBefore,
       pointsBefore: pointsBefore,
     );
@@ -413,9 +415,12 @@ class _SuccessScreen extends StatefulWidget {
   final String token;
   final String username;
   final List<String> newBadges;
+  /// Paid for [newBadges], on top of [points] (the scan itself).
+  final int badgeBonus;
   final int lifetimeBefore;
   final int pointsBefore;
   const _SuccessScreen({
+    this.badgeBonus = 0,
     this.pointsBefore = 0,
     required this.wasteType,
     required this.points,
@@ -490,9 +495,12 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
     if (mounted) Navigator.pop(context);
   }
 
+  /// Everything this scan credited: the scan and any badge bonus.
+  int get _total => widget.points + widget.badgeBonus;
+
   /// Rank before and after this scan's credited points (lifetime points drive rank).
   late final _rankBefore = getRank(widget.lifetimeBefore);
-  late final _rankAfter = getRank(widget.lifetimeBefore + widget.points);
+  late final _rankAfter = getRank(widget.lifetimeBefore + _total);
   bool get _rankedUp => widget.lifetimeBefore > 0 && _rankAfter.minPts > _rankBefore.minPts;
 
   @override
@@ -521,7 +529,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                     const EcoCoin(size: 22),
                     const SizedBox(width: AppSpace.xs),
                     AnimatedCount(
-                      _landed ? widget.pointsBefore + widget.points : widget.pointsBefore,
+                      _landed ? widget.pointsBefore + _total : widget.pointsBefore,
                       format: formatCount,
                       suffix: ' pts',
                       duration: AppMotion.flight,
@@ -601,6 +609,10 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                                 Text(info['label'] as String, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
                                 Text(info['desc'] as String, style: t.bodySmall),
                               ])),
+                              if (badgeBonus([id]) > 0) ...[
+                                const SizedBox(width: AppSpace.xs),
+                                PointsPill('+${badgeBonus([id])} pts', color: c.ink(c.gold)),
+                              ],
                             ]),
                           ));
                         }),
@@ -629,12 +641,15 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                       Text('Category: ${widget.wasteType}',
                           style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500)),
                       const SizedBox(height: 2),
-                      AnimatedCount(widget.points, fromZero: true, prefix: '+', suffix: ' points',
+                      AnimatedCount(_total, fromZero: true, prefix: '+', suffix: ' points',
                           duration: AppMotion.flight,
                           style: AppType.tabular(t.titleLarge!).copyWith(color: Colors.white)),
                       if (widget.multiplier > 1.0)
                         // Display only: what was credited, broken down (+15 × 1.5 streak bonus = +23).
                         Text('+${widget.basePoints} × ${_fmtMultiplier(widget.multiplier)} streak bonus = +${widget.points}',
+                            style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.95))),
+                      if (widget.badgeBonus > 0)
+                        Text('+${widget.badgeBonus} badge bonus',
                             style: t.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.95))),
                     ])),
                     // The signature coin turns in as the points arrive.
@@ -679,7 +694,7 @@ class _SuccessScreenState extends State<_SuccessScreen> with TickerProviderState
                         gradient: LinearGradient(colors: [AppPalette.coin[0], AppPalette.coin[1]]),
                         borderRadius: AppRadius.all(AppRadius.pill),
                       ),
-                      child: Text('+${widget.points}',
+                      child: Text('+$_total',
                           style: context.text.titleMedium!.copyWith(color: const Color(0xFF3A2A00), fontWeight: FontWeight.w800)),
                     ),
                   ),

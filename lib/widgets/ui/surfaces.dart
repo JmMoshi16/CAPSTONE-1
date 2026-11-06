@@ -43,13 +43,17 @@ class SectionHeader extends StatelessWidget {
 
 /// Selectable pill. The visible pill is compact; the touch target is 48 dp tall.
 class AppChip extends StatelessWidget {
-  const AppChip({super.key, required this.label, required this.selected, required this.onTap, this.icon, this.semanticLabel});
+  const AppChip({super.key, required this.label, required this.selected, required this.onTap, this.icon, this.semanticLabel,
+      this.count});
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final IconData? icon;
   final String? semanticLabel;
+
+  /// How many things the chip holds, set small after the label.
+  final int? count;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +83,11 @@ class AppChip extends StatelessWidget {
             if (icon != null) ...[Icon(icon, size: 16, color: fg), const SizedBox(width: AppSpace.xxs)],
             Text(label, style: context.text.labelMedium!.copyWith(
                 color: fg, fontWeight: selected ? FontWeight.w700 : FontWeight.w600)),
+            if (count != null) ...[
+              const SizedBox(width: 6),
+              Text('$count', style: context.text.labelSmall!.copyWith(
+                  color: fg.withValues(alpha: 0.72), fontFeatures: const [FontFeature.tabularFigures()])),
+            ],
           ]),
         ),
       ),

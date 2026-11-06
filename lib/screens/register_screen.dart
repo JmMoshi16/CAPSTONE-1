@@ -82,6 +82,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       heroFraction: 0.32,
       onBack: () => Navigator.pop(context),
       hero: Column(mainAxisSize: MainAxisSize.min, children: [
+        const CraveLogo(size: 84),
+        const SizedBox(height: AppSpace.md),
         Semantics(header: true, child: Text('Create your account', style: t.displaySmall!.copyWith(color: AppPalette.cream))),
         const SizedBox(height: AppSpace.lg),
         const _HowItWorksRow(),

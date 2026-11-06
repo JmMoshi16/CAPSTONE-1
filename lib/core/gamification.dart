@@ -37,6 +37,16 @@ int effectiveStreak(int stored, String? lastScanDate, DateTime today) {
 /// Points actually credited for one scan: base × streak multiplier, rounded.
 int creditedPoints(int base, int streak) => (base * streakMultiplier(streak)).round();
 
+/// The most one write may add to a customer's points (the security rules' bound).
+const kMaxCredit = 100;
+
+/// The badge bonus a scan worth [awarded] can carry: all of it, unless the two together would pass [kMaxCredit]
+/// and the write would be refused. With today's table the largest real pile-up (95) is paid in full.
+int cappedBonus(int bonus, int awarded) {
+  final room = kMaxCredit - awarded;
+  return room <= 0 ? 0 : (bonus < room ? bonus : room);
+}
+
 /// Scans in the last [days] calendar days including today.
 int scansInLastDays(Iterable<DateTime> scanTimes, DateTime now, {int days = 7}) {
   final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days - 1));

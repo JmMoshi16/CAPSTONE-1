@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../models/models.dart';
 import '../../core/admin_theme.dart';
+import '../../core/crave_menu.dart';
 import '../../widgets/ui.dart';
 
 
@@ -10,7 +11,11 @@ import '../../widgets/ui.dart';
 class AdminRewardsScreen extends StatefulWidget {
   final List<Reward> rewards;
   final VoidCallback onChanged;
-  const AdminRewardsScreen({super.key, required this.rewards, required this.onChanged});
+  const AdminRewardsScreen({super.key, required this.rewards, required this.onChanged, this.saveMenu});
+
+  /// Replaces the Firestore batch write in widget tests; the app always leaves it null.
+  @visibleForTesting
+  final Future<void> Function(List<Reward> add, Map<String, int> costs)? saveMenu;
   @override
   State<AdminRewardsScreen> createState() => _AdminRewardsScreenState();
 }
@@ -25,6 +30,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   /// Rewards deleted but still undoable (hidden until the Undo snackbar closes).
   final Set<String> _hidden = {};
   List<Reward> get _visibleRewards => widget.rewards.where((r) => !_hidden.contains(r.id)).toList();
+  bool _addingMenu = false;
 
   @override
   void initState() {
@@ -196,6 +202,70 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
     });
   }
 
+  /// "27 to add, 4 prices to update": what bringing the rewards in line with the Crave menu would change.
+  static String _menuChanges(int add, int reprice) => [
+        if (add > 0) '$add to add',
+        if (reprice > 0) reprice == 1 ? '1 price to update' : '$reprice prices to update',
+      ].join(', ');
+
+  /// Adds the Crave menu items that are not rewards yet and sets menu items to their price tier, after staff confirm.
+  Future<void> _updateMenu(List<Reward> missing, Map<String, int> costs) async {
+    final confirm = await showAppDialog(context,
+        title: 'Update the Crave menu?',
+        message: '${_menuChanges(missing.length, costs.length)}. Points follow the menu price: 100 to 160 pts, '
+            'from ₱60 and under to ₱130 and up. New items have no stock limit. Rewards that are not on the menu '
+            'stay as they are.',
+        confirmLabel: 'Update menu');
+    if (confirm != true || !mounted) return;
+    setState(() => _addingMenu = true);
+    try {
+      await (widget.saveMenu ?? FirebaseService.saveMenu)(missing, costs);
+      widget.onChanged();
+      if (mounted) _snack('Crave menu updated');
+    } catch (_) {
+      if (mounted) _snack("Couldn't update the menu. Check your connection and try again.", error: true);
+    } finally {
+      if (mounted) setState(() => _addingMenu = false);
+    }
+  }
+
+  /// Shown while the rewards differ from the Crave menu (items missing, or not at their price tier); gone after.
+  Widget _menuOffer(List<Reward> missing, Map<String, int> costs) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.fromLTRB(14, AppSpace.sm, AppSpace.sm, AppSpace.sm),
+        decoration: BoxDecoration(
+          color: kGreen.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: kGreen.withValues(alpha: 0.3)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.restaurant_menu_rounded, color: kGreen, size: 22),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Crave menu',
+                  style: TextStyle(color: AdminColors.textPrimary, fontWeight: FontWeight.w600, fontSize: AdminSize.title)),
+              const SizedBox(height: 2),
+              Text(_menuChanges(missing.length, costs.length),
+                  style: const TextStyle(color: AdminColors.textSecondary, fontSize: AdminSize.caption)),
+            ]),
+          ),
+          const SizedBox(width: AppSpace.sm),
+          _addingMenu
+              ? const Padding(
+                  padding: EdgeInsets.all(AppSpace.sm),
+                  child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: kGreen)),
+                )
+              : ElevatedButton(
+                  onPressed: () => _updateMenu(missing, costs),
+                  style: ElevatedButton.styleFrom(backgroundColor: kGreen, elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+                  child: const Text('Update',
+                      style: TextStyle(color: AdminColors.onAccent, fontWeight: FontWeight.bold, fontSize: AdminSize.body)),
+                ),
+        ]),
+      );
+
   /// Staff confirm with the code in front of them before a reward is handed over.
   Future<void> _markClaimed(Redemption r) async {
     final expired = DateTime.now().isAfter(r.expiresAt);
@@ -327,12 +397,20 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
   }
 
   Widget _buildRewards() {
+    final missing = craveMenuToAdd(widget.rewards);
+    final costs = craveMenuRepricing(widget.rewards);
+    final offer = missing.isNotEmpty || costs.isNotEmpty;
     // Also when every reward is waiting on Undo. Scrollable, so it can be refreshed and never
     // overflows when the keyboard (the add form) shrinks the page.
     if (_visibleRewards.isEmpty) {
       return EcoRefresh(
         onRefresh: () async => widget.onChanged(),
         child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
+          if (offer)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 0),
+              sliver: SliverToBoxAdapter(child: _menuOffer(missing, costs)),
+            ),
           SliverFillRemaining(hasScrollBody: false, child: EmptyState(
             icon: Icons.card_giftcard_rounded,
             title: 'No rewards yet',
@@ -349,8 +427,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
       child: ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, AppSpace.md, 110),
-      itemCount: _visibleRewards.length,
+      itemCount: _visibleRewards.length + (offer ? 1 : 0),
       itemBuilder: (_, i) {
+        if (offer) {
+          if (i == 0) return _menuOffer(missing, costs);
+          i--;
+        }
         final r = _visibleRewards[i];
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -361,7 +443,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> with SingleTick
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpace.xs),
-            leading: Container(
+            leading: rewardPhoto(r.title) != null
+                ? RewardArt(title: r.title, category: r.category, size: 48, muted: !r.isActive)
+                : Container(
               width: 48, height: 48,
               decoration: BoxDecoration(
                 color: r.isActive ? kGreen.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.05),

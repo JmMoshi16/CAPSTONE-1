@@ -424,3 +424,574 @@ No fix lowers the user's text size; only labels inside fixed-size controls scale
 - **No gamification beyond the data:** no daily goal, streak protection or streak-milestone screen, because the data
   has nothing to drive them.
 - **Nothing committed or pushed:** the iOS build (IPA) on GitHub is still the pre-redesign version.
+
+---
+
+## Follow-up: floating pill tab bar (2026-11-02)
+Built from a reference image the user supplied (a capsule bar whose selected item rises in a circle through a
+notch), adapted to ECOReward rather than copied.
+
+### The component: `FloatingPillNav` (`lib/widgets/ui/floating_nav.dart`)
+- **Same tabs, same behaviour:** Home, Rewards, Activity and Profile. Scan stays the middle action: tap opens the
+  scanner, long-press opens it with the flashlight.
+- **Unchanged around it:** tab state, Android back (`TabBackScope`) and screen-reader labels.
+- **The bubble:**
+  - The selected tab's icon sits in a bubble of the primary colour (forest in light mode, mint in dark).
+  - The bubble rises above the bar through a notch, drawn with Flutter's `CircularNotchedRectangle` curve and
+    trimmed to the capsule.
+  - One animated value moves the bubble and the notch together (300 ms, `AppMotion.emphasized`, no bounce). A
+    second tap mid-slide retargets from where the bubble is. Under reduce-motion it moves at once.
+- **Labels:** the selected tab's name stays in the bar, bold, in the primary colour; the others are quiet outline
+  icons.
+- **Scan:** a mint circle in the bar (dark green in dark mode). It never rises and never takes the bubble's colour.
+- **Surface:**
+  - Light: white with a soft shadow and a hairline. The hairline is needed; without it the notch is hard to see on
+    cream.
+  - Dark: the raised dark surface with a lit edge.
+- **Sizing:** at most 520 dp wide on tablets. Its height grows with text size; labels shrink rather than cut.
+
+### Tests
+- `test/floating_nav_test.dart` (9 tests):
+  - Each slot does its job; Scan is never a tab.
+  - The bubble follows the selected tab, including after quick taps and under reduce-motion.
+  - The label styles are right, and screen readers hear "selected".
+  - Scan never wears the bubble, in light and dark.
+  - The tablet width is capped.
+  - Home uses the new bar.
+- **Updated:** `polish_test`'s check that Scan never looks like the selected tab, to the new colours.
+- **Layout matrix:** every screen at 320–800 dp and 1.0–2.0x text passes with the new bar.
+
+### Verification
+- `flutter analyze`: no issues.
+- `flutter test`: **706 passed**, 1 skipped (goldens).
+- Goldens: 6 passed.
+- **Rendered and checked by eye:** light and dark, 393 and 320 dp, with Home, Rewards and Profile selected. That
+  check led to two changes: the bubble's wide glow was replaced by a tight shadow, and a hairline was added in
+  light mode.
+
+### Refinement: the tab bar in ECOReward's materials and motion (2026-11-02)
+Seen on the TECNO phone and in close-up renders, then refined.
+
+| Change | Why |
+|---|---|
+| The bubble **hops**: it lifts 9 dp and shrinks 6 % mid-way, arcs over and settles; the notch closes under it and opens as it lands. 400 ms (`AppMotion.slow`), `emphasized` curve, no bounce. A second tap mid-hop turns it in flight. Under reduced motion it moves at once | A sideways slide felt mechanical; the reference's charm is a physical, liquid feel |
+| Bar in the raised material: white-to-cream gradient (dark: lit top edge), two-layer shadow | It was a flat fill, unlike every other raised surface in the app |
+| Bubble lit from the top left (primary gradient), faint light rim, tight shadow; a soft mint glow in dark mode | Matches the coin and the glass balance; the old wide glow hazed the gap |
+| The bar's shadow is kept out of the notch | The lowered shadow's own notch showed through the gap as a grey crescent under the bubble |
+| Scan gets the same lit finish (mint gradient, light rim; dark: deep green with a mint rim) | The bar reads as one set of objects |
+
+**Tests:**
+- 3 added to `floating_nav_test.dart`: the bubble lifts mid-hop and lands at its resting height; it never lifts under
+  reduced motion; the bubble and Scan are lit (gradients) in light and dark.
+- The Scan colour check was updated for the gradient.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **708 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **Release APK:** installed on the user's TECNO POVA 5 Pro (Android 14) over wireless debugging.
+
+### Refinement 2: a cradle instead of a notch, and a truly floating bar (2026-11-02)
+
+**What the user saw on the emulator:**
+- **"A grey box" around Home.** On the end tabs the notch ate the capsule's rounded end, and the cream page showed
+  through inside the bar's outline. The gap around the bubble also read as grey against the white bar.
+- **The bar did not float.** It sat in its own strip, so the page was cut off in a hard line above it.
+
+**Changes:**
+- **`FloatingPillNav.barShape`:** the bar's surface rises in a collar around the bubble (the bar colour, 5 dp), with
+  10 dp concave shoulders where it meets the flat top edge. On the end tabs the collar meets the rounded end
+  directly, so nothing is cut away. During the hop the collar stretches after the bubble like a drop.
+- **Floating over the page:** `extendBody: true` on Home (and its preview), so the page scrolls behind the bar.
+  - Under the bar the page fades towards the bottom edge (background at 0 → 75 % → 100 %).
+  - Every customer page ends with `AppLayout.bottomClearance` (the bar's height plus 24), so its last item scrolls
+    clear above it. This applies to Home, Rewards (both tabs), Activity, Profile, Badges and Leaderboard.
+
+**Tests (written first; seen failing):**
+- The ring around the bubble is bar surface at 5 angles, on an end tab and on a middle tab, and the collar is not a
+  block.
+- Home extends behind the bar, and its last scan row scrolls fully above it.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **711 passed**, 1 skipped.
+- Goldens: 6 passed.
+- Rendered in light and dark with Home, Rewards and Profile selected and checked by eye.
+- Installed on the emulator (screenshot checked) and on the TECNO phone.
+
+### Refinement 3: no collar (2026-11-02)
+- **Why:** the user found the white collar above the Home bubble ugly.
+- **Change:** the bar is a plain capsule, and the bubble sits on its top edge, half above it. There is nothing around
+  the bubble, neither a notch nor a collar.
+- **Code:** `FloatingPillNav.barShape` and its two geometry tests are removed (their requirement was withdrawn). The
+  bar is now built once, outside the hop animation, so only the bubble moves.
+- **Verification:**
+  - `flutter analyze`: no issues.
+  - `flutter test`: **709 passed**, 1 skipped.
+  - Rendered with Home, Rewards and Profile selected and checked by eye.
+  - Installed on the emulator and the TECNO phone.
+
+### Refinement 4: the bar in ECOReward's forest (2026-11-02)
+**Why:** the user asked for a better design. The white bar on the cream page was low-contrast and flat. The mint
+Scan circle competed with the green bubble (two "selected-looking" circles). The bubble rose high into the page.
+
+| Change | Detail |
+|---|---|
+| Bar | Deep forest gradient (`c.hero`, the Home header's forest) lit from above, a 12 % white hairline, a soft forest shadow in light mode. The page now opens and closes in brand forest |
+| Bubble | Lit mint gradient, white rim, soft mint glow, forest icon. It sits lower: its centre is 10 dp below the bar's top (it rises about 14 dp, was 18) |
+| Labels | Selected: bold mint (`c.accent`, about 6:1 on the forest). Others: cream at 78 % (about 7:1) |
+| Scan | A frosted-glass circle (white 20 % to 7 %) with a mint ring and icon, like the glass buttons on Home's header. Never the bubble's fill |
+
+**Tests:**
+- Updated to the design's intent rather than old colours:
+  - The selected label is mint; the others are not.
+  - Scan's colours share none of the bubble's.
+  - The nav's own Scan label is neither mint nor extra-bold.
+- One test now picks the nav's Scan icon specifically: Home has two.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **709 passed**, 1 skipped.
+- Goldens: 6 passed.
+- Rendered in light and dark with Home, Rewards and Profile selected and checked by eye.
+- Installed on the emulator and the TECNO phone.
+
+### Refinement 5: premium tab bar (2026-11-02)
+**Brief:** the user's spec asked for a noticeably more refined bar (not a recolour), keeping all five destinations, the
+forest pill, the raised mint indicator and the mint accents.
+
+| Area | Before | After |
+|---|---|---|
+| Capsule | 64 dp stadium, flat forest gradient, even hairline | 60 dp, **continuous (superellipse) corners**, forest into emerald along its length, a sheen from above, a fine highlight on the top edge only, three layered shadows (dark mode: one ambient) |
+| Indicator | 48 dp mint bubble, hop | 46 dp lit mint bubble with a fine rim, contact shadow and mint glow. A **pool of mint light** on the bar under it slides with it. The hop now **lands with a gentle ~5 % pop** and settles (no bounce) |
+| Icons | Stock Material icons, mixed stroke weights (Activity's sparkles busy) | **`NavGlyph`, ECOReward's own set**: home, gift, trend, person and a scan viewfinder on a 24-unit grid with one stroke weight. Outline at rest; filled in the bubble (cut-out door, ribbon; the trend gains a lightly shaded area) |
+| Scan | Glass circle with the stock QR icon | Glass circle with a mint viewfinder glyph: distinctive, still never the bubble's mint |
+| Labels | Bold mint / cream | The selected name gains a touch of letter-spacing; cream at 74 % for the rest |
+| Narrow phones | 20 dp side margins | 12 dp below 360 dp, so 320 dp phones keep room for five slots |
+
+**Scan's behaviour is unchanged:** it is an action, not a tab. A tap opens the scanner; a long press opens it with the
+flashlight. It has no selected state, so the screenshots show it pressed instead.
+
+**Tests:**
+- `test/floating_nav_test.dart` (now 20 tests):
+  - The bubble is centred over each tab at 320, 360, 393, 430 and 1024 dp.
+  - It pops within 1.02 to 1.08 and settles at exactly 1.
+  - It never pops under reduced motion.
+  - The bar is 60 dp at normal text size.
+  - Every glyph draws outlined and filled at 16, 24 and 48.
+- The tests find Scan by its key now that it has its own glyph.
+- `layout_test.dart` gains 430×932, giving 640 combinations.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **847 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **Screenshots:** every state (Home, Rewards, Activity, Profile, Scan pressed, mid-hop) in light and dark, checked by
+  eye. A before/after sheet was made against the previous version. That check led to one fix: the filled Activity
+  glyph's shading was lightened from 32 % to 18 %.
+- **Installed on the emulator.** The phone was unreachable: wireless debugging was off.
+
+## The whole Crave menu as rewards, and a new Home reward card (2026-11-04)
+
+**What the owner chose:**
+- Every Crave item costs **50 pts**, with no stock limit.
+- Staff add the menu with **one tap** in the staff app; nothing is written to the database until they confirm.
+
+**The menu** (`lib/core/crave_menu.dart`):
+- 28 items, read off the posters:
+  - 20 drinks (under Coffee, the customers' drinks chip).
+  - 8 food items: Sweet Glazed Tocino, Smokey Garlic Tapa, the three Crunch Bowl flavours, The OG Burger, Pizza
+    Burger and Samgy Burger.
+- Each has a short note. The burgers' ingredients come from the Burger Series poster.
+- `craveMenuToAdd` returns the items that are not rewards yet. It matches by name (any case or spacing) or by fixed
+  id, so an item staff renamed is not added twice.
+- `FirebaseService.addRewards` writes them in one batch, under fixed ids (`crave_<item>`). A double tap rewrites the
+  same documents and never makes copies.
+
+**Staff Rewards screen:**
+- While any menu item is missing, a "Crave menu: N items aren't rewards yet" row offers "Add all".
+- "Add all" asks first, then adds exactly the missing items. The row disappears once all are in.
+- Staff also see each reward's photo in the list.
+
+**New photos:** one per Crunch Bowl flavour, plus the Samgy Burger (the only Samgy photo is small, 252 px). There are
+now 30 photos (405 KB) and 28 menu items, each with its own photo.
+
+**Home reward card ("Ready to redeem"), redesigned:**
+- **Before:** a tinted band with a small tile.
+- **Now:** a menu card. The photo runs down the left two fifths:
+  - A cup on its white backdrop sits straight on the white card.
+  - Food photos fill the panel.
+  - With no photo, the icon on the category's tint.
+- Then the name (two lines), its note, and the price with a Redeem pill. Out of reach, a progress bar and "N to go"
+  replace the pill.
+- The price and the pill shrink to fit rather than overflow at 2× text on 320 dp phones (the layout matrix passes).
+
+**Tests:** `test/crave_menu_test.dart` (8 tests):
+- The menu is 28 items at 50 pts with no stock limit, each with its own photo.
+- Items already there are skipped, by name or by id.
+- Staff: "Add all" asks first and adds exactly the missing items; cancel adds nothing; the offer is gone once
+  everything is in.
+- Home card: a ready reward, an out-of-reach one, and one with no photo.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **862 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **On the emulator:** the Home card with the live rewards (a drink and food).
+- **Rendered, since there is no staff login on the emulator:** the staff list before and after adding the menu, the
+  customer list with all 32 rewards, and Home in dark mode.
+
+## Rewards menu as a photo grid (2026-11-04)
+
+**Why:** with 32 rewards, each a photo, the one-column list made the photos small and the page long.
+
+**What changed:**
+- Each group (Ready to redeem, Keep saving, Sold out) is now a grid of `RewardTile`s: two per row on phones, three
+  at 560 dp and up.
+- A tile is the photo (or the icon on the category's tint), square and edge to edge, then the name, note and price.
+  Out of reach, a progress bar and "N pts to go" follow.
+- Sold out and "Only N left" show as a flag on the photo.
+- The tile keeps the row's behaviour: the same screen-reader label, tap to open (the photo flies into the detail
+  page), long-press to peek. A sold-out tile cannot be opened.
+- `RewardTile` replaces `RewardRow`.
+- `RewardPicture` (marks.dart) is the one "photo, else icon on tint" panel. The tile and Home's card share it.
+- Same-price rewards sort A to Z.
+- The loading skeleton is now a grid too.
+
+**Tests:**
+- The RewardRow tests in `polish_test.dart` now test RewardTile.
+- `crave_menu_test.dart` adds two tests:
+  - Two tiles per row on a phone, with a square photo as wide as its tile.
+  - Three per row on a tablet.
+- The Rewards goldens were updated for the new layout. I checked the new images by eye.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **864 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **On the emulator with all 32 live rewards:** the grid and the Coffee/Food chips.
+
+## Points by menu price, and clearer categories (2026-11-04)
+
+**Points by menu price** (`craveMenuPoints` in `lib/core/crave_menu.dart`):
+- Each menu item now carries its peso price from the posters.
+- The owner's tiers: under ₱60 → 100, under ₱70 → 120, under ₱80 → 125, under ₱90 → 130, under ₱100 → 135.
+- From ₱100 the owner gave a 140–160 range. I split it as: under ₱110 → 140, under ₱130 → 150, ₱130 and up → 160.
+- Result on the menu: Tapa 140; Sweet Oat, OG Burger and Pizza Burger 150; Samgy Burger 160.
+
+**Updating the live data:**
+- The 28 items already in the database are at 50 pts.
+- The staff "Crave menu" row now lists both kinds of change ("N to add, M prices to update") behind one Update
+  button.
+- `FirebaseService.saveMenu` runs the adds and the point changes in one batch.
+- Only rewards with a menu id (`crave_*`) are repriced. Your own rewards, such as Dirty Matcha, are never touched.
+
+**Categories:**
+- The Coffee chip reads **Drinks**, because it also holds matcha and fruit drinks. The stored category stays
+  "Coffee", so the staff form and Home's shortcuts are unchanged.
+- The detail page's category label reads Drinks too.
+- Each chip shows its count.
+- The chips keep a fixed order: All, Drinks, Food, then deals and others.
+
+**Tests:** `test/crave_menu_test.dart`:
+- Every tier boundary, and real menu items at their tier.
+- Repricing touches only menu items at the wrong price.
+- Staff: the Update flow for adds and for reprices.
+- The chips: Drinks label, counts, order, and the Food filter.
+- The Rewards goldens were updated for the new chips. I checked them by eye.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **868 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **On the emulator:** the chips read All 32, Drinks 23 and Food 9.
+
+## Home shortcuts in the app's own icons (2026-11-04)
+
+**Why:** the four shortcuts under the balance (Scan, My codes, Leaderboard, Badges) used stock Material icons that
+read as generic.
+
+**What changed:**
+- They now use `NavGlyph`, the tab bar's own set: a 24-unit grid, one 1.8 stroke, round caps.
+- Three new glyphs:
+  - **codes:** a notched ticket with a dotted perforation.
+  - **leaderboard:** a podium, first place in the middle, with a star above.
+  - **badges:** a medal on a ribbon, with a star struck in it.
+- Scan shares the tab bar's viewfinder.
+- Glyph sizes: 28 in the mint Scan circle, 27 in the glass circles.
+
+**Tests:** `floating_nav_test.dart`:
+- New: Home's shortcuts use these glyphs, and none of the stock icons.
+- The existing "every glyph draws" test now covers the new kinds.
+
+**Verification:**
+- `flutter test`: **869 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **Checked by eye:** a large render and the emulator.
+
+## Crave's logo on the Rewards tab (2026-11-04)
+
+**What changed:** a slim band in Crave's own colours now heads the Available menu, above the chips: the wordmark in
+navy (#0D1C77) on yellow (#F9C50D), with "Redeem at the counter".
+
+**The logo file:** `assets/brand/crave_logo.png` (28 KB), cut from the logo image the owner supplied.
+- Each pixel's alpha comes from where it falls between the yellow and the navy. Edges stay smooth.
+- The coffee bean in the "c" stays see-through, so it shows the band's yellow, as in the original.
+
+**Accessibility:** screen readers hear "Rewards from Crave, by Secret Cafe. Redeem at the counter."
+
+**Fitting the space:** both sides of the band shrink to fit rather than overflow; the layout matrix passes.
+
+**Tests:** `crave_menu_test.dart`:
+- The logo sits above the chips.
+- It has its screen-reader label.
+- It is bundled and decodes.
+- The Rewards goldens were updated for the new band.
+
+**Verification:**
+- `flutter test`: **870 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **Checked by eye on the emulator.**
+
+**Revised the same day, after the owner's feedback ("not good looking"):**
+- **The problem:** the yellow block fought the app's forest and cream, and "BY: SECRET CAFE" was unreadable at that
+  size.
+- **The fix:** the band is now one quiet line, "Rewards from" plus the wordmark (20 dp tall). The wordmark is in
+  Crave's navy in light mode and the app's cream in dark mode. There is no box.
+- The logo was re-cut to the wordmark alone (596×140).
+- **Verification:** 870 passed; goldens updated; checked by eye on the emulator and in the dark golden.
+
+## Palette: Crave's navy and yellow (2026-11-04)
+
+**What the owner asked:** match the app's colours to the café logo: navy #0D1C77 and yellow #F9C50D.
+
+**What changed:**
+- **Tokens (`AppPalette`):**
+  - forest → **navy** (#0D1C77), forestDeep → navyDeep (#08124F), forestLight → navyLight (#23359E).
+  - mint → **sun** (#F9C50D), plus a new sunDeep (#D9A800).
+  - The gradients are renamed `brand` and `brandSun`.
+- **Light theme:** the primary is navy (14:1 with white). Text neutrals are re-tuned cooler, still AA. The hero
+  gradient is navy, and the hero accent is yellow.
+- **Dark theme:** navy-black surfaces (#0C0F1A / #141827), with yellow as the primary and navy text on it.
+- **Staff console:** navy-black surfaces, with Crave's yellow as the accent and navy text on it.
+- **Brand colours outside the tokens:**
+  - The nav capsule shades navy into royal blue, and its bubble is lit yellow.
+  - Shadows are navy-tinted.
+  - The scan accent, chart gradient, snackbar action and confetti now use yellow.
+- **Comments** that named the old colours now name the new ones.
+- **Lottie animations** (splash, loader, idle, success): forest and mint are swapped for navy and yellow.
+
+**Kept on purpose:**
+- The waste colours stay the physical bins' colours (green, blue, charcoal).
+- Success stays green, and the rank colours stay as they were.
+
+**Not changed:**
+- The Android launcher icon is still the green leaf.
+- The native splash colour is still cream.
+
+**Verification:**
+- `flutter analyze`: no issues.
+- `flutter test`: **871 passed**, 1 skipped, including the contrast tests.
+- Goldens: all 6 regenerated, then re-run and passing.
+- **Checked by eye:** Home and Rewards on the emulator, the dark goldens, and renders of the staff Rewards screen and
+  sign-in.
+
+## Home reward card: the glass the points fill (2026-11-04)
+
+**What the owner asked:** make the card more unique, with more animation, and good-looking.
+
+**The signature (`RewardFill`, lib/widgets/ui/reward_fill.dart):** the photo panel is a glass that the points fill
+with Crave's yellow, from the bottom up to points ÷ cost. Full means ready.
+- **Drawing:** the photo is drawn twice. Below the liquid's surface it is multiplied by the fill colour, so a cup's
+  white backdrop turns yellow and the cup stands in it.
+- **Surface:** a thin line marks where the light catches the liquid.
+- **Rise:** the fill rises (1.1 s, ease-out) with a ripple that calms to a gentle meniscus. It replays when a card
+  comes into view, and a level change animates from the level currently drawn.
+
+**More motion:**
+- **Price sticker:** the price is a tilted yellow sticker in the display serif that pops on with a slight overshoot.
+- **Depth:** the photo drifts against the swipe, so it reads as deeper than the card.
+- **Redeem:** the Redeem pill gains an arrow.
+
+**Reduced motion:** no rise, no pop and no drift; the fill simply sits at its level.
+
+**Tests:** `crave_menu_test.dart`, Home reward card:
+- Ready means a full glass, with the price tag and Redeem.
+- Out of reach, the glass fills to points ÷ cost, with "N pts to go".
+- The fill rises from empty to its level, then rests.
+- Under reduced motion the fill is static.
+- Swiping drifts the photo.
+
+**Verification:**
+- `flutter test`: **874 passed**, 1 skipped.
+- Goldens: 6 passed.
+- **On the emulator:** three cards checked by eye.
+
+## Improvement round from the "what still needs improvement" list (2026-11-04)
+
+**Reward page:**
+- The 112 dp tile became a large rounded photo card (320 dp header) in the same `RewardFill` glass as Home, filled to
+  points ÷ cost.
+- `fit: contain` keeps the whole cup in the wide frame (`RewardPicture` and `RewardFill` gained `fit`).
+- Sold out shows the photo greyed, with no fill.
+- The photo still flies in from the menu.
+
+**My codes tickets:** `RewardTicketArt` shows the reward's photo with the status (pending, claimed, expired) as a
+badge on its corner. Expired tickets are greyed. A reward without a photo keeps the status icon.
+
+**Rewards header:** "Rewards from crave" is centred over the centred chips.
+
+**Docs:** the last "forest" mentions in DESIGN_SYSTEM.md are updated. The roadmap's planned palette is marked as
+since replaced.
+
+**Visual pass in the new palette:** I rendered and checked Activity, Profile, Badges, Leaderboard, the scan success,
+the reward page (light and dark), Activity (dark), the staff dashboard, the staff QR screen and the splash. No clashes.
+The splash still shows the green leaf app icon (owner's choice).
+
+**Goldens:**
+- New `reward_photos`: three glasses at empty, half and full, plus the photo grid with real Crave photos.
+- The golden helper now gives images real time to decode. Before, the Crave logo was sometimes missing from a
+  capture, which would have made the goldens flaky.
+- All goldens regenerated, then passed 3 runs in a row.
+
+**Release build:** `flutter build apk --release --target-platform android-arm64` builds (36.2 MB).
+
+**Tests:** `crave_menu_test.dart` adds 4:
+- The reward page hero is a large photo, filled to points ÷ cost.
+- A sold-out reward page shows the photo greyed, with no fill.
+- The ticket art shows the photo with a status badge, else the status icon.
+- The logo line is centred.
+
+**Verification:**
+- `flutter test`: **877 passed**, 1 skipped.
+- Goldens: 7 passed.
+
+## Official logo and animated splash (2026-11-05)
+
+**What the owner asked:** use the official CRAVE by: SECRET CAFE logo as the app's brand, exactly as supplied. Also:
+an animated splash (steam rising, then the cup, CRAVE and BY: SECRET CAFE revealed), the logo on sign in, register
+and Home, a cup app icon, and the brand colours navy #142477, golden yellow #FFC914, cream #FFF8EC.
+
+**The logo is never redrawn.**
+- `assets/brand/crave_logo_full.webp` is the official PNG stored losslessly. It is identical pixel for pixel, and
+  `tool/generate_icon.py` asserts that.
+- Every other asset is cut from it by that same script:
+  - the app icon (the logo's own steam, cup and saucer, no lettering), for Android, iOS and Home;
+  - the CRAVE lettering on the Rewards tab, which replaces the older lowercase "crave".
+
+**Splash** (`lib/screens/splash_screen.dart`, about 3 s):
+- The splash shows the logo four times, each copy clipped to one band of its rows. The bands are cut along empty
+  yellow rows (a test checks this): steam, cup and saucer, CRAVE, BY: SECRET CAFE. At rest the bands meet exactly,
+  so the screen shows the untouched image.
+- Sequence:
+  1. A moment of plain yellow.
+  2. The cup and saucer fade in and settle from 90 % scale.
+  3. The steam rises out of the cup. Its band ends at the rim, so it seems to come from inside.
+  4. CRAVE, then BY: SECRET CAFE.
+  5. The finished logo holds, then the splash fades (0.4 s) into Login or Home.
+- A soft, faint copy of the logo's own steam keeps drifting up behind it.
+- A slow sign-in check holds on the finished logo.
+- The yellow is alive (`SplashLight`). A warm light drifts slowly and endlessly over the screen: an 8 s loop that
+  joins up seamlessly, breathing a little as it goes.
+  - It falls over the logo too, like light on paper, so the image's own yellow square never shows as a box.
+  - It only deepens colour, so yellow moves between bright and a deeper gold while the navy stays navy.
+  - It grows in from flat yellow over the first 0.9 s, so the still launch screen hands over without a jump.
+- With reduced motion, the whole logo shows still for 0.7 s, on still yellow.
+- The background is the logo's own yellow (#FDCF09), so the image's edges vanish. The Android and iOS launch
+  windows use the same yellow, so opening the app has no flash.
+
+**Elsewhere:**
+- The Sign in hero shows the logo instead of the leaf animation. That animation (`EcoBrandIntro`, `splash.json`)
+  and `BrandMedallion` were removed.
+- Register shows a small logo.
+- Home's header leads with the cup mark, and the avatar moves to the right. Below 360 dp the mark steps aside so
+  the name isn't cut short.
+- The Rewards "Rewards from CRAVE" line scales down instead of overflowing at 320 dp with 2× text.
+
+**Verification:**
+- `flutter analyze`: clean.
+- `flutter test`: **895 passed**, 1 skipped (brand_test.dart adds 18).
+- Goldens: 7 passed, after re-recording 4 for the new navy and lettering.
+- The debug APK was built and checked on the Pixel 8 emulator:
+  - the system splash showed the cup icon on yellow, then the reveal, then the fade into Home;
+  - the launcher icon was checked.
+- The iOS icons and launch colour were generated, but no iOS build was run here (it runs in GitHub Actions).
+
+## Home on the owner's phone: large text and a living fill (2026-11-05)
+
+**Context:** the owner's phone, an OPPO CPH2799, is 360 dp wide with system text at **1.35×**. Their screenshots
+showed:
+- the shortcut labels running together ("My codesLeaderboard"), each shrunk on its own;
+- "Silver, leve…" cut short;
+- "Rewards to work towards" wrapping beside See all;
+- scrolled text sitting under the clock;
+- the reward card's yellow fill freezing once risen.
+
+**Fixes** (test-first, `test/large_text_test.dart` at 1080×2372 @3x, 1.35× text):
+- **Shortcuts:** the four labels share one size. If the longest doesn't fit its quarter with a gap, all four shrink
+  together (`_QuickAction.sharedScaler`).
+- **Balance card:** "Points balance" became "Balance" (the "85 pts" below says what of), so the rank pill shows in
+  full.
+- **Home's heading:** "Your next treat" (was "Rewards to work towards") fits one line beside See all. The test
+  measures See all in DM Sans, because the harness draws button labels in a square fallback font.
+- **Status bar:** once Home is scrolled, a navy band fades in behind the status bar.
+- **Fill:** `RewardFill` keeps a gentle, rolling wave after it rises, with a second, smaller wave for a liquid look.
+  The loop is seamless (2.6 s), and the fill is still under reduced motion. Tickers pause off-screen (TickerMode).
+
+**Verification:**
+- `flutter test`: **899 passed**, 1 skipped.
+- Goldens: 7 passed. `reward_photos` was re-recorded for the new surface shape; stable over two runs.
+- Release APK built (36.9 MB).
+
+## The whole drink on Home's reward card (2026-11-05)
+
+**Context:** on the owner's phone the Home card's photo looked close-up.
+- The panel was 2/5 of the card wide and the card's full height, so a square photo was cropped to its middle 41 %
+  (and zoomed 8 % more for the swipe drift).
+- The café's photos are square, with the cup standing in the middle 62 % (x 75 to 324 of 400).
+
+**Fix:**
+- The photo now sits in its own "glass" inside the card: inset 8 dp, radius md, with a hairline.
+- The glass has the drink's upright shape (`AspectRatio(0.7)`), so covering it shows the whole cup, lid to coaster.
+- The extra zoom is gone; an upright glass leaves room at the sides for the drift.
+- The carousel shows 84 % of the screen width (was 78 %).
+- The card grows less with large text (`178 + 110 × (scale - 1)`), so the glass stays wide.
+- **Tests:**
+  - `large_text_test.dart` checks the visible share is at least 66 % at 1.35× text.
+  - `crave_menu_test.dart` checks the same at 1×.
+
+## Badges pay a one-time bonus (2026-11-05)
+
+**Owner's decisions:**
+- Only badges pay; there are no rank-up bonuses and no leaderboard prizes.
+- Small bonuses, 140 in all.
+- Only new unlocks pay.
+- The bonus counts toward spending and toward rank, level and leaderboard (it is added to `lifetimePoints`).
+
+**Table:** first_scan 5 · scan_5 10 · scan_10 15 · scan_25 20 · scan_50 25 · pts_50 5 · pts_100 10 · pts_500 20 ·
+streak_3 10 · streak_7 20.
+
+**How it works:**
+- The bonus is paid inside the scan transaction that unlocks the badge.
+- `creditScanFor` in `firebase_service.dart` is the pure credit, shared by `_creditScan`.
+- Badges are checked once, on the scan's own result. A points badge reached only by the bonus unlocks on the next
+  scan.
+- `cappedBonus` keeps scan plus bonus within the rules' +100 per write. The largest real pile-up is 30 + 65 = 95,
+  so it is paid in full.
+- `waste_logs` records `pointsAwarded` (scan plus bonus, so Activity totals stay true) and `badgeBonus`.
+- No security-rule, schema or kiosk change.
+
+**Where customers see it:**
+- Locked badges show "+N pts", and their sheet says "Unlocking it adds N pts".
+  - Earned badges show no amount, because those held before bonuses existed were never paid.
+- The scan success screen totals the scan and the bonus, with a "+N badge bonus" line and "+N pts" on each new badge.
+- The badge notification says "+N pts".
+- Scan details split the streak bonus from the badge bonus.
+- The rank explainer says badges count toward the leaderboard too.
+
+**Web console:** Manual Claim credits the same, from `config/rules.json`'s `bonus` (`lib/claim.ts`, tests in
+`claim.test.ts`). The Badges page shows each bonus.
+
+**Verification:**
+- `flutter test`: **913 passed**, 1 skipped. `flutter analyze`: clean. Goldens: 7 passed.
+- Web: `npm test` 24 passed, `tsc` clean, `npm run build` succeeded.

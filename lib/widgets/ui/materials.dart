@@ -9,7 +9,7 @@ import '../../core/tokens.dart';
 /// - [floating]: the strongest separation, for the one thing a screen is about (the Home balance).
 enum Depth { base, raised, floating }
 
-/// The app's material. On the forest hero ([onHero]) it is frosted glass: a blur of what is behind, a white
+/// The app's material. On the navy hero ([onHero]) it is frosted glass: a blur of what is behind, a white
 /// tint that is brighter at the top (light from above) and a hairline edge. On the page it is the card surface,
 /// lifted by a shadow in light mode and by a lit top edge in dark mode, where shadows read as dirt.
 /// With the system's high-contrast setting on, glass becomes solid.
@@ -42,7 +42,7 @@ class AppSurface extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         borderRadius: r,
-        color: solid ? AppPalette.forestDeep : null,
+        color: solid ? AppPalette.navyDeep : null,
         gradient: solid
             ? null
             : LinearGradient(
@@ -68,10 +68,10 @@ class AppSurface extends StatelessWidget {
       ),
     );
     if (depth != Depth.floating) return glass;
-    // The shadow sits outside the clip, so the pane seems to hover over the forest.
+    // The shadow sits outside the clip, so the pane seems to hover over the navy.
     return DecoratedBox(
       decoration: BoxDecoration(borderRadius: r, boxShadow: const [
-        BoxShadow(color: Color(0x40102A19), blurRadius: 28, offset: Offset(0, 12)),
+        BoxShadow(color: Color(0x400A1240), blurRadius: 28, offset: Offset(0, 12)),
       ]),
       child: glass,
     );

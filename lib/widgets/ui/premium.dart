@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/tokens.dart';
 
-/// The brand's deep-forest surface: the hero gradient with soft mint light drifting slowly across it and a
+/// The brand's deep-navy surface: the hero gradient with soft yellow light drifting slowly across it and a
 /// faint leaf vein. The drift plays for a couple of slow cycles when the surface appears, then rests (alive on
 /// arrival, calm after, no battery drain); with "Remove animations" it is still from the start.
 class AuroraBackground extends StatefulWidget {

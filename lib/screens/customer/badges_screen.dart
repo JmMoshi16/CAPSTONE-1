@@ -130,12 +130,12 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, AppSpace.navClearance),
+              padding: EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, AppLayout.bottomClearance(context)),
               sliver: SliverGrid(
                 gridDelegate: gridDelegate,
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => Tap(
-                    label: '${lockedDefs[i]['label']}, locked, how to unlock',
+                    label: '${lockedDefs[i]['label']}, locked, unlocking it adds ${lockedDefs[i]['bonus']} pts, how to unlock',
                     onTap: () => showBadgeSheet(context, def: lockedDefs[i], user: widget.user),
                     child: _AnimatedBadgeCard(def: lockedDefs[i], earned: false, index: i + earnedDefs.length, animate: _entrance.play,
                         progress: _progress(lockedDefs[i])),
@@ -214,6 +214,8 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
 
+  int get _bonus => widget.def['bonus'] as int? ?? 0;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -223,7 +225,8 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
       child: ScaleTransition(
         scale: _scale,
         child: Semantics(
-          label: '${widget.def['label']}, ${widget.earned ? 'earned' : 'locked'}. ${widget.def['desc']}',
+          label: '${widget.def['label']}, ${widget.earned ? 'earned' : 'locked'}. ${widget.def['desc']}'
+              '${!widget.earned && _bonus > 0 ? '. Unlocking it adds $_bonus pts' : ''}',
           excludeSemantics: true,
           child: Container(
             padding: const EdgeInsets.all(AppSpace.md),
@@ -244,6 +247,12 @@ class _AnimatedBadgeCardState extends State<_AnimatedBadgeCard> with SingleTicke
               if (!widget.earned && widget.progress != null) ...[
                 const SizedBox(height: AppSpace.xs),
                 AnimatedBar(progress: widget.progress!, color: c.primary, height: 4),
+              ],
+              // What unlocking it pays. Not on earned badges: those held before bonuses existed were never paid.
+              if (!widget.earned && _bonus > 0) ...[
+                const SizedBox(height: AppSpace.xs - 2),
+                FittedBox(fit: BoxFit.scaleDown, child: Text('+$_bonus pts',
+                    style: t.labelSmall!.copyWith(color: c.ink(c.gold), fontWeight: FontWeight.w800))),
               ],
               if (widget.earned) ...[
                 const SizedBox(height: AppSpace.xs - 2),

@@ -24,7 +24,7 @@ void main() {
   });
 
   test('the staff accent is the brand mint, not a separate neon green', () {
-    expect(AdminColors.accent, AppPalette.mint);
+    expect(AdminColors.accent, AppPalette.sun);
   });
 
   testWidgets('the forecast is explained in plain words', (tester) async {

@@ -148,7 +148,7 @@ class _ImpactScreenState extends State<ImpactScreen> with TickerProviderStateMix
               ),
             ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.navClearance)),
+          SliverToBoxAdapter(child: SizedBox(height: AppLayout.bottomClearance(context))),
         ],
     );
     return Scaffold(

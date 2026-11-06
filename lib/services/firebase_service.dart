@@ -7,17 +7,19 @@ import '../models/models.dart';
 import '../core/gamification.dart';
 
 // ── Badge definitions ──────────────────────────────────────────────────────────
+// 'bonus': points paid once, on the scan that unlocks the badge (badges held before bonuses existed were not paid).
+// Keep in step with the web console's config/rules.json (Manual Claim credits the same).
 const _badgeDefs = [
-  {'id': 'first_scan',    'label': 'First Scan',    'desc': 'Completed your first scan',         'icon': '🌱', 'req': 'scans',  'value': 1},
-  {'id': 'scan_5',        'label': '5 Scans',       'desc': 'Scanned waste 5 times',              'icon': '♻️', 'req': 'scans',  'value': 5},
-  {'id': 'scan_10',       'label': 'Eco Starter',   'desc': 'Scanned waste 10 times',             'icon': '🌿', 'req': 'scans',  'value': 10},
-  {'id': 'scan_25',       'label': 'Eco Warrior',   'desc': 'Scanned waste 25 times',             'icon': '🏆', 'req': 'scans',  'value': 25},
-  {'id': 'scan_50',       'label': 'Eco Champion',  'desc': 'Scanned waste 50 times',             'icon': '🥇', 'req': 'scans',  'value': 50},
-  {'id': 'pts_50',        'label': 'Point Earner',  'desc': 'Earned 50 points total',             'icon': '⭐', 'req': 'points', 'value': 50},
-  {'id': 'pts_100',       'label': 'Century Club',  'desc': 'Earned 100 points total',            'icon': '💯', 'req': 'points', 'value': 100},
-  {'id': 'pts_500',       'label': 'Platinum Eco',  'desc': 'Earned 500 points total',            'icon': '💎', 'req': 'points', 'value': 500},
-  {'id': 'streak_3',      'label': 'On a Roll',     'desc': '3-day scan streak',                  'icon': '🔥', 'req': 'streak', 'value': 3},
-  {'id': 'streak_7',      'label': 'Week Warrior',  'desc': '7-day scan streak',                  'icon': '🌟', 'req': 'streak', 'value': 7},
+  {'id': 'first_scan',    'label': 'First Scan',    'desc': 'Completed your first scan',         'icon': '🌱', 'req': 'scans',  'value': 1,   'bonus': 5},
+  {'id': 'scan_5',        'label': '5 Scans',       'desc': 'Scanned waste 5 times',              'icon': '♻️', 'req': 'scans',  'value': 5,   'bonus': 10},
+  {'id': 'scan_10',       'label': 'Eco Starter',   'desc': 'Scanned waste 10 times',             'icon': '🌿', 'req': 'scans',  'value': 10,  'bonus': 15},
+  {'id': 'scan_25',       'label': 'Eco Warrior',   'desc': 'Scanned waste 25 times',             'icon': '🏆', 'req': 'scans',  'value': 25,  'bonus': 20},
+  {'id': 'scan_50',       'label': 'Eco Champion',  'desc': 'Scanned waste 50 times',             'icon': '🥇', 'req': 'scans',  'value': 50,  'bonus': 25},
+  {'id': 'pts_50',        'label': 'Point Earner',  'desc': 'Earned 50 points total',             'icon': '⭐', 'req': 'points', 'value': 50,  'bonus': 5},
+  {'id': 'pts_100',       'label': 'Century Club',  'desc': 'Earned 100 points total',            'icon': '💯', 'req': 'points', 'value': 100, 'bonus': 10},
+  {'id': 'pts_500',       'label': 'Platinum Eco',  'desc': 'Earned 500 points total',            'icon': '💎', 'req': 'points', 'value': 500, 'bonus': 20},
+  {'id': 'streak_3',      'label': 'On a Roll',     'desc': '3-day scan streak',                  'icon': '🔥', 'req': 'streak', 'value': 3,   'bonus': 10},
+  {'id': 'streak_7',      'label': 'Week Warrior',  'desc': '7-day scan streak',                  'icon': '🌟', 'req': 'streak', 'value': 7,   'bonus': 20},
 ];
 
 /// Badge ids [user] qualifies for but does not have yet. "Points" badges are about points
@@ -36,6 +38,32 @@ List<String> computeNewBadges(UserModel user) {
   return earned;
 }
 
+/// The points the badges [ids] pay when unlocked.
+int badgeBonus(Iterable<String> ids) => ids.fold(0, (total, id) => total + ((_badgeInfo(id)['bonus'] as int?) ?? 0));
+
+/// One scan worth [base] points, made by [user] on [today]: what it credits, and the user as it will be after it.
+/// Badges are checked once, on the scan's own result; a points badge that only the bonus reaches unlocks on the
+/// next scan. The bonus counts like any points: spendable, and toward rank, level and the leaderboard.
+(ScanCredit, UserModel) creditScanFor(UserModel user, int base, DateTime today) {
+  final streak = nextStreak(user.streak, user.lastScanDate, today);
+  final awarded = creditedPoints(base, streak);
+  final scanned = UserModel(
+    uid: user.uid, username: user.username, email: user.email, role: user.role,
+    points: user.points + awarded, lifetimePoints: user.lifetimePoints + awarded,
+    createdAt: user.createdAt, scanCount: user.scanCount + 1, streak: streak,
+    lastScanDate: dayKey(today), badges: List<String>.from(user.badges),
+  );
+  final newBadges = computeNewBadges(scanned);
+  final bonus = cappedBonus(badgeBonus(newBadges), awarded);
+  return (
+    ScanCredit(awarded, streakMultiplier(streak), newBadges, bonus),
+    scanned
+      ..points += bonus
+      ..lifetimePoints += bonus
+      ..badges = [...user.badges, ...newBadges],
+  );
+}
+
 /// The public `profiles/{uid}` document is an exact copy of these four `users` fields;
 /// the security rules reject any profile write that does not match the user document.
 Map<String, dynamic> _profileMirror({
@@ -43,15 +71,19 @@ Map<String, dynamic> _profileMirror({
 }) => {'username': username, 'points': points, 'lifetimePoints': lifetimePoints, 'badges': badges};
 
 class ScanCredit {
-  final int pointsAwarded;
+  final int pointsAwarded;   // the scan itself: base × streak multiplier
   final double multiplier;
   final List<String> newBadges;
-  const ScanCredit(this.pointsAwarded, this.multiplier, this.newBadges);
+  final int badgeBonus;      // paid for [newBadges]
+  const ScanCredit(this.pointsAwarded, this.multiplier, this.newBadges, [this.badgeBonus = 0]);
+
+  /// Everything this scan added to the balance.
+  int get total => pointsAwarded + badgeBonus;
 }
 
 Map<String, dynamic> _badgeInfo(String id) =>
     _badgeDefs.firstWhere((b) => b['id'] == id,
-        orElse: () => {'id': id, 'label': id, 'desc': '', 'icon': '🏅', 'req': '', 'value': 0});
+        orElse: () => {'id': id, 'label': id, 'desc': '', 'icon': '🏅', 'req': '', 'value': 0, 'bonus': 0});
 
 class FirebaseService {
   static final _auth = FirebaseAuth.instance;
@@ -173,45 +205,31 @@ class FirebaseService {
   }
 
   // ── Waste Logs ──────────────────────────────────────────────────────────────
-  /// Credits one scan inside [tx]: the waste log, points (base × streak multiplier), lifetime
-  /// points, streak and badges, so the log always records what was credited.
+  /// Credits one scan inside [tx] ([creditScanFor]): the waste log, points (base × streak multiplier, plus any
+  /// badge bonus), lifetime points, streak and badges, so the log always records what was credited.
   static ScanCredit _creditScan(Transaction tx, DocumentSnapshot<Map<String, dynamic>> userDoc, WasteLog log,
       DateTime today) {
     final userRef = _db.collection('users').doc(log.userId);
     final profileRef = _db.collection('profiles').doc(log.userId);
     final logRef = _db.collection('waste_logs').doc();
-    final todayStr = dayKey(today);
-    final user = UserModel.fromDoc(userDoc);
-
-    final streak     = nextStreak(user.streak, user.lastScanDate, today);
-    final multiplier = streakMultiplier(streak);
-    final awarded    = creditedPoints(log.pointsEarned, streak);
-
-    final projected = UserModel(
-      uid: user.uid, username: user.username, email: user.email, role: user.role,
-      points: user.points + awarded, lifetimePoints: user.lifetimePoints + awarded,
-      createdAt: user.createdAt, scanCount: user.scanCount + 1, streak: streak,
-      lastScanDate: todayStr, badges: List<String>.from(user.badges),
-    );
-    final newBadges = computeNewBadges(projected);
-    final allBadges = [...user.badges, ...newBadges];
+    final (credit, after) = creditScanFor(UserModel.fromDoc(userDoc), log.pointsEarned, today);
 
     tx.set(logRef, WasteLog(
       userId: log.userId, wasteType: log.wasteType, pointsEarned: log.pointsEarned,
-      pointsAwarded: awarded, timestamp: today, binId: log.binId,
+      pointsAwarded: credit.total, badgeBonus: credit.badgeBonus, timestamp: today, binId: log.binId,
     ).toMap());
     tx.update(userRef, {
-      'points':         projected.points,
-      'lifetimePoints': projected.lifetimePoints,
-      'scanCount':      projected.scanCount,
-      'streak':         streak,
-      'lastScanDate':   todayStr,
-      'badges':         allBadges,
+      'points':         after.points,
+      'lifetimePoints': after.lifetimePoints,
+      'scanCount':      after.scanCount,
+      'streak':         after.streak,
+      'lastScanDate':   after.lastScanDate,
+      'badges':         after.badges,
     });
     tx.set(profileRef, _profileMirror(
-        username: user.username, points: projected.points,
-        lifetimePoints: projected.lifetimePoints, badges: allBadges));
-    return ScanCredit(awarded, multiplier, newBadges);
+        username: after.username, points: after.points,
+        lifetimePoints: after.lifetimePoints, badges: after.badges));
+    return credit;
   }
 
   static Future<List<WasteLog>> getUserWasteLogs(String userId) async {
@@ -238,6 +256,18 @@ class FirebaseService {
   // ── Rewards ─────────────────────────────────────────────────────────────────
   static Future<void> addReward(Reward reward) async {
     await _db.collection('rewards').add(reward.toMap());
+  }
+
+  /// The Crave menu in one batch (all or none): [add] under their fixed ids, and new points for [costs] (id → points).
+  static Future<void> saveMenu(List<Reward> add, Map<String, int> costs) async {
+    final batch = _db.batch();
+    for (final r in add) {
+      batch.set(_db.collection('rewards').doc(r.id), r.toMap());
+    }
+    for (final MapEntry(key: id, value: points) in costs.entries) {
+      batch.update(_db.collection('rewards').doc(id), {'pointsCost': points});
+    }
+    await batch.commit();
   }
 
   /// Partial update: pass only the fields that changed (audit M-12).

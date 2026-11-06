@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/auth_messages.dart';
 import '../models/models.dart';
 import '../services/firebase_service.dart';
-import '../widgets/eco_animations.dart';
 import '../widgets/ui.dart';
 import 'customer/customer_home_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
@@ -124,8 +123,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final play = _cascade.play;
     return AuthScaffold(
       hero: Column(mainAxisSize: MainAxisSize.min, children: [
-        // The brand moment: the coffee bean becomes a leaf in the cup-bin, once.
-        const BrandMedallion(child: EcoBrandIntro(size: 104)),
+        // The café's official logo: the brand the rewards come from.
+        const CraveLogo(size: 132),
         const SizedBox(height: AppSpace.md),
         Semantics(
           header: true,

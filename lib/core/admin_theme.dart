@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'tokens.dart';
 
-/// Staff console palette: ECOReward's dark forest, denser than the customer app but the same family.
-/// Forest-black surfaces, the brand mint as the accent, and the physical bins' colours for waste types.
+/// Staff console palette: ECOReward's dark navy, denser than the customer app but the same family.
+/// Navy-black surfaces, the brand yellow as the accent, and the physical bins' colours for waste types.
 /// Text colours meet WCAG AA on [card] and [background] (test/contrast_test.dart).
 class AdminColors {
-  static const background = Color(0xFF0B110E);
-  static const card = Color(0xFF141B17);
-  static const cardAlt = Color(0xFF1B241F);
-  static const border = Color(0xFF2A352F);
+  static const background = Color(0xFF0A0D18);
+  static const card = Color(0xFF131726);
+  static const cardAlt = Color(0xFF1A1F31);
+  static const border = Color(0xFF2A3046);
 
-  static const textPrimary = Color(0xFFE8ECE9);
-  static const textSecondary = Color(0xFFA9B3AD);
-  static const textTertiary = Color(0xFF8A948E);
+  static const textPrimary = Color(0xFFE8EAF0);
+  static const textSecondary = Color(0xFFA9AEC0);
+  static const textTertiary = Color(0xFF8B90A3);
 
-  static const accent = AppPalette.mint;
-  static const accentDeep = Color(0xFF5FB98A);
-  static const onAccent = Color(0xFF0B2416);       // dark text on the mint accent
+  static const accent = AppPalette.sun;
+  static const accentDeep = AppPalette.sunDeep;
+  static const onAccent = Color(0xFF08124F);       // dark text on the yellow accent
   static const blue = Color(0xFF58A6FF);
   static const purple = Color(0xFFB388FF);
   static const orange = Color(0xFFFFAB40);
@@ -24,10 +24,10 @@ class AdminColors {
   static const dangerFill = Color(0xFFDA3633);   // solid danger buttons with white text (4.6:1)
   static const gold = Color(0xFFE3B341);
 
-  // Avatar gradients for customer initials, from the brand: forest, the recycling-bin blue, coffee and a
+  // Avatar gradients for customer initials, from the brand: navy, the recycling-bin blue, coffee and a
   // deep champagne (white letter on each).
   static const avatarGradients = [
-    [AppPalette.forestLight, AppPalette.forest],
+    [AppPalette.navyLight, AppPalette.navy],
     [Color(0xFF2B6CB0), Color(0xFF1F5A94)],
     [Color(0xFF8A6448), AppPalette.coffee],
     [Color(0xFF9A7432), Color(0xFF7A5A22)],

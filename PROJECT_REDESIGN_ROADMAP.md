@@ -44,6 +44,7 @@ The findings behind this plan: `PROJECT_DEEP_UI_UX_AUDIT.md` (kept local).
 ### Phase 2: unified design system
 - **Tokens:**
   - The refined palette: forest, emerald, mint, cream, botanical white, charcoal, sage, champagne gold.
+    (Since replaced, 2026-11-04: Crave's navy #0D1C77 and yellow #F9C50D; see UI_UX_IMPLEMENTATION_LOG.md.)
   - A 9-role type scale with tabular numerals.
 - **One of each:**
   - `AppHeader` (large title that collapses into a titled bar), back button, sheet, dialog, scan row, date format.
@@ -65,7 +66,8 @@ The findings behind this plan: `PROJECT_DEEP_UI_UX_AUDIT.md` (kept local).
 - **Motion:** consistent timing.
 
 ### Phase 6: staff console
-- **Theme:** the brand applied to the staff console as a forest-black base with emerald and mint.
+- **Theme:** the brand applied to the staff console as a forest-black base with emerald and mint. (Since replaced:
+  navy-black with Crave's yellow, 2026-11-04.)
 - **Shared parts:** `AdminType`, tokens and shared components everywhere.
 - **Content:**
   - Readable charts, with a plain-language forecast.

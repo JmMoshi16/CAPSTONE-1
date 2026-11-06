@@ -86,7 +86,8 @@ Future<void> showRankLevelSheet(BuildContext context, {required int lifetimePoin
   final rank = getRank(lifetimePoints);
   final level = getLevel(lifetimePoints);
   return _sheet(context, 'Rank and level', [
-    Text('Both grow with your lifetime points ($lifetimePoints), so redeeming rewards never lowers them.',
+    Text('Both grow with your lifetime points ($lifetimePoints), so redeeming rewards never lowers them. '
+        'Badges add bonus points too, so each one you unlock also moves you up the leaderboard.',
         style: t.bodyMedium!.copyWith(color: c.textSecondary)),
     const SizedBox(height: AppSpace.lg),
     Text('Rank', style: t.titleMedium),
@@ -155,7 +156,7 @@ Future<void> showEcoRateSheet(BuildContext context, {required int bio, required 
 Future<void> showScanDetailSheet(BuildContext context, WasteLog log) {
   final c = context.colors;
   final t = context.text;
-  final bonus = log.pointsAwarded - log.pointsEarned;
+  final streakBonus = log.pointsAwarded - log.pointsEarned - log.badgeBonus;
   Widget row(String k, String v) => Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
         child: Row(children: [
@@ -174,7 +175,8 @@ Future<void> showScanDetailSheet(BuildContext context, WasteLog log) {
     ]),
     const SizedBox(height: AppSpace.lg),
     row('Base points', '+${log.pointsEarned}'),
-    if (bonus > 0) row('Streak bonus', '+$bonus'),
+    if (streakBonus > 0) row('Streak bonus', '+$streakBonus'),
+    if (log.badgeBonus > 0) row('Badge bonus', '+${log.badgeBonus}'),
     row('Credited', '+${log.pointsAwarded} pts'),
     row('Code reference', log.binId),   // the start of the scanned QR code (stored as binId)
   ]);
@@ -212,6 +214,10 @@ Future<void> showBadgeSheet(BuildContext context, {required Map<String, dynamic>
       Text(current >= target
           ? 'You qualify: it unlocks with your next scan.'
           : '${target - current} more to unlock.', style: t.bodySmall),
+      if ((def['bonus'] as int? ?? 0) > 0) ...[
+        const SizedBox(height: AppSpace.xs),
+        Text('Unlocking it adds ${def['bonus']} pts.', style: t.titleSmall!.copyWith(color: c.ink(c.gold))),
+      ],
     ],
   ]);
 }

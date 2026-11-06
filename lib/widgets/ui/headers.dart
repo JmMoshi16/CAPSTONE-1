@@ -68,7 +68,7 @@ class AppHeaderBar extends StatelessWidget implements PreferredSizeWidget {
       );
 }
 
-/// The flexible space of a forest header (Rewards, Activity): the hero content, plus the page name fading into
+/// The flexible space of a navy header (Rewards, Activity): the hero content, plus the page name fading into
 /// the pinned bar over the last third of the collapse, so a collapsed header still says which page this is.
 class HeroHeaderSpace extends StatelessWidget {
   const HeroHeaderSpace({super.key, required this.title, required this.background});

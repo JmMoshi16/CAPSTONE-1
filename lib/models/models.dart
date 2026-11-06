@@ -90,7 +90,8 @@ class WasteLog {
   final String userId;
   final String wasteType; // 'Biodegradable', 'Recyclable', 'Residual'
   final int pointsEarned;  // base points for the category
-  final int pointsAwarded; // what was actually credited (base × streak multiplier) — show this (audit M-11)
+  final int pointsAwarded; // what was actually credited (base × streak multiplier, plus [badgeBonus]) — show this (audit M-11)
+  final int badgeBonus;    // the part of [pointsAwarded] paid for badges this scan unlocked
   final DateTime timestamp;
   final String binId;
 
@@ -100,6 +101,7 @@ class WasteLog {
     required this.wasteType,
     required this.pointsEarned,
     int? pointsAwarded,
+    this.badgeBonus = 0,
     required this.timestamp,
     required this.binId,
   }) : pointsAwarded = pointsAwarded ?? pointsEarned;
@@ -109,6 +111,7 @@ class WasteLog {
         'wasteType': wasteType,
         'pointsEarned': pointsEarned,
         'pointsAwarded': pointsAwarded,
+        'badgeBonus': badgeBonus,
         'timestamp': FieldValue.serverTimestamp(),
         'binId': binId,
       };
@@ -121,6 +124,7 @@ class WasteLog {
       wasteType: d['wasteType'] ?? '',
       pointsEarned: asInt(d['pointsEarned']) ?? 0,
       pointsAwarded: asInt(d['pointsAwarded']),   // older logs: falls back to base
+      badgeBonus: asInt(d['badgeBonus']) ?? 0,
       timestamp: localTime(d['timestamp']),
       binId: d['binId'] ?? '',
     );

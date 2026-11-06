@@ -125,6 +125,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       index: _selectedIndex,
       onFirstTab: () => setState(() => _selectedIndex = 0),
       child: PageScaffold(
+      extendBody: true,   // the tab bar floats over the page
       body: AnimatedSwitcher(
         duration: AppMotion.of(context, AppMotion.medium),
         child: loading
@@ -207,6 +208,7 @@ Widget homeTabPreview({
   int selectedTab = 0,
 }) =>
     PageScaffold(
+      extendBody: true,
       body: _HomeTab(
         user: user, logs: logs, rewards: rewards, redemptions: redemptions, myRank: myRank, offline: offline,
         onScan: () {}, onRewards: () {}, onOpenReward: onOpenReward ?? (_) {}, onMyCodes: () {},
@@ -254,6 +256,8 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
   late final bool _firstLoad = AppMotion.firstTime('home');
   final List<Animation<double>> _fadeAnims = [];
   final List<Animation<Offset>> _slideAnims = [];
+  /// Scrolled away from the top: the status bar gets a navy band, so content never runs under the clock.
+  final _scrolled = ValueNotifier(false);
 
   @override
   void initState() {
@@ -281,6 +285,7 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
   @override
   void dispose() {
     _staggerCtrl.dispose();
+    _scrolled.dispose();
     super.dispose();
   }
 
@@ -529,101 +534,127 @@ class _HomeTabState extends State<_HomeTab> with SingleTickerProviderStateMixin 
         );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Home opens on the forest hero: light status-bar icons.
+      // Home opens on the navy hero: light status-bar icons.
       value: SystemUiOverlayStyle.light,
-      child: EcoRefresh(
-        onRefresh: widget.onRefresh,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // The hero: who you are, your balance, and the four things you do most.
-            SliverToBoxAdapter(
-              child: _fadeSlide(0, _HomeHero(
-                user: widget.user,
-                rewards: widget.rewards,
-                pending: pending,
-                streak: streak,
-                onStreak: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
-                countFromZero: _firstLoad,
-                onProfile: widget.onProfile,
-                onBell: () => _showNotificationsSheet(context),
-                onBalance: () => showRankLevelSheet(context, lifetimePoints: widget.user.lifetimePoints),
-                onScan: widget.onScan,
-                onMyCodes: widget.onMyCodes,
-                onLeaderboard: widget.onLeaderboard,
-                onBadges: widget.onBadges,
-              )),
-            ),
-
-            if (widget.offline)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
-                  child: _OfflineBanner(onRetry: widget.onRefresh),
+      child: Stack(children: [
+        NotificationListener<ScrollUpdateNotification>(
+          onNotification: (n) {
+            if (n.depth == 0) _scrolled.value = n.metrics.pixels > 4;
+            return false;
+          },
+          child: EcoRefresh(
+            onRefresh: widget.onRefresh,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // The hero: who you are, your balance, and the four things you do most.
+                SliverToBoxAdapter(
+                  child: _fadeSlide(0, _HomeHero(
+                    user: widget.user,
+                    rewards: widget.rewards,
+                    pending: pending,
+                    streak: streak,
+                    onStreak: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
+                    countFromZero: _firstLoad,
+                    onProfile: widget.onProfile,
+                    onBell: () => _showNotificationsSheet(context),
+                    onBalance: () => showRankLevelSheet(context, lifetimePoints: widget.user.lifetimePoints),
+                    onScan: widget.onScan,
+                    onMyCodes: widget.onMyCodes,
+                    onLeaderboard: widget.onLeaderboard,
+                    onBadges: widget.onBadges,
+                  )),
                 ),
-              ),
 
-            // What the points buy.
-            if (strip.isNotEmpty) ...[
-              SliverToBoxAdapter(child: _fadeSlide(2,
-                  section(canRedeem ? 'Ready to redeem' : 'Rewards to work towards', action: 'See all', onAction: widget.onRewards))),
-              SliverToBoxAdapter(child: _fadeSlide(2,
-                  _RewardCarousel(rewards: strip, points: widget.user.points, onOpen: widget.onOpenReward))),
-            ],
+                if (widget.offline)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 0),
+                      child: _OfflineBanner(onRetry: widget.onRefresh),
+                    ),
+                  ),
 
-            // This week.
-            SliverToBoxAdapter(child: _fadeSlide(3, section('Last 7 days'))),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-                child: _fadeSlide(3, _WeekCard(
-                  streak: streak,
-                  scansThisWeek: scansThisWeek,
-                  scansToday: scansToday,
-                  fromZero: _firstLoad,
-                  onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
-                )),
-              ),
+                // What the points buy.
+                if (strip.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: _fadeSlide(2,
+                      section(canRedeem ? 'Ready to redeem' : 'Your next treat', action: 'See all', onAction: widget.onRewards))),
+                  SliverToBoxAdapter(child: _fadeSlide(2,
+                      _RewardCarousel(rewards: strip, points: widget.user.points, onOpen: widget.onOpenReward))),
+                ],
+
+                // This week.
+                SliverToBoxAdapter(child: _fadeSlide(3, section('Last 7 days'))),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                    child: _fadeSlide(3, _WeekCard(
+                      streak: streak,
+                      scansThisWeek: scansThisWeek,
+                      scansToday: scansToday,
+                      fromZero: _firstLoad,
+                      onTap: () => showStreakSheet(context, streak: streak, onScan: widget.onScan),
+                    )),
+                  ),
+                ),
+
+                // Recent activity: one list, every row opens its details.
+                SliverToBoxAdapter(child: _fadeSlide(4, section('Recent activity',
+                    action: recent.isEmpty ? null : 'See all', onAction: widget.onHistory))),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                    child: _fadeSlide(4, recent.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(AppSpace.lg),
+                            decoration: cardDecoration(context),
+                            child: Column(children: [
+                              Text('No scans yet', style: t.titleSmall),
+                              const SizedBox(height: AppSpace.xxs),
+                              Text('Drop an item in the bin, then scan its QR code to earn your first points.',
+                                  textAlign: TextAlign.center, style: t.bodySmall),
+                            ]),
+                          )
+                        : Container(
+                            clipBehavior: Clip.antiAlias,
+                            decoration: cardDecoration(context),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: Column(children: [
+                                for (var i = 0; i < recent.length; i++) ...[
+                                  if (i > 0) Divider(height: 1, thickness: 1, indent: 68, color: c.border),
+                                  AppScanRow(log: recent[i], grouped: true,
+                                      onTap: () => showScanDetailSheet(context, recent[i])),
+                                ],
+                              ]),
+                            ),
+                          )),
+                  ),
+                ),
+
+                SliverToBoxAdapter(child: SizedBox(height: AppLayout.bottomClearance(context))),
+              ],
             ),
-
-            // Recent activity: one list, every row opens its details.
-            SliverToBoxAdapter(child: _fadeSlide(4, section('Recent activity',
-                action: recent.isEmpty ? null : 'See all', onAction: widget.onHistory))),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-                child: _fadeSlide(4, recent.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(AppSpace.lg),
-                        decoration: cardDecoration(context),
-                        child: Column(children: [
-                          Text('No scans yet', style: t.titleSmall),
-                          const SizedBox(height: AppSpace.xxs),
-                          Text('Drop an item in the bin, then scan its QR code to earn your first points.',
-                              textAlign: TextAlign.center, style: t.bodySmall),
-                        ]),
-                      )
-                    : Container(
-                        clipBehavior: Clip.antiAlias,
-                        decoration: cardDecoration(context),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: Column(children: [
-                            for (var i = 0; i < recent.length; i++) ...[
-                              if (i > 0) Divider(height: 1, thickness: 1, indent: 68, color: c.border),
-                              AppScanRow(log: recent[i], grouped: true,
-                                  onTap: () => showScanDetailSheet(context, recent[i])),
-                            ],
-                          ]),
-                        ),
-                      )),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpace.xl)),
-          ],
+          ),
         ),
-      ),
+        // At the top the navy hero is already behind the clock; once scrolled, this band takes its place.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: MediaQuery.paddingOf(context).top,
+          child: IgnorePointer(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _scrolled,
+              builder: (_, on, __) => AnimatedOpacity(
+                key: const ValueKey('status-scrim'),
+                opacity: on ? 1 : 0,
+                duration: AppMotion.fast,
+                child: const ColoredBox(color: AppPalette.navyDeep),
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 

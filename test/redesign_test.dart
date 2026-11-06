@@ -97,7 +97,7 @@ void main() {
           rewards: [for (var i = 0; i < 12; i++) _reward('Latte $i')], onRedeemed: () {})));
       await tester.pump(const Duration(seconds: 2));
       expect(_barTitleOpacity(tester), 0);
-      await tester.drag(find.text('Latte 3'), const Offset(0, -500));
+      await tester.drag(find.text('Latte 0'), const Offset(0, -500));
       await tester.pumpAndSettle();
       expect(_barTitleOpacity(tester), closeTo(1, 0.001));
       await _finish(tester);
@@ -143,7 +143,7 @@ void main() {
       await _finish(tester);
     });
 
-    testWidgets('the cream splash uses dark status-bar icons', (tester) async {
+    testWidgets('the yellow splash uses dark status-bar icons', (tester) async {
       await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: const BrandSplash()));
       final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
           find.byType(AnnotatedRegion<SystemUiOverlayStyle>).last);

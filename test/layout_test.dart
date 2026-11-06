@@ -1,5 +1,5 @@
-// Layout smoke tests: every main screen at 360x640, 393x852 and a 800x1280 tablet, with
-// text at 1.0x and 1.3x, in light and dark (admin: dark only). A RenderFlex overflow or any
+// Layout smoke tests: every main screen at 320x568, 360x640, 393x852, 430x932 and a 800x1280 tablet, with
+// text at 1.0x, 1.3x and 2.0x, in light and dark (admin: dark only). A RenderFlex overflow or any
 // other exception fails the test. No Firebase: screens that load data show their error state.
 //
 // Real Roboto metrics are loaded from the Flutter SDK so text widths match a phone; without
@@ -106,7 +106,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'Admin QR': () => const AdminQRScreen(),
 };
 
-const _sizes = {'320x568': Size(320, 568), '360x640': Size(360, 640), '393x852': Size(393, 852), 'tablet': Size(800, 1280)};
+const _sizes = {'320x568': Size(320, 568), '360x640': Size(360, 640), '393x852': Size(393, 852), '430x932': Size(430, 932), 'tablet': Size(800, 1280)};
 const _scales = [1.0, 1.3, 2.0];
 
 Future<void> _render(WidgetTester tester, Widget screen, Size size, double scale, ThemeData theme) async {

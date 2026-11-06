@@ -7,13 +7,15 @@
 import 'package:flutter/material.dart';
 
 // ── Brand palette (raw values; prefer the semantic colours in AppColors) ─────
+// Crave by: Secret Cafe's brand colours: navy for the brand surfaces, golden yellow for highlights, cream.
 class AppPalette {
-  static const forest = Color(0xFF2F5D3A);     // primary, matches the splash and Lottie files
-  static const forestDeep = Color(0xFF1F3F27);
-  static const forestLight = Color(0xFF3E7A4C);
-  static const mint = Color(0xFF7CCFA5);
+  static const navy = Color(0xFF142477);       // primary: Crave's navy (Lottie files match)
+  static const navyDeep = Color(0xFF08124F);
+  static const navyLight = Color(0xFF23359E);
+  static const sun = Color(0xFFFFC914);        // accent: Crave's golden yellow; never text on light surfaces
+  static const sunDeep = Color(0xFFD9A800);
   static const coffee = Color(0xFF6B4A34);
-  static const cream = Color(0xFFF5EDE0);
+  static const cream = Color(0xFFFFF8EC);
   static const coin = [Color(0xFFFFE566), Color(0xFFFFD700), Color(0xFFB8860B)]; // decorative points coin
   // Champagne gold: the signature coin (EcoCoin). Decorative only; text never sits on it.
   static const champagneLight = Color(0xFFF6E7BF);
@@ -30,7 +32,7 @@ class AppPalette {
   static const medalGold = Color(0xFFFFC107);
   static const medalBronze = Color(0xFFCD7F32);
   static const medalInk = Color(0xFF1B1F1C);    // place numbers on the medals: 5:1 or better on all three
-  static const confetti = [mint, Color(0xFF66BB6A), Color(0xFF29B6F6), Color(0xFFFF7043), Color(0xFFAB47BC)];
+  static const confetti = [sun, Color(0xFF66BB6A), Color(0xFF29B6F6), Color(0xFFFF7043), Color(0xFFAB47BC)];
   static const confettiGold = [Color(0xFFFFD700), Color(0xFFFFE566), Color(0xFFFFB300)];
   static const goldWash = Color(0xFFFFF8E1);   // light background behind badge news
 }
@@ -54,21 +56,26 @@ class AppSpace {
 }
 
 // ── Gradients ────────────────────────────────────────────────────────────────
-// Decorative. Text sits only on [forest] (white text >= 4.8:1 on every stop); the mint and
+// Decorative. Text sits only on [navy] (white text >= 4.8:1 on every stop); the yellow and
 // cream ends are too light for white text, so they are used for rings, glows and fills.
 class AppGradients {
-  static const forest = LinearGradient(
-    colors: [AppPalette.forestDeep, AppPalette.forest, Color(0xFF33643F)],
+  static const brand = LinearGradient(
+    colors: [AppPalette.navyDeep, AppPalette.navy, Color(0xFF1A2A8C)],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
-  static const forestMint = LinearGradient(
-    colors: [AppPalette.forest, Color(0xFF4E9A6B), AppPalette.mint],
+  static const brandSun = LinearGradient(
+    colors: [AppPalette.navy, Color(0xFF6E5FA0), AppPalette.sun],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
 }
 
 // ── Responsive helpers ───────────────────────────────────────────────────────
 class AppLayout {
+  /// Space after the last item of a scrolling page: the floating tab bar (or the system bar) plus breathing room,
+  /// so the last item can scroll clear above it.
+  static double bottomClearance(BuildContext context) =>
+      MediaQuery.paddingOf(context).bottom + AppSpace.navClearance;
+
   /// Widest a customer page's content gets (tablets keep a phone-like column).
   static const double readingWidth = 600;
 
@@ -118,7 +125,7 @@ class AppMotion {
   static const ambient = Duration(milliseconds: 1500); // looping hints (scan line, pulse)
   static const page = Duration(milliseconds: 300);     // page / tab / dialog-route transitions
   static const cascade = Duration(milliseconds: 60);   // between items of one entrance (StaggeredEntrance)
-  static const aurora = Duration(seconds: 12);         // one slow drift of the forest surfaces (AuroraBackground)
+  static const aurora = Duration(seconds: 12);         // one slow drift of the navy surfaces (AuroraBackground)
 
   static const standard = Curves.easeOutCubic;
   static const emphasized = Curves.easeInOutCubicEmphasized;
@@ -142,16 +149,16 @@ class AppShadows {
   static const List<BoxShadow> none = [];
   // Two layers each: a tight contact shadow plus a soft ambient one (reads as depth, not smudge).
   static const List<BoxShadow> e1 = [
-    BoxShadow(color: Color(0x0A1F3F27), blurRadius: 2, offset: Offset(0, 1)),
-    BoxShadow(color: Color(0x0F1F3F27), blurRadius: 12, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x0A0B1550), blurRadius: 2, offset: Offset(0, 1)),
+    BoxShadow(color: Color(0x0F0B1550), blurRadius: 12, offset: Offset(0, 4)),
   ];
   static const List<BoxShadow> e2 = [
-    BoxShadow(color: Color(0x0D1F3F27), blurRadius: 4, offset: Offset(0, 2)),
-    BoxShadow(color: Color(0x141F3F27), blurRadius: 20, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x0D0B1550), blurRadius: 4, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x140B1550), blurRadius: 20, offset: Offset(0, 8)),
   ];
   static const List<BoxShadow> e3 = [
-    BoxShadow(color: Color(0x101F3F27), blurRadius: 6, offset: Offset(0, 3)),
-    BoxShadow(color: Color(0x1F1F3F27), blurRadius: 32, offset: Offset(0, 12)),
+    BoxShadow(color: Color(0x100B1550), blurRadius: 6, offset: Offset(0, 3)),
+    BoxShadow(color: Color(0x1F0B1550), blurRadius: 32, offset: Offset(0, 12)),
   ];
 
   /// Coloured halo for primary buttons and "can afford" cards.
@@ -254,14 +261,14 @@ class AppColors extends ThemeExtension<AppColors> {
     surface: Color(0xFFFFFFFF),
     surfaceAlt: Color(0xFFF0EFEA),
     border: Color(0xFFE2E0D8),
-    textPrimary: Color(0xFF1B1F1C),
-    textSecondary: Color(0xFF5B635D),   // 6.1:1 on white
-    textTertiary: Color(0xFF666D67),    // 5.3:1 on white, 4.9:1 on background
-    primary: AppPalette.forest,         // 7.6:1 with white
+    textPrimary: Color(0xFF1A1C26),
+    textSecondary: Color(0xFF5A5F70),   // 6.3:1 on white
+    textTertiary: Color(0xFF656A7A),    // 5.4:1 on white, 5.0:1 on background
+    primary: AppPalette.navy,           // 14:1 with white
     onPrimary: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFE3F1E6),
-    onPrimaryContainer: Color(0xFF1F3F27),
-    accent: AppPalette.mint,
+    primaryContainer: Color(0xFFE6E9F7),
+    onPrimaryContainer: Color(0xFF08124F),
+    accent: AppPalette.sun,
     coffee: AppPalette.coffee,
     success: Color(0xFF2E7D32),
     warning: Color(0xFFB45309),         // 5.0:1 on white
@@ -270,28 +277,28 @@ class AppColors extends ThemeExtension<AppColors> {
     gold: Color(0xFF8A6500),            // 5.3:1 on white
     warningContainer: Color(0xFFFFF3E0),
     dangerContainer: Color(0xFFFDECEC),
-    hero: [AppPalette.forestDeep, AppPalette.forest, Color(0xFF33643F)],
+    hero: [AppPalette.navyDeep, AppPalette.navy, Color(0xFF1A2A8C)],
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xE6FFFFFF),
-    heroAccent: Color(0xFFFFD08A),
+    heroAccent: Color(0xFFFFD84D),
     bio: Color(0xFF247A52), rec: Color(0xFF2B6CB0), res: Color(0xFF4A4440),
     bioFill: Color(0xFF1B5E3F), recFill: Color(0xFF1F5A94), resFill: Color(0xFF3A3532),
   );
 
   static const dark = AppColors(
     brightness: Brightness.dark,
-    background: Color(0xFF0F1411),
-    surface: Color(0xFF171D19),
-    surfaceAlt: Color(0xFF1F2722),
-    border: Color(0xFF2C3530),
-    textPrimary: Color(0xFFE8ECE9),
-    textSecondary: Color(0xFFA9B3AD),   // 7.9:1 on surface
-    textTertiary: Color(0xFF8A948E),    // 5.3:1 on surface
-    primary: AppPalette.mint,
-    onPrimary: Color(0xFF0B2416),
-    primaryContainer: Color(0xFF1E3A2A),
-    onPrimaryContainer: Color(0xFFBEEBD3),
-    accent: AppPalette.mint,
+    background: Color(0xFF0C0F1A),
+    surface: Color(0xFF141827),
+    surfaceAlt: Color(0xFF1C2133),
+    border: Color(0xFF2B3147),
+    textPrimary: Color(0xFFE8EAF0),
+    textSecondary: Color(0xFFA9AEC0),   // 8:1 on surface
+    textTertiary: Color(0xFF8B90A3),    // 5.4:1 on surface
+    primary: AppPalette.sun,
+    onPrimary: Color(0xFF08124F),
+    primaryContainer: Color(0xFF1F2754),
+    onPrimaryContainer: Color(0xFFFFE7A0),
+    accent: AppPalette.sun,
     coffee: Color(0xFFC8A68B),
     success: Color(0xFF81C784),
     warning: Color(0xFFF5B36B),
@@ -300,10 +307,10 @@ class AppColors extends ThemeExtension<AppColors> {
     gold: Color(0xFFE6C25A),
     warningContainer: Color(0xFF3A2A14),
     dangerContainer: Color(0xFF3A1A1A),
-    hero: [Color(0xFF15281C), Color(0xFF1E3A2A), Color(0xFF26493A)],
+    hero: [Color(0xFF0A0F2E), Color(0xFF101A4A), Color(0xFF17236A)],
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xDDFFFFFF),
-    heroAccent: Color(0xFFFFD08A),
+    heroAccent: Color(0xFFFFD84D),
     bio: Color(0xFF7FCB9C), rec: Color(0xFF7DB7EE), res: Color(0xFFC9C1BA),
     bioFill: Color(0xFF1B5E3F), recFill: Color(0xFF1F5A94), resFill: Color(0xFF3A3532),
   );
